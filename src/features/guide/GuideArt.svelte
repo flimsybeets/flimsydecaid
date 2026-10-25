@@ -184,13 +184,27 @@
     </g>
     <ellipse class="puck" cx="200" cy="0" rx="38" ry="10" fill="url(#grounds)" />
   {:else if step === 'rinse'}
-    <!-- Flush the group head: the machine's button pulses until the water runs. -->
+    <!-- Flush the group head with the empty portafilter held under it: the
+         machine's button pulses until the water runs, then the basket gets
+         rinsed (a gentle swirl, water pooling, drips into the tray). -->
     <rect x="100" y="30" width="200" height="80" rx="18" fill="url(#metal)" />
     <rect x="136" y="108" width="128" height="16" rx="4" fill="url(#metal-h)" />
     {#each [0, 1, 2, 3, 4, 5, 6, 7] as w (w)}
-      <line class="stream" class:on={active} x1={146 + w * 15} y1="126" x2={146 + w * 15} y2="244" style="--i: {w}" />
+      <line class="stream" class:on={active} x1={146 + w * 15} y1="126" x2={146 + w * 15} y2="178" style="--i: {w}" />
     {/each}
-    <rect x="110" y="244" width="180" height="16" rx="6" fill="url(#dark)" stroke="rgb(255 255 255 / 0.18)" />
+    <g class="rinse-pf" class:on={active}>
+      <path d="M138,176 L262,176 L252,214 Q200,230 148,214 Z" fill="url(#metal)" />
+      <ellipse cx="200" cy="177" rx="62" ry="9" fill="url(#dark)" stroke="url(#metal-h)" stroke-width="4" />
+      <ellipse cx="200" cy="179" rx="50" ry="6" class="pool" class:on={active} fill="#8ccaff" />
+      <path d="M258,186 L372,214 L366,232 L254,204 Z" fill="url(#dark)" stroke="rgb(255 255 255 / 0.2)" />
+      <path d="M190,222 L210,222 L206,236 L194,236 Z" fill="#55666a" />
+    </g>
+    {#if active}
+      {#each [0, 1, 2] as d (d)}
+        <circle class="drip" style="--i: {d}" cx={196 + d * 4} cy="238" r="3" fill="#8ccaff" />
+      {/each}
+    {/if}
+    <rect x="110" y="250" width="180" height="14" rx="6" fill="url(#dark)" stroke="rgb(255 255 255 / 0.18)" />
     {#if !active}<circle cx="276" cy="70" r="22" fill="url(#glow)" style="--glow: var(--g-flow)" class="pulse" />{/if}
     <circle cx="276" cy="70" r="11" fill="var(--g-flow)" stroke="#fff" stroke-width="2" />
   {:else}
@@ -288,6 +302,13 @@
   .stream { stroke: #8ccaff; stroke-width: 4; stroke-linecap: round; stroke-dasharray: 10 14; opacity: 0.15; }
   .stream.on { opacity: 0.9; animation: water 0.5s linear infinite; animation-delay: calc(var(--i) * -0.06s); }
   @keyframes water { to { stroke-dashoffset: -24; } }
+  .rinse-pf { transform-origin: 200px 200px; }
+  .rinse-pf.on { animation: swirl 2.2s ease-in-out infinite; }
+  @keyframes swirl { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg) translateX(3px); } }
+  .pool { opacity: 0; transition: opacity 600ms ease; }
+  .pool.on { opacity: 0.75; }
+  .drip { animation: drip 0.7s ease-in infinite; animation-delay: calc(var(--i) * 0.23s); opacity: 0; }
+  @keyframes drip { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(14px); opacity: 0; } }
 
   /* done */
   .steam { animation: steam 2.8s ease-in-out infinite; animation-delay: calc(var(--i) * 0.5s); opacity: 0; }

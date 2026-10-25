@@ -181,8 +181,8 @@
               <h1>Knock out the puck</h1>
               <p class="body">Into the knock box, and a wipe of the basket while you're there.</p>
             {:else if step === 'rinse'}
-              <h1>Rinse the group</h1>
-              <p class="body">A short flush to clear the shower screen.</p>
+              <h1>Rinse the group and portafilter</h1>
+              <p class="body">Press flush and hold the empty portafilter under the water to rinse the basket.</p>
               {#if rinse === 'rinsing'}
                 <p class="waiting"><span class="dot"></span>Rinsing…</p>
               {:else if rinse === 'finished'}
