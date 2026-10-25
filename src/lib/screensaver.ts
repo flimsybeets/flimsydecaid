@@ -4,6 +4,9 @@
 
 export const SCREENSAVER_KEY = 'screensaver';
 
+/** Screen brightness (0–100) while the screensaver shows: dim, but the clock still reads across the room. */
+export const SCREENSAVER_BRIGHTNESS = 12;
+
 /**
  * Decaid caps a key-value store request body at 1 MiB, and the photo goes
  * up as a JSON string, so keep the data URL comfortably under that.

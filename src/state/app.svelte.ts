@@ -7,13 +7,14 @@ import { createHttpGateway, type Gateway } from '../api/gateway';
 import { createMockGateway } from '../api/mock';
 import type { SocketStatus } from '../api/socket';
 import type {
-  Bean, BeanBatch, DeviceInfo, MachineSnapshot, ProfileRecord, ScaleFrame, ShotPage, ShotQuery, ShotRecord,
+  Bean, BeanBatch, DeviceInfo, MachineSnapshot, Profile, ProfileRecord, ScaleFrame, ShotPage, ShotQuery, ShotRecord,
   SteamSettings, Workflow,
 } from '../api/types';
 import { CATEGORIES_KEY, parseCategories, type CategoryDoc } from '../lib/categories';
 import { withDialIn, type DialIn } from '../lib/dialIn';
 import { photoKey, toJpegDataUrl } from '../lib/photo';
-import { fitDataUrl, SCREENSAVER_KEY } from '../lib/screensaver';
+import { fitDataUrl, SCREENSAVER_BRIGHTNESS, SCREENSAVER_KEY } from '../lib/screensaver';
+import { saveProfile, type SaveResult } from '../lib/profileEdit';
 import { indexProfiles, latestPerLineage, lineageRoot, shiftTemperature } from '../lib/profiles';
 import { ShotRecorder, type ShotSample } from '../lib/shot';
 import { clampSteamFlow, clampSteamTemp, LAST_STEAM_TEMP_KEY, STEAM_DEFAULT_C } from '../lib/steam';
@@ -66,6 +67,9 @@ class AppState {
 
   /** Screensaver photo (JPEG data URL), or null when none is chosen. */
   screensaverImage = $state<string | null>(null);
+  /** Profile editor: the record being edited, `null` for a new profile, undefined when closed. */
+  editing = $state<ProfileRecord | null | undefined>(undefined);
+
   /** Settings' "Preview" shows the screensaver without the machine asleep. */
   screensaverPreview = $state(false);
 
@@ -255,6 +259,54 @@ class AppState {
 
   async keepScreenOn(on: boolean): Promise<void> {
     await gateway.keepScreenOn(on).catch(() => {});
+  }
+
+  /** Brightness to go back to after the screensaver; null while not dimmed. */
+  private brightnessBeforeDim: number | null = null;
+
+  private dimQueue: Promise<void> = Promise.resolve();
+
+  /**
+   * Dim the screen for the screensaver, and put it back exactly as it was
+   * afterwards. Calls run one after another, so a quick close can't restore
+   * before the dim lands and leave the screen dark.
+   */
+  dimScreen(on: boolean): Promise<void> {
+    this.dimQueue = this.dimQueue.then(() => this.applyDim(on));
+    return this.dimQueue;
+  }
+
+  private async applyDim(on: boolean): Promise<void> {
+    try {
+      if (on) {
+        if (this.brightnessBeforeDim !== null) return;
+        const display = await gateway.getDisplay();
+        if (display.platformSupported?.brightness === false) return;
+        this.brightnessBeforeDim = display.requestedBrightness ?? 100;
+        await gateway.setBrightness(SCREENSAVER_BRIGHTNESS);
+      } else if (this.brightnessBeforeDim !== null) {
+        const back = this.brightnessBeforeDim;
+        this.brightnessBeforeDim = null;
+        await gateway.setBrightness(back);
+      }
+    } catch { /* brightness is a nicety; never block the screensaver on it */ }
+  }
+
+  /** Save an edited or new profile, then refresh the list. See lib/profileEdit saveProfile. */
+  async saveProfile(draft: Profile, original: ProfileRecord | null, asCopy = false): Promise<SaveResult> {
+    const result = await saveProfile(
+      { create: (p, parentId) => gateway.createProfile(p, parentId), update: (id, p) => gateway.updateProfile(id, p) },
+      draft, original, asCopy,
+    );
+    this.profiles = await gateway.getProfiles();
+    return result;
+  }
+
+  /** The most recent shot pulled with a profile of this title, with measurements. */
+  async lastShotFor(title: string): Promise<ShotRecord | null> {
+    const page = await gateway.getShots({ profileTitle: title, limit: 1 }).catch(() => null);
+    const id = page?.items[0]?.id;
+    return id ? gateway.getShot(id).catch(() => null) : null;
   }
 
   async wake(): Promise<void> { await gateway.requestState('idle'); }

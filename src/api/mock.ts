@@ -126,6 +126,14 @@ const SHOTS: ShotRecord[] = [
   pastShot('shot-1', hoursAgo(24 * 16), byId('profile:mock-blooming'), batch('batch-1a'), '12', 18, 45, 5, 'Too fast'),
 ];
 
+/** Stand-in for Decaid's content hash: everything the machine runs, nothing descriptive. */
+function executionId(p: Profile): string {
+  const run = JSON.stringify([p.version, p.beverage_type, p.steps, p.tank_temperature, p.target_weight, p.target_volume, p.target_volume_count_start]);
+  let h = 2166136261;
+  for (let i = 0; i < run.length; i++) h = Math.imul(h ^ run.charCodeAt(i), 16777619);
+  return `profile:mock-${(h >>> 0).toString(16)}`;
+}
+
 // JSON round-trip rather than structuredClone: values passed in from the UI
 // can be Svelte state proxies, which structuredClone refuses.
 function clone<T>(v: T): T {
@@ -182,6 +190,7 @@ export function createMockGateway(): Gateway {
   let pressure = 0;
   let flow = 0;
   let subs: Subscriptions | null = null;
+  let brightness = 100;
   let timer: ReturnType<typeof setInterval> | null = null;
 
   const devices = (): DevicesState => ({
@@ -300,8 +309,32 @@ export function createMockGateway(): Gateway {
     },
     async tareScale() { await delay(); weight = 0; },
     async keepScreenOn() { await delay(20); },
+    async getDisplay() { await delay(20); return { brightness, requestedBrightness: brightness, platformSupported: { brightness: true, wakeLock: true } }; },
+    async setBrightness(b) { await delay(20); brightness = Math.round(b); },
 
     async getProfiles() { await delay(); return clone(profiles); },
+    // Like Decaid: the id hashes what the machine runs (not title/author/notes),
+    // and creating an existing id returns that record unchanged.
+    async createProfile(profile, parentId) {
+      await delay();
+      if (!profile.title?.trim() || !profile.steps?.length) throw new Error('400 Invalid profile');
+      if (parentId && !profiles.some((r) => r.id === parentId)) throw new Error(`400 Parent profile not found: ${parentId}`);
+      const id = executionId(profile);
+      const found = profiles.find((r) => r.id === id);
+      if (found) return clone(found);
+      const rec: ProfileRecord = { id, profile: clone(profile), parentId, visibility: 'visible', isDefault: false, createdAt: now(), updatedAt: now() };
+      profiles.push(rec);
+      return clone(rec);
+    },
+    async updateProfile(id, profile) {
+      await delay();
+      const i = profiles.findIndex((r) => r.id === id);
+      if (i < 0) throw new Error(`400 Profile not found: ${id}`);
+      if (profiles[i]!.isDefault) throw new Error('400 Cannot modify default profile content');
+      if (executionId(profile) !== id) throw new Error('400 Use parentId for versioning');
+      profiles[i] = { ...profiles[i]!, profile: clone(profile), updatedAt: now() };
+      return clone(profiles[i]!);
+    },
     async getWorkflow() { await delay(); return clone(workflow); },
     async updateWorkflow(patch: WorkflowPatch) {
       await delay();
@@ -341,6 +374,7 @@ export function createMockGateway(): Gateway {
     async getShots(q = {}) {
       await delay();
       let items = shots;
+      if (q.profileTitle) items = items.filter((x) => x.workflow?.profile?.title === q.profileTitle);
       if (q.beanBatchId) items = items.filter((x) => x.workflow?.context?.beanBatchId === q.beanBatchId);
       if (q.beanId) {
         const ids = new Set(batches.filter((b) => b.beanId === q.beanId).map((b) => b.id));

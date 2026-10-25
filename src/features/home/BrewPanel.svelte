@@ -96,6 +96,7 @@
 <aside class="panel glass thick" aria-label="Brew settings">
   <div class="head">
     <h2>{record?.profile.title ?? 'Profile'}</h2>
+    {#if record}<button class="edit glass" onclick={() => (app.editing = record)}>Edit</button>{/if}
     <button class="close glass" onclick={onClose} aria-label="Close brew settings">✕</button>
   </div>
 
@@ -172,6 +173,7 @@
   .head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
   h2 { font-size: var(--t-lg); font-weight: 700; line-height: 1.1; letter-spacing: -0.01em; }
   h3 { font-size: var(--t-sm); font-weight: 500; color: var(--paper-dim); margin-bottom: 8px; }
+  .edit { flex: none; height: 56px; padding: 0 18px; margin-left: auto; border-radius: var(--radius-pill); color: var(--paper); font-size: var(--t-xs); font-weight: 650; }
   .close { width: 56px; height: 56px; flex: none; border-radius: 50%; color: var(--paper-dim); font-size: var(--t-md); }
 
   .bag-list { display: grid; gap: 8px; max-height: 268px; overflow-y: auto; padding: 4px; margin: -4px; }

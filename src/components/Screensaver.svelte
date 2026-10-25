@@ -22,6 +22,13 @@
     void app.keepScreenOn(true);
     return () => void app.keepScreenOn(false);
   });
+
+  // Dim while showing (the preview too, so it looks like the real thing),
+  // and restore the previous brightness on close.
+  $effect(() => {
+    void app.dimScreen(true);
+    return () => void app.dimScreen(false);
+  });
 </script>
 
 <button class="saver" onclick={onDismiss} aria-label={preview ? 'Close preview' : 'Wake the machine'}>

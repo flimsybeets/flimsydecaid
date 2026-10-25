@@ -3,7 +3,6 @@
   import ShotChart from './ShotChart.svelte';
   import Gauge from './Gauge.svelte';
   import { tempDialRange } from '../lib/gauge';
-  import { yieldProgress } from '../lib/shot';
 
   let { onClose }: { onClose: () => void } = $props();
 
@@ -18,11 +17,6 @@
   const m = $derived(app.machine);
   const activeTarget = (v: number | undefined) => (v ? v : null);
   const tempRange = $derived(tempDialRange(steps.map((s) => s.temperature)));
-
-  // Cup weight towards the planned yield. Live while pouring; afterwards the
-  // last recorded weight, so lifting the cup off the scale doesn't empty it.
-  const cupWeight = $derived(app.shotActive ? app.weight : (app.shot.at(-1)?.weight ?? app.weight));
-  const progress = $derived(yieldProgress(cupWeight, yieldTarget, app.shotActive ? app.weightFlow : null));
 
   $effect(() => { if (!app.shotActive) stopping = false; });
 
@@ -54,18 +48,6 @@
         <li class:current={app.shotActive && i === frame} class:past={i < frame || !app.shotActive && app.shot.length > 0}>{s.name}</li>
       {/each}
     </ol>
-  {/if}
-
-  {#if progress && yieldTarget}
-    <div class="progress" role="progressbar" aria-label="Cup weight" aria-valuemin={0} aria-valuemax={yieldTarget} aria-valuenow={cupWeight ?? 0}>
-      <div class="track well">
-        <div class="fill" class:full={progress.fraction >= 1} style="width: {progress.fraction * 100}%"></div>
-      </div>
-      <p class="cup">
-        <b>{(cupWeight ?? 0).toFixed(1)}</b> of {yieldTarget} g
-        {#if progress.secondsLeft !== null}<span class="left">· about {Math.ceil(progress.secondsLeft)} s to go</span>{/if}
-      </p>
-    </div>
   {/if}
 
   {#if app.shotActive}
@@ -154,27 +136,6 @@
   }
   .steps li.past { color: var(--paper-dim); }
   .steps li.current { background: linear-gradient(170deg, #fff, #dde9e5); color: var(--ink); font-weight: 650; box-shadow: 0 6px 16px -6px rgb(0 0 0 / 0.5); }
-
-  .progress { flex: none; display: flex; align-items: center; gap: 20px; }
-  .track {
-    flex: 1;
-    height: 30px;
-    border-radius: var(--radius-pill);
-    overflow: hidden;
-    padding: 4px;
-  }
-  .fill {
-    height: 100%;
-    min-width: 22px;
-    border-radius: var(--radius-pill);
-    background: linear-gradient(90deg, color-mix(in srgb, var(--g-weight) 55%, transparent), var(--g-weight));
-    box-shadow: 0 0 18px color-mix(in srgb, var(--g-weight) 60%, transparent), inset 0 1px 0 rgb(255 255 255 / 0.45);
-    transition: width 120ms linear;
-  }
-  .fill.full { background: linear-gradient(90deg, color-mix(in srgb, var(--go) 55%, transparent), var(--go)); box-shadow: 0 0 18px rgb(143 211 192 / 0.6), inset 0 1px 0 rgb(255 255 255 / 0.45); }
-  .cup { flex: none; min-width: 9.5em; color: var(--paper-dim); font-size: var(--t-md); white-space: nowrap; }
-  .cup b { color: var(--paper); font-size: var(--t-lg); font-weight: 700; }
-  .left { font-size: var(--t-sm); color: var(--paper-faint); }
 
   .dials {
     flex: none;

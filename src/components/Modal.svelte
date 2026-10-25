@@ -30,7 +30,8 @@
     background: rgb(5 12 14 / 0.38);
     -webkit-backdrop-filter: blur(10px) saturate(120%);
     backdrop-filter: blur(10px) saturate(120%);
-    z-index: 20;
+    /* Above full-screen views (shot view, profile editor); below the screensaver. */
+    z-index: 60;
     animation: fade 220ms ease;
   }
   .dialog {
@@ -41,7 +42,7 @@
     max-height: calc(100% - 40px);
     overflow: hidden;
     grid-template-rows: auto minmax(0, 1fr) auto;
-    z-index: 21;
+    z-index: 61;
     border-radius: 36px;
     padding: 24px 28px 28px;
     display: grid;

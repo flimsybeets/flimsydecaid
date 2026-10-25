@@ -36,6 +36,7 @@
       <button class="glass" role="radio" aria-checked={filter === 'all'} class:active={filter === 'all'} onclick={() => (filter = 'all')}>All</button>
       <button class="glass" role="radio" aria-checked={filter === 'uncategorised'} class:active={filter === 'uncategorised'} onclick={() => (filter = 'uncategorised')}>Not in a category</button>
     </div>
+    <button class="new glass solid" onclick={() => (app.editing = null)}>New profile</button>
   </div>
 
   {#if app.categories.categories.length === 0}
@@ -46,14 +47,14 @@
     {#each shown as { root, record } (root)}
       {@const temp = baseTemperature(record.profile)}
       <li class="glass">
-        <div class="info">
+        <button class="info" aria-label="Edit {record.profile.title}" onclick={() => (app.editing = record)}>
           <span class="title">{record.profile.title}</span>
           <span class="meta">
             {#if record.profile.author}<span>{record.profile.author}</span>{/if}
             {#if temp !== null}<span>{temp}°C</span>{/if}
             <span>{record.profile.steps.length} steps</span>
           </span>
-        </div>
+        </button>
         <div class="chips">
           {#each app.categories.categories as c (c.id)}
             {@const on = c.profiles.includes(root)}
@@ -67,6 +68,7 @@
             >{c.name}</button>
           {/each}
         </div>
+        <button class="edit glass" onclick={() => (app.editing = record)}>Edit</button>
       </li>
     {:else}
       <li class="nothing glass">{query ? `No profiles match “${query}”` : 'Every profile is in a category'}</li>
@@ -100,7 +102,9 @@
     padding: 16px 20px;
     border-radius: 26px;
   }
-  .info { flex: 1; min-width: 0; display: grid; gap: 4px; }
+  .info { flex: 1; min-width: 0; display: grid; gap: 4px; text-align: left; min-height: var(--touch); align-content: center; }
+  .new { flex: none; min-height: 56px; padding: 0 22px; border-radius: var(--radius-pill); font-weight: 650; }
+  .edit { flex: none; min-height: 48px; padding: 0 18px; border-radius: var(--radius-pill); color: var(--paper); font-size: var(--t-xs); font-weight: 650; }
   .title { font-size: var(--t-md); font-weight: 650; }
   .meta { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--paper-dim); font-size: var(--t-xs); }
   .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; max-width: 60%; }

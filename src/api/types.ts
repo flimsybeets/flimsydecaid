@@ -70,6 +70,17 @@ export interface DevicesState {
   connectionStatus?: { phase?: 'idle' | 'scanning' | 'connectingMachine' | 'connectingScale' | 'ready' };
 }
 
+export interface StepExit {
+  type: 'pressure' | 'flow';
+  condition: 'over' | 'under';
+  value: number;
+}
+
+export interface StepLimiter {
+  value: number;
+  range: number;
+}
+
 export interface ProfileStep {
   name: string;
   pump: 'pressure' | 'flow';
@@ -82,8 +93,10 @@ export interface ProfileStep {
   sensor: 'coffee' | 'water';
   pressure?: number;
   flow?: number;
-  exit?: unknown;
-  limiter?: unknown;
+  /** Leave the step early when pressure or flow goes over/under a value. */
+  exit?: StepExit | null;
+  /** Caps the quantity the pump isn't controlling (flow on pressure steps, pressure on flow steps). value 0 = off. */
+  limiter?: StepLimiter | null;
   [key: string]: unknown;
 }
 
@@ -258,4 +271,16 @@ export interface ShotQuery {
   offset?: number;
   beanBatchId?: string;
   beanId?: string;
+  profileTitle?: string;
+}
+
+/** GET /api/v1/display */
+export interface DisplayState {
+  /** Applied brightness 0–100 (may be capped on low battery). */
+  brightness: number;
+  /** What a skin last asked for. 100 = OS-managed. */
+  requestedBrightness: number;
+  wakeLockEnabled?: boolean;
+  wakeLockOverride?: boolean;
+  platformSupported?: { brightness?: boolean; wakeLock?: boolean };
 }

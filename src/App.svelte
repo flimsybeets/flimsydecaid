@@ -4,6 +4,7 @@
   import SteamModal from './components/SteamModal.svelte';
   import ShotView from './components/ShotView.svelte';
   import Screensaver from './components/Screensaver.svelte';
+  import ProfileEditor from './features/profiles/ProfileEditor.svelte';
   import Home from './features/home/Home.svelte';
   import Profiles from './features/profiles/Profiles.svelte';
   import History from './features/history/History.svelte';
@@ -99,6 +100,10 @@
 
 {#if steamOpen}
   <SteamModal onClose={() => (steamOpen = false)} />
+{/if}
+
+{#if app.editing !== undefined}
+  <ProfileEditor record={app.editing} onclose={() => (app.editing = undefined)} />
 {/if}
 
 {#if shotOpen}

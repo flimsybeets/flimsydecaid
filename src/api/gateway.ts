@@ -5,7 +5,7 @@
 import type { GatewayConfig } from './config';
 import { openSocket, type ManagedSocket, type SocketStatus } from './socket';
 import type {
-  Bean, BeanBatch, DevicesState, MachineInfo, MachineSnapshot, MachineState, ProfileRecord,
+  Bean, BeanBatch, DevicesState, DisplayState, MachineInfo, MachineSnapshot, MachineState, Profile, ProfileRecord,
   ScaleFrame, ShotPage, ShotQuery, ShotRecord, Workflow, WorkflowPatch,
 } from './types';
 
@@ -34,8 +34,18 @@ export interface Gateway {
    * lets it turn off then). false hands control back to Decaid.
    */
   keepScreenOn(on: boolean): Promise<void>;
+  getDisplay(): Promise<DisplayState>;
+  /** 0–100; 100 hands brightness back to the OS. */
+  setBrightness(brightness: number): Promise<void>;
 
   getProfiles(): Promise<ProfileRecord[]>;
+  /**
+   * POST /profiles. Ids hash the steps and targets only; creating one that
+   * already exists returns the existing record unchanged.
+   */
+  createProfile(profile: Profile, parentId: string | null): Promise<ProfileRecord>;
+  /** PUT /profiles/{id}: used for title/author/notes only (refused on Decaid's defaults). */
+  updateProfile(id: string, profile: Profile): Promise<ProfileRecord>;
   getWorkflow(): Promise<Workflow>;
   /** Deep-merge update; returns the workflow as Decaid stored it. */
   updateWorkflow(patch: WorkflowPatch): Promise<Workflow>;
@@ -116,8 +126,12 @@ export function createHttpGateway(config: GatewayConfig): Gateway {
     requestState: (state) => call('PUT', `/machine/state/${state}`),
     tareScale: () => call('PUT', '/scale/tare'),
     keepScreenOn: (on) => call(on ? 'POST' : 'DELETE', '/display/wakelock'),
+    getDisplay: () => call('GET', '/display'),
+    setBrightness: (brightness) => call('PUT', '/display/brightness', { brightness: Math.round(brightness) }),
 
     getProfiles: () => call('GET', '/profiles?visibility=visible'),
+    createProfile: (profile, parentId) => call('POST', '/profiles', parentId ? { profile, parentId } : { profile }),
+    updateProfile: (id, profile) => call('PUT', `/profiles/${encodeURIComponent(id)}`, { profile }),
     getWorkflow: () => call('GET', '/workflow'),
     updateWorkflow: (patch) => call('PUT', '/workflow', patch),
 

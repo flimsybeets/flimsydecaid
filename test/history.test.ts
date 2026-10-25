@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ShotMeasurement } from '../src/api/types';
-import { samplesFromMeasurements, yieldProgress } from '../src/lib/shot';
+import { samplesFromMeasurements } from '../src/lib/shot';
 import { dayLabel, groupByDay, ratioText, shotStats, stopReasonText } from '../src/lib/history';
 
 const m = (ms: number, substate: string | undefined, extra: Partial<ShotMeasurement['machine']> = {}, weight?: number): ShotMeasurement => ({
@@ -67,25 +67,5 @@ describe('history display', () => {
     expect(shotStats([{ t: 0, pressure: 2, weight: 0 }, { t: 28.4, pressure: 8.9, weight: 36.1 }, { t: 29, pressure: 3 }]))
       .toEqual({ seconds: 29, weight: 36.1, peakPressure: 8.9 });
     expect(shotStats([])).toEqual({ seconds: 0, weight: null, peakPressure: null });
-  });
-});
-
-describe('yield progress', () => {
-  it('tracks the cup weight against the target', () => {
-    expect(yieldProgress(18, 36)).toEqual({ fraction: 0.5, secondsLeft: null });
-    expect(yieldProgress(-0.4, 36)?.fraction).toBe(0);
-    expect(yieldProgress(38, 36)?.fraction).toBe(1);
-  });
-
-  it('estimates time left only once coffee is flowing', () => {
-    expect(yieldProgress(16, 36, 2)?.secondsLeft).toBe(10);
-    expect(yieldProgress(1, 36, 0.1)?.secondsLeft).toBeNull();
-    expect(yieldProgress(37, 36, 2)?.secondsLeft).toBeNull();
-  });
-
-  it('has nothing to show without a target or a scale', () => {
-    expect(yieldProgress(10, 0)).toBeNull();
-    expect(yieldProgress(10, null)).toBeNull();
-    expect(yieldProgress(null, 36)).toBeNull();
   });
 });

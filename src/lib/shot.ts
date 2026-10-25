@@ -102,28 +102,3 @@ export function samplesFromMeasurements(measurements: readonly ShotMeasurement[]
     toSample(m.machine, m.scale, useStamps ? (stamps[i]! - t0) / 1000 : i / 10),
   );
 }
-
-export interface YieldProgress {
-  /** 0–1, how far the cup weight is towards the target. */
-  fraction: number;
-  /** Seconds left at the current rate into the cup, when that's meaningful. */
-  secondsLeft: number | null;
-}
-
-/**
- * Progress towards the planned yield. null without a target (stop-at-weight
- * off) or without a weight reading. The time estimate only appears once
- * coffee is actually flowing into the cup, so early drips don't promise
- * minutes.
- */
-export function yieldProgress(
-  weight: number | null | undefined,
-  target: number | null | undefined,
-  weightFlow?: number | null,
-): YieldProgress | null {
-  if (!target || target <= 0 || weight == null || !Number.isFinite(weight)) return null;
-  const fraction = Math.min(1, Math.max(0, weight / target));
-  const left = target - weight;
-  const secondsLeft = weightFlow && weightFlow >= 0.3 && left > 0 ? left / weightFlow : null;
-  return { fraction, secondsLeft };
-}

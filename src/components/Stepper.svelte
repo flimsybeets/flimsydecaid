@@ -1,5 +1,6 @@
 <script lang="ts">
-  // Big −/+ control for wet-hand use. Press and hold to repeat.
+  // Big −/+ control for wet-hand use. Press and hold to repeat. With
+  // `typeable`, tapping the number lets you type a value instead.
   let {
     label,
     value = $bindable(),
@@ -11,6 +12,8 @@
     disabled = false,
     placeholder = '–',
     compact = false,
+    typeable = false,
+    hint,
   }: {
     label: string;
     value: number | undefined;
@@ -22,7 +25,29 @@
     disabled?: boolean;
     placeholder?: string;
     compact?: boolean;
+    typeable?: boolean;
+    /** Small note after the label, e.g. "0 = off". */
+    hint?: string;
   } = $props();
+
+  let typing = $state(false);
+  let draft = $state('');
+
+  function startTyping() {
+    if (disabled) return;
+    draft = value === undefined ? '' : value.toFixed(decimals);
+    typing = true;
+  }
+  function commit() {
+    if (!typing) return;
+    typing = false;
+    const n = parseFloat(draft.replace(',', '.'));
+    if (Number.isFinite(n)) value = Number(Math.min(max, Math.max(min, n)).toFixed(decimals));
+  }
+  function focusSelect(el: HTMLInputElement) {
+    el.focus();
+    el.select();
+  }
 
   let repeat: ReturnType<typeof setTimeout> | null = null;
 
@@ -47,7 +72,7 @@
 </script>
 
 <div class="stepper" class:disabled class:compact>
-  <span class="label">{label}</span>
+  <span class="label">{label}{#if hint}<em>{hint}</em>{/if}</span>
   <div class="row well">
     <button
       aria-label="Decrease {label}"
@@ -58,7 +83,21 @@
       onpointercancel={release}
       onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); nudge(-1); } }}
     >−</button>
-    <output aria-live="polite">{shown}<small>{unit}</small></output>
+    {#if typing}
+      <input
+        class="type"
+        inputmode="decimal"
+        aria-label={label}
+        bind:value={draft}
+        use:focusSelect
+        onblur={commit}
+        onkeydown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') typing = false; }}
+      />
+    {:else if typeable}
+      <button class="out" aria-label="{label}: {shown} {unit}. Tap to type" disabled={disabled} onclick={startTyping}>{shown}<small>{unit}</small></button>
+    {:else}
+      <output aria-live="polite">{shown}<small>{unit}</small></output>
+    {/if}
     <button
       aria-label="Increase {label}"
       disabled={disabled || (value !== undefined && value >= max)}
@@ -98,6 +137,24 @@
   .compact .row { grid-template-columns: 52px minmax(0, 1fr) 52px; }
   .compact output { font-size: var(--t-md); }
   .compact button { font-size: var(--t-md); }
-  output { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  output, .out { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .out { text-align: center; font-size: var(--t-lg); font-weight: 650; height: var(--touch); border-radius: 12px; }
+  .compact .out { font-size: var(--t-md); }
+  .out:active:not(:disabled) { background: rgb(255 255 255 / 0.08); }
+  .type {
+    width: 100%;
+    min-width: 0;
+    height: calc(var(--touch) - 14px);
+    text-align: center;
+    font-size: var(--t-md);
+    font-weight: 650;
+    border: 1px solid rgb(255 255 255 / 0.45);
+    border-radius: 12px;
+    background: rgb(0 0 0 / 0.3);
+    color: var(--paper);
+    user-select: text;
+    outline: none;
+  }
+  .label em { font-style: normal; color: var(--paper-faint); font-size: var(--t-xs); margin-left: 8px; }
   small { font-size: var(--t-sm); font-weight: 500; color: var(--paper-dim); margin-left: 3px; }
 </style>

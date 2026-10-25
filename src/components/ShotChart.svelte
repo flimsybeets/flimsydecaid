@@ -20,9 +20,13 @@
     const last = samples.at(-1)?.t ?? 0;
     return Math.max(10, Math.ceil((last + 1) / 5) * 5);
   });
+  // Weight has its own scale. With a target, the target sits near the top
+  // (above the usual 9 bar of pressure) like a finish line the weight climbs
+  // to; an overshoot stretches the scale so nothing is clipped.
   const weightMax = $derived.by(() => {
     const seen = samples.reduce((m, s) => Math.max(m, s.weight ?? 0), 0);
-    return Math.max(10, Math.ceil((Math.max(seen, yieldTarget ?? 0) * 1.15) / 10) * 10);
+    if (yieldTarget) return Math.max(yieldTarget / 0.92, seen * 1.04);
+    return Math.max(10, Math.ceil((seen * 1.15) / 10) * 10);
   });
   const tempRange = $derived.by(() => {
     let lo = Infinity, hi = -Infinity;
@@ -86,10 +90,15 @@
       <line class="grid" x1={PAD.l} x2={PAD.l + plotW} y1={yMain(v)} y2={yMain(v)} />
       <text class="axis" x={PAD.l - 10} y={yMain(v) + 5} text-anchor="end">{v}</text>
     {/each}
-    <text class="axis" x={PAD.l + plotW + 10} y={yWeight(weightMax) + 5}>{weightMax}g</text>
+    {#if !yieldTarget}<text class="axis" x={PAD.l + plotW + 10} y={yWeight(weightMax) + 5}>{weightMax}g</text>{/if}
     {#if yieldTarget}
-      <line class="yield" x1={PAD.l} x2={PAD.l + plotW} y1={yWeight(yieldTarget)} y2={yWeight(yieldTarget)} />
-      <text class="axis weight-label" x={PAD.l + plotW + 10} y={yWeight(yieldTarget) + 5}>{yieldTarget}g</text>
+      <!-- The weight the shot is working up to: a bold dashed finish line with its value in a pill. -->
+      {@const yy = yWeight(yieldTarget)}
+      <line class="yield" x1={PAD.l} x2={PAD.l + plotW} y1={yy} y2={yy} />
+      <g class="yield-pill">
+        <rect x={PAD.l + plotW + 4} y={yy - 13} width={PAD.r - 2} height="26" rx="13" />
+        <text x={PAD.l + plotW + 4 + (PAD.r - 2) / 2} y={yy + 5} text-anchor="middle">{yieldTarget} g</text>
+      </g>
     {/if}
 
     <!-- grid: temperature panel -->
@@ -133,8 +142,14 @@
   svg { position: absolute; inset: 0; display: block; overflow: visible; }
   .grid { stroke: var(--g-grid); stroke-width: 1; }
   .axis { fill: var(--paper-faint); font-size: 14px; font-family: var(--font); }
-  .weight-label { fill: var(--g-weight); }
-  .yield { stroke: var(--g-weight); stroke-width: 1.5; stroke-dasharray: 2 6; opacity: 0.8; }
+  .yield {
+    stroke: var(--g-weight);
+    stroke-width: 3;
+    stroke-dasharray: 12 8;
+    filter: drop-shadow(0 0 5px color-mix(in srgb, var(--g-weight) 70%, transparent));
+  }
+  .yield-pill rect { fill: var(--g-weight); filter: drop-shadow(0 4px 10px rgb(0 0 0 / 0.35)); }
+  .yield-pill text { fill: #23140a; font-family: var(--font); font-size: 14px; font-weight: 700; }
   .line { fill: none; stroke-linejoin: round; stroke-linecap: round; }
   .target { stroke-width: 2.5; stroke-dasharray: 8 7; opacity: 0.7; }
   .target.thin { stroke-width: 1.5; }
