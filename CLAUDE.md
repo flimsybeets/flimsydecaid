@@ -96,7 +96,10 @@ Source of truth: `assets/api/rest_v1.yml`, `assets/api/websocket_v1.yml` and `do
 - **Shots**: `GET /shots` is paginated (`limit` ≤ 100, `offset`, newest first) and has no measurements; `GET /shots/{id}` has `measurements: [{machine, scale, volume}]` covering the whole espresso state, so trim to preinfusion/pouring like the live graph (`samplesFromMeasurements`). `annotations.actualYield` is often null; use the last scale weight. `stopReason` is an open set. `enjoyment` is 0–10.
 - **Screen while asleep**: Decaid's wake-lock is auto-managed (screen allowed off while the machine sleeps). The screensaver holds `POST /api/v1/display/wakelock` while showing and `DELETE`s it on close. Request bodies are capped (1 MiB for the KV store, `bounded_request_body.dart`).
 - **Settings**: Decaid's bundled settings plugin lives at `/api/v1/plugins/settings.reaplugin/ui?backName=FlimsyDecaid`.
-- **GHC machines**: the Group Head Controller owns shot start. The Start button isn't hidden yet; detect GHC and hide it (see how Streamline.js does it).
+- **GHC machines**: the Group Head Controller owns shot start. `GET /api/v1/machine/info` → `GHC: true`; read each time the machine connects. BrewPanel then shows "Then start the shot on the group head" instead of Start shot. `?mock=1&ghc=1` fakes it.
+- **Archived beans and bags are hidden by default**: `GET /beans` and `GET /bean-batches` need `?includeArchived=true` (dial-in carry-over from a finished bag, "Show finished bags", old shots' bag names all depend on it). Filter `archived` in the UI instead.
+- **Batch PUT merges top-level fields only**: `extras` is replaced whole, hence `withDialIn` copies other keys. Missing KV keys answer 200 `null`, not 404.
+- **Glass + scrolling**: a `.glass` element must not be the scroll container (its `::before` rim scrolls away). Scroll an inner element instead, as BrewPanel and Modal do.
 - **Manifest**: `public/skin-manifest.json`. Keep `id` = `flimsydecaid` forever (it's the install folder and update identity). Version is numeric dot-segments only; `npm run package` stamps it from `package.json` or the `v*` tag.
 
 ## Design
@@ -111,9 +114,8 @@ Tablet next to the machine, read at arm's length, wet hands.
 
 ## Next up
 
-1. Hide Start on GHC machines.
-2. Grind stepper should use the grinder's `settingSmallStep` / preset values (`/api/v1/grinders`).
-3. Reorder and rename categories; pick tile colour and icon.
-4. Decrement `weightRemaining` after each shot (or check whether Decaid already does).
-5. Test camera capture on the installed skin.
-6. History extras: rate a shot / add notes (`PUT /shots/{id}` `annotations`), "Brew this again" (load its profile, bag and dial-in), a "Shots" link from each bag on the Beans tab.
+1. Grind stepper should use the grinder's `settingSmallStep` / preset values (`/api/v1/grinders`).
+2. Reorder and rename categories; pick tile colour and icon.
+3. Decrement `weightRemaining` after each shot (or check whether Decaid already does).
+4. Test camera capture on the installed skin.
+5. History extras: rate a shot / add notes (`PUT /shots/{id}` `annotations`), "Brew this again" (load its profile, bag and dial-in), a "Shots" link from each bag on the Beans tab.

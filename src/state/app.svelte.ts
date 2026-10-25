@@ -61,6 +61,8 @@ class AppState {
   profileLineages = $derived(latestPerLineage(this.profiles));
   steam = $derived<SteamSettings | undefined>(this.workflow.steamSettings);
   asleep = $derived(this.machine.state?.state === 'sleeping');
+  /** Group Head Controller fitted: start shots at the group head, so the skin hides Start. */
+  ghc = $state(false);
 
   /** Screensaver photo (JPEG data URL), or null when none is chosen. */
   screensaverImage = $state<string | null>(null);
@@ -77,7 +79,13 @@ class AppState {
     this.unsubscribe = gateway.subscribe({
       onMachine: (f) => this.onMachine(f),
       onScale: (f) => this.onScale(f),
-      onDevices: (d) => { this.devices = d.devices; this.scanning = d.scanning; },
+      onDevices: (d) => {
+        const wasConnected = this.machineConnected;
+        this.devices = d.devices;
+        this.scanning = d.scanning;
+        // Machine info (GHC) is read once at connect, so ask each time the machine connects.
+        if (!wasConnected && this.machineConnected) void this.loadMachineInfo();
+      },
       onSocketStatus: (ch, s) => { this.sockets[ch] = s; },
     });
     void this.reload();
@@ -222,6 +230,11 @@ class AppState {
   // Shot history is read straight from Decaid; nothing to keep in memory.
   getShots(query: ShotQuery): Promise<ShotPage> { return gateway.getShots(query); }
   getShot(id: string): Promise<ShotRecord> { return gateway.getShot(id); }
+
+  async loadMachineInfo(): Promise<void> {
+    const info = await gateway.getMachineInfo().catch(() => null);
+    if (info) this.ghc = info.GHC === true;
+  }
 
   async loadScreensaver(): Promise<void> {
     const url = await gateway.storeGet<string>(SCREENSAVER_KEY).catch(() => null);

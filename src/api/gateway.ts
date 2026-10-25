@@ -5,7 +5,7 @@
 import type { GatewayConfig } from './config';
 import { openSocket, type ManagedSocket, type SocketStatus } from './socket';
 import type {
-  Bean, BeanBatch, DevicesState, MachineSnapshot, MachineState, ProfileRecord,
+  Bean, BeanBatch, DevicesState, MachineInfo, MachineSnapshot, MachineState, ProfileRecord,
   ScaleFrame, ShotPage, ShotQuery, ShotRecord, Workflow, WorkflowPatch,
 } from './types';
 
@@ -26,6 +26,7 @@ export interface Gateway {
   /** Ask Decaid to scan for (and auto-connect) devices. */
   scanDevices(): void;
 
+  getMachineInfo(): Promise<MachineInfo>;
   requestState(state: MachineState): Promise<void>;
   tareScale(): Promise<void>;
   /**
@@ -111,6 +112,7 @@ export function createHttpGateway(config: GatewayConfig): Gateway {
       }
     },
 
+    getMachineInfo: () => call('GET', '/machine/info'),
     requestState: (state) => call('PUT', `/machine/state/${state}`),
     tareScale: () => call('PUT', '/scale/tare'),
     keepScreenOn: (on) => call(on ? 'POST' : 'DELETE', '/display/wakelock'),
@@ -119,10 +121,13 @@ export function createHttpGateway(config: GatewayConfig): Gateway {
     getWorkflow: () => call('GET', '/workflow'),
     updateWorkflow: (patch) => call('PUT', '/workflow', patch),
 
-    getBeans: () => call('GET', '/beans'),
+    // Include archived (finished) beans and bags: dial-in carries over from
+    // a finished bag, Beans can show them, and old shots still name them.
+    // Decaid leaves them out by default.
+    getBeans: () => call('GET', '/beans?includeArchived=true'),
     createBean: (bean) => call('POST', '/beans', bean),
     updateBean: (id, patch) => call('PUT', `/beans/${encodeURIComponent(id)}`, patch),
-    getBatches: () => call('GET', '/bean-batches'),
+    getBatches: () => call('GET', '/bean-batches?includeArchived=true'),
     createBatch: (beanId, batch) => call('POST', `/beans/${encodeURIComponent(beanId)}/batches`, batch),
     updateBatch: (id, patch) => call('PUT', `/bean-batches/${encodeURIComponent(id)}`, patch),
 

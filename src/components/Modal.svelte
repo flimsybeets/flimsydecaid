@@ -39,7 +39,8 @@
     transform: translateX(-50%);
     width: min(720px, calc(100% - 28px));
     max-height: calc(100% - 40px);
-    overflow: auto;
+    overflow: hidden;
+    grid-template-rows: auto minmax(0, 1fr) auto;
     z-index: 21;
     border-radius: 36px;
     padding: 24px 28px 28px;
@@ -58,6 +59,6 @@
     font-size: var(--t-md);
     color: var(--paper-dim);
   }
-  .body { display: grid; gap: 22px; }
+  .body { display: grid; gap: 22px; align-content: start; min-height: 0; overflow-y: auto; margin: 0 -8px; padding: 4px 8px; }
   .actions { display: flex; gap: 12px; justify-content: flex-end; }
 </style>

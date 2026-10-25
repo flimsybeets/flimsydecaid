@@ -293,6 +293,11 @@ export function createMockGateway(): Gateway {
       state = next;
       substate = next === 'espresso' ? 'preparingForShot' : 'idle';
     },
+    // ?mock=1&ghc=1 pretends a Group Head Controller is fitted.
+    async getMachineInfo() {
+      await delay();
+      return { model: 'DE1+', version: 'mock', GHC: new URLSearchParams(location.search).get('ghc') === '1' };
+    },
     async tareScale() { await delay(); weight = 0; },
     async keepScreenOn() { await delay(20); },
 

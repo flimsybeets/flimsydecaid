@@ -7,7 +7,7 @@
   let { onClose }: { onClose: () => void } = $props();
 
   // Bean: an existing one, or a new roaster + name.
-  let beanId = $state<string | 'new'>(app.beans[0]?.id ?? 'new');
+  let beanId = $state<string | 'new'>(app.beans.find((b) => !b.archived)?.id ?? 'new');
   let roaster = $state('');
   let name = $state('');
   let roastDate = $state(new Date().toISOString().slice(0, 10));

@@ -31,6 +31,15 @@ export interface MachineSnapshot {
   profileFrame?: number;
 }
 
+/** GET /api/v1/machine/info */
+export interface MachineInfo {
+  version?: string;
+  model?: string;
+  serialNumber?: string;
+  /** A Group Head Controller is fitted: shots are started at the group head, not from the app. */
+  GHC?: boolean;
+}
+
 /** ws/v1/scale/snapshot sends two kinds of frame on one socket. */
 export interface ScaleStatusFrame { status: 'connected' | 'disconnected' }
 export interface ScaleWeightFrame {

@@ -99,6 +99,7 @@
     <button class="close glass" onclick={onClose} aria-label="Close brew settings">✕</button>
   </div>
 
+  <div class="body">
   <section class="bags" aria-label="Bag">
     <h3>Bag</h3>
     {#if bags.length === 0}
@@ -136,22 +137,30 @@
     {/if}
   </section>
 
+  </div>
+
   <div class="go">
     {#if message}<p class="msg" class:bad={message.bad} role="status">{message.text}</p>{/if}
     <button class="load glass" disabled={busy !== null} onclick={() => apply(false)}>{busy === 'load' ? 'Loading…' : 'Load'}</button>
-    <button class="start glass" disabled={busy !== null || app.machine.state?.state === 'espresso'} onclick={() => apply(true)}>
-      {busy === 'start' ? 'Starting…' : 'Start shot'}
-    </button>
+    {#if app.ghc}
+      <p class="ghc">Then start the shot on the group head.</p>
+    {:else}
+      <button class="start glass" disabled={busy !== null || app.machine.state?.state === 'espresso'} onclick={() => apply(true)}>
+        {busy === 'start' ? 'Starting…' : 'Start shot'}
+      </button>
+    {/if}
   </div>
 </aside>
 
 <style>
+  /* Title and Load / Start stay put; only the middle scrolls. (A glass
+     element must not scroll itself: its rim would scroll away too.) */
   .panel {
     display: grid;
-    grid-template-rows: auto auto 1fr auto;
+    grid-template-rows: auto minmax(0, 1fr) auto;
     gap: 18px;
     min-height: 0;
-    overflow-y: auto;
+    overflow: hidden;
     margin: 4px var(--gutter) 4px 0;
     padding: var(--gutter);
     border-radius: 36px;
@@ -159,6 +168,7 @@
   }
   @keyframes slide { from { transform: translateX(30px); opacity: 0; } }
 
+  .body { display: grid; gap: 18px; align-content: start; min-height: 0; overflow-y: auto; margin: 0 -8px; padding: 4px 8px; }
   .head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
   h2 { font-size: var(--t-lg); font-weight: 700; line-height: 1.1; letter-spacing: -0.01em; }
   h3 { font-size: var(--t-sm); font-weight: 500; color: var(--paper-dim); margin-bottom: 8px; }
@@ -197,7 +207,8 @@
   .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
   .offset { color: var(--paper-dim); font-size: var(--t-xs); }
 
-  .go { display: grid; grid-template-columns: 1fr 1.6fr; gap: 12px; }
+  .go { display: grid; grid-template-columns: 1fr 1.6fr; gap: 12px; align-items: center; }
+  .ghc { color: var(--paper-dim); font-size: var(--t-sm); }
   .msg { grid-column: 1 / -1; color: var(--go); font-size: var(--t-sm); }
   .msg.bad { color: var(--stop); }
   .load, .start {
