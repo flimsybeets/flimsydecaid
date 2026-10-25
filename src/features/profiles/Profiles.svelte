@@ -30,11 +30,11 @@
 </script>
 
 <div class="page">
-  <div class="bar">
-    <input type="search" placeholder="Search {all.length} profiles" bind:value={query} aria-label="Search profiles" />
+  <div class="bar glass">
+    <input class="well" type="search" placeholder="Search {all.length} profiles" bind:value={query} aria-label="Search profiles" />
     <div class="filters" role="radiogroup" aria-label="Show">
-      <button role="radio" aria-checked={filter === 'all'} class:active={filter === 'all'} onclick={() => (filter = 'all')}>All</button>
-      <button role="radio" aria-checked={filter === 'uncategorised'} class:active={filter === 'uncategorised'} onclick={() => (filter = 'uncategorised')}>Not in a category</button>
+      <button class="glass" role="radio" aria-checked={filter === 'all'} class:active={filter === 'all'} onclick={() => (filter = 'all')}>All</button>
+      <button class="glass" role="radio" aria-checked={filter === 'uncategorised'} class:active={filter === 'uncategorised'} onclick={() => (filter = 'uncategorised')}>Not in a category</button>
     </div>
   </div>
 
@@ -45,7 +45,7 @@
   <ul>
     {#each shown as { root, record } (root)}
       {@const temp = baseTemperature(record.profile)}
-      <li>
+      <li class="glass">
         <div class="info">
           <span class="title">{record.profile.title}</span>
           <span class="meta">
@@ -69,28 +69,27 @@
         </div>
       </li>
     {:else}
-      <li class="nothing">{query ? `No profiles match “${query}”` : 'Every profile is in a category'}</li>
+      <li class="nothing glass">{query ? `No profiles match “${query}”` : 'Every profile is in a category'}</li>
     {/each}
   </ul>
 </div>
 
 <style>
   .page { height: 100%; overflow-y: auto; padding: var(--gutter); }
-  .bar { display: flex; gap: 14px; align-items: center; margin-bottom: 18px; position: sticky; top: calc(-1 * var(--gutter)); background: var(--ink); padding: 6px 0; z-index: 1; }
+  .bar { display: flex; gap: 12px; align-items: center; margin-bottom: 18px; position: sticky; top: calc(-1 * var(--gutter) + 6px); padding: 8px; border-radius: var(--radius-pill); z-index: 2; }
   input {
     flex: 1;
     min-height: var(--touch);
     padding: 0 20px;
     border-radius: var(--radius-pill);
-    border: 2px solid var(--line);
-    background: var(--ink-sunk);
+    border: 1px solid rgb(255 255 255 / 0.08);
     font-size: var(--t-md);
     user-select: text;
   }
-  input:focus { border-color: var(--paper); outline: none; }
+  input:focus { border-color: rgb(255 255 255 / 0.5); outline: none; }
   .filters { display: flex; gap: 6px; }
   .filters button { min-height: 56px; padding: 0 20px; border-radius: var(--radius-pill); color: var(--paper-dim); }
-  .filters button.active { background: var(--ink-raised); color: var(--paper); font-weight: 600; }
+  .filters button.active { color: var(--paper); font-weight: 650; }
   .note { color: var(--paper-dim); margin-bottom: 14px; }
 
   ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
@@ -99,8 +98,7 @@
     align-items: center;
     gap: 18px;
     padding: 16px 20px;
-    border-radius: 20px;
-    background: var(--ink-raised);
+    border-radius: 26px;
   }
   .info { flex: 1; min-width: 0; display: grid; gap: 4px; }
   .title { font-size: var(--t-md); font-weight: 650; }
@@ -110,11 +108,18 @@
     min-height: 48px;
     padding: 0 18px;
     border-radius: var(--radius-pill);
-    border: 2px solid var(--line);
+    background: var(--well);
+    box-shadow: var(--well-shadow);
     color: var(--paper-dim);
     font-size: var(--t-xs);
+    transition: background 160ms ease, box-shadow 160ms ease;
   }
-  .chip.on { background: var(--tile); border-color: var(--tile); color: var(--cat-ink); font-weight: 650; }
+  .chip.on {
+    background: linear-gradient(170deg, color-mix(in srgb, var(--tile) 100%, white 20%), var(--tile));
+    color: var(--cat-ink);
+    font-weight: 650;
+    box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--tile) 70%, transparent), inset 0 1px 0 rgb(255 255 255 / 0.6);
+  }
   .chip:disabled { opacity: 0.7; }
   .nothing { color: var(--paper-dim); justify-content: center; }
 </style>

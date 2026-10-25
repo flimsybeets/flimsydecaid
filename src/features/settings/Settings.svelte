@@ -11,13 +11,13 @@
 </script>
 
 <div class="page">
-  <section>
+  <section class="glass">
     <h2>Machine and app settings</h2>
     <p>Decaid's own settings screen handles the machine, scale, and app.</p>
-    <a class="button" href={decaidSettings}>Open Decaid settings</a>
+    <a class="button glass solid" href={decaidSettings}>Open Decaid settings</a>
   </section>
 
-  <section>
+  <section class="glass">
     <h2>Connection</h2>
     <dl>
       <dt>Decaid</dt><dd>{app.mock ? 'Demo data (no machine)' : gw.httpBase}</dd>
@@ -30,7 +30,7 @@
 
 <style>
   .page { height: 100%; overflow-y: auto; padding: var(--gutter); display: grid; gap: 28px; align-content: start; max-width: 760px; }
-  section { display: grid; gap: 10px; }
+  section { display: grid; gap: 12px; padding: 26px 28px; border-radius: 32px; }
   h2 { font-size: var(--t-lg); font-weight: 700; }
   p { color: var(--paper-dim); }
   .button {
@@ -38,7 +38,6 @@
     display: inline-flex; align-items: center;
     min-height: var(--touch); padding: 0 26px;
     border-radius: var(--radius-control);
-    background: var(--paper); color: var(--ink);
     font-weight: 650; text-decoration: none;
   }
   dl { display: grid; grid-template-columns: max-content 1fr; gap: 10px 24px; margin: 0; }

@@ -10,9 +10,9 @@
 :root {
   /* Base: deep ink-teal, like a dark roast bag in low kitchen light */
   --ink: #102227;
-  --ink-raised: #17313a;
-  --ink-sunk: #0b191d;
-  --line: #2a4852;
+  --ink-raised: rgb(255 255 255 / 0.07);
+  --ink-sunk: rgb(4 14 17 / 0.34);
+  --line: rgb(255 255 255 / 0.12);
   --paper: #eef3ef;       /* primary text */
   --paper-dim: #a9bcb9;   /* secondary text */
   --paper-faint: #6f8a88;
@@ -41,7 +41,23 @@
   --g-weight: #c99467;
   --g-water: #ff6f61;
   --g-puck: #ffc845;
-  --g-grid: #24414a;
+  --g-grid: rgb(255 255 255 / 0.09);
+
+  /* Glass. Apple-style materials: a translucent fill that blurs and
+     saturates whatever is behind it, a rim of light that is brightest on
+     the top-left edge, a soft specular sheen on top and a deep, soft shadow.
+     Thin = cards and chrome, thick = sheets that hold a lot of text.
+     Wells are the opposite: recessed, darker, for values you change. */
+  --glass-fill: linear-gradient(155deg, rgb(255 255 255 / 0.13), rgb(255 255 255 / 0.05) 55%, rgb(255 255 255 / 0.08));
+  --glass-fill-strong: linear-gradient(155deg, rgb(255 255 255 / 0.24), rgb(255 255 255 / 0.12) 60%, rgb(255 255 255 / 0.16));
+  --glass-fill-thick: linear-gradient(160deg, rgb(28 58 66 / 0.72), rgb(12 30 35 / 0.78));
+  --glass-blur: blur(26px) saturate(180%);
+  --glass-blur-thick: blur(44px) saturate(190%);
+  --glass-rim: linear-gradient(150deg, rgb(255 255 255 / 0.55), rgb(255 255 255 / 0.10) 32%, rgb(255 255 255 / 0.03) 62%, rgb(255 255 255 / 0.24));
+  --glass-sheen: inset 0 1px 0 rgb(255 255 255 / 0.18), inset 0 -1px 0 rgb(0 0 0 / 0.12);
+  --glass-shadow: 0 18px 40px -12px rgb(0 0 0 / 0.45), 0 2px 6px rgb(0 0 0 / 0.18);
+  --well: rgb(4 14 17 / 0.34);
+  --well-shadow: inset 0 2px 6px rgb(0 0 0 / 0.35), inset 0 -1px 0 rgb(255 255 255 / 0.07);
 
   --radius-tile: 28px;
   --radius-control: 16px;
@@ -68,7 +84,16 @@
 html, body {
   margin: 0;
   height: 100%;
-  background: var(--ink);
+  /* Glass needs something to refract: soft pools of the skin's own colours
+     over the deep ink. Fixed, so it stays put while content scrolls over it. */
+  background:
+    radial-gradient(60vmax 48vmax at 4% -6%, rgb(64 170 160 / 0.55), transparent 62%),
+    radial-gradient(46vmax 40vmax at 104% 22%, rgb(242 179 61 / 0.30), transparent 60%),
+    radial-gradient(52vmax 46vmax at 34% 112%, rgb(201 154 216 / 0.34), transparent 62%),
+    radial-gradient(36vmax 30vmax at 82% 96%, rgb(99 174 245 / 0.26), transparent 60%),
+    linear-gradient(165deg, #12313a, #0a181c 70%);
+  background-color: var(--ink);
+  background-attachment: fixed;
   color: var(--paper);
   font-family: var(--font);
   font-size: var(--t-sm);
@@ -103,6 +128,59 @@ input {
 }
 
 h1, h2, h3, p { margin: 0; }
+
+/* ---- Glass materials ---------------------------------------------------- */
+
+.glass {
+  position: relative;
+  isolation: isolate;
+  background: var(--glass-fill);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-shadow), var(--glass-sheen);
+}
+/* Rim light: a 1px gradient border, brightest top-left, drawn with a mask so
+   it follows any border-radius. */
+.glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  padding: 1px;
+  border-radius: inherit;
+  background: var(--glass-rim);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+.glass.thick {
+  background: var(--glass-fill-thick);
+  -webkit-backdrop-filter: var(--glass-blur-thick);
+  backdrop-filter: var(--glass-blur-thick);
+}
+/* Selected / pressed: brighter glass, not a solid fill. */
+.glass.lit, .glass[aria-pressed='true'], .glass[aria-checked='true'] { background: var(--glass-fill-strong); }
+button.glass { transition: transform 140ms cubic-bezier(.2,.8,.2,1), background 140ms ease; }
+button.glass:active:not(:disabled) { transform: scale(0.975); }
+
+/* Prominent action: bright, almost-opaque glass with dark text. */
+.glass.solid {
+  background: linear-gradient(170deg, rgb(255 255 255 / 0.96), rgb(222 234 229 / 0.88));
+  color: var(--ink);
+  box-shadow: var(--glass-shadow), inset 0 1px 0 #fff, inset 0 -2px 4px rgb(16 34 39 / 0.12);
+}
+
+/* Recessed field for values: steppers, inputs. */
+.well {
+  background: var(--well);
+  box-shadow: var(--well-shadow);
+}
+
+/* Less work for slower tablets: drop the blur, keep the look. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass { background: rgb(30 60 68 / 0.85); }
+}
 
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;

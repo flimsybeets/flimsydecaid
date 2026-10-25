@@ -83,12 +83,12 @@
     {#if stream}
       <!-- svelte-ignore a11y_media_has_caption -->
       <video bind:this={video} playsinline muted></video>
-      <button class="snap" onclick={snap}>Take photo</button>
+      <button class="snap glass solid" onclick={snap}>Take photo</button>
     {:else if photo}
       <img src={photo} alt="The bag" />
-      <button class="retake" onclick={takePhoto}>Retake</button>
+      <button class="retake glass" onclick={takePhoto}>Retake</button>
     {:else}
-      <button class="camera" onclick={takePhoto}>
+      <button class="camera glass" onclick={takePhoto}>
         <span class="lens" aria-hidden="true"></span>
         Photograph the bag
       </button>
@@ -122,8 +122,8 @@
   {#if error}<p class="error" role="alert">{error}</p>{/if}
 
   {#snippet actions()}
-    <button class="secondary" onclick={onClose}>Cancel</button>
-    <button class="primary" disabled={!canSave} onclick={save}>{saving ? 'Adding…' : 'Add bag'}</button>
+    <button class="secondary glass" onclick={onClose}>Cancel</button>
+    <button class="primary glass solid" disabled={!canSave} onclick={save}>{saving ? 'Adding…' : 'Add bag'}</button>
   {/snippet}
 </Modal>
 
@@ -134,16 +134,14 @@
     width: 100%;
     min-height: 120px;
     padding: 0 24px;
-    border-radius: var(--radius-control);
-    border: 2px dashed var(--line);
+    border-radius: 24px;
     color: var(--paper-dim);
     font-size: var(--t-md);
   }
   .lens { width: 44px; height: 34px; border: 3px solid currentColor; border-radius: 9px; position: relative; }
   .lens::after { content: ''; position: absolute; inset: 7px 12px; border: 3px solid currentColor; border-radius: 50%; }
-  video, img { width: 100%; max-height: 320px; object-fit: cover; border-radius: var(--radius-control); background: var(--ink-sunk); }
-  .snap, .retake { min-height: var(--touch); padding: 0 26px; border-radius: var(--radius-pill); background: var(--paper); color: var(--ink); font-weight: 650; }
-  .retake { background: var(--ink-sunk); color: var(--paper); }
+  video, img { width: 100%; max-height: 320px; object-fit: cover; border-radius: 22px; background: var(--well); box-shadow: var(--glass-shadow); }
+  .snap, .retake { min-height: var(--touch); padding: 0 26px; border-radius: var(--radius-pill); font-weight: 650; }
   .note { color: var(--warn); font-size: var(--t-xs); }
 
   label { display: grid; gap: 6px; color: var(--paper-dim); font-size: var(--t-sm); }
@@ -151,8 +149,9 @@
     min-height: var(--touch);
     padding: 0 16px;
     border-radius: var(--radius-control);
-    border: 2px solid var(--line);
-    background: var(--ink-sunk);
+    border: 1px solid rgb(255 255 255 / 0.08);
+    background: var(--well);
+    box-shadow: var(--well-shadow);
     color: var(--paper);
     font-size: var(--t-md);
     user-select: text;
@@ -162,7 +161,6 @@
 
   .error { color: var(--stop); }
   .primary, .secondary { min-height: var(--touch); padding: 0 28px; border-radius: var(--radius-control); font-weight: 650; }
-  .primary { background: var(--paper); color: var(--ink); }
   .primary:disabled { opacity: 0.4; }
   .secondary { color: var(--paper-dim); }
   select { font-family: inherit; }

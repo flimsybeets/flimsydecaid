@@ -50,13 +50,13 @@
     {/if}
     <div class="tiles">
       {#each app.categories.categories as c (c.id)}
-        <button class="tile" style="--tile: var(--cat-{c.colour ?? 1})" onclick={() => open(c)}>
+        <button class="tile glass" style="--tile: var(--cat-{c.colour ?? 1})" onclick={() => open(c)}>
           {#if c.icon}<span class="icon" aria-hidden="true">{c.icon}</span>{/if}
           <span class="name">{c.name}</span>
           <span class="count">{profileCount(c)} {profileCount(c) === 1 ? 'profile' : 'profiles'}</span>
         </button>
       {/each}
-      <button class="tile add" onclick={() => (naming = true)}>
+      <button class="tile add glass" onclick={() => (naming = true)}>
         <span class="plus" aria-hidden="true">+</span>
         <span class="name">New category</span>
       </button>
@@ -66,7 +66,7 @@
   <div class="chosen" class:with-panel={profileRoot !== null} style="--tile: var(--cat-{category.colour ?? 1})">
     <div class="list">
       <div class="crumb">
-        <button class="back" onclick={back}>‹ Categories</button>
+        <button class="back glass" onclick={back}>‹ Categories</button>
         <h1>{category.name}</h1>
       </div>
 
@@ -74,14 +74,14 @@
         <div class="empty">
           <p class="big">No profiles in {category.name} yet</p>
           <p>Open the Profiles tab and tap {category.name} on any profile to add it here.</p>
-          <button class="go-profiles" onclick={() => (app.tab = 'profiles')}>Go to Profiles</button>
+          <button class="go-profiles glass solid" onclick={() => (app.tab = 'profiles')}>Go to Profiles</button>
         </div>
       {:else}
         <ul class="profiles">
           {#each profilesInCategory as p (p.root)}
             {@const temp = baseTemperature(p.record!.profile)}
             <li>
-              <button class="profile" class:selected={profileRoot === p.root} aria-pressed={profileRoot === p.root} onclick={() => (profileRoot = p.root)}>
+              <button class="profile glass" class:lit={profileRoot === p.root} class:selected={profileRoot === p.root} aria-pressed={profileRoot === p.root} onclick={() => (profileRoot = p.root)}>
                 <span class="title">{p.record!.profile.title}</span>
                 <span class="meta">
                   {#if temp !== null}<span>{temp}°C</span>{/if}
@@ -125,20 +125,25 @@
     gap: 6px;
     min-height: 210px;
     padding: 26px 28px;
-    border-radius: var(--radius-tile);
-    background: var(--tile);
+    border-radius: 34px;
     color: var(--cat-ink);
     text-align: left;
     overflow: hidden;
-    transition: transform 120ms ease;
+    /* Tinted glass: the riso colour, a little see-through, with a light
+       sheen across the top. Falls back to the solid colour. */
+    background: var(--tile);
+    background:
+      radial-gradient(120% 70% at 18% 0%, rgb(255 255 255 / 0.45), transparent 55%),
+      linear-gradient(160deg, color-mix(in srgb, var(--tile) 92%, transparent), color-mix(in srgb, var(--tile) 70%, transparent));
+    box-shadow: 0 22px 44px -16px color-mix(in srgb, var(--tile) 55%, transparent), var(--glass-shadow), inset 0 1px 0 rgb(255 255 255 / 0.6);
   }
-  .tile:active { transform: scale(0.98); }
   .tile .icon {
     position: absolute;
     top: 18px;
     right: 22px;
     font-size: 56px;
     line-height: 1;
+    filter: drop-shadow(0 6px 10px rgb(0 0 0 / 0.25));
   }
   .tile .name {
     font-size: var(--t-xl);
@@ -150,8 +155,8 @@
   .tile .count { font-size: var(--t-sm); font-weight: 500; opacity: 0.75; }
 
   .tile.add {
-    background: none;
-    border: 2px dashed var(--line);
+    background: var(--glass-fill);
+    box-shadow: var(--glass-shadow), var(--glass-sheen);
     color: var(--paper-dim);
     justify-content: center;
     align-items: center;
@@ -168,8 +173,6 @@
     min-height: var(--touch);
     padding: 0 26px;
     border-radius: var(--radius-control);
-    background: var(--paper);
-    color: var(--ink);
     font-weight: 650;
   }
 
@@ -193,7 +196,6 @@
     min-height: 56px;
     padding: 0 20px 0 14px;
     border-radius: var(--radius-pill);
-    background: var(--ink-raised);
     color: var(--paper-dim);
     font-size: var(--t-sm);
   }
@@ -202,6 +204,7 @@
     font-weight: 750;
     letter-spacing: -0.02em;
     color: var(--tile);
+    text-shadow: 0 0 28px color-mix(in srgb, var(--tile) 45%, transparent);
   }
 
   .profiles {
@@ -220,12 +223,10 @@
     justify-content: space-between;
     gap: 14px;
     padding: 20px 22px;
-    border-radius: 22px;
-    background: var(--ink-raised);
-    border: 3px solid transparent;
+    border-radius: 26px;
     text-align: left;
   }
-  .profile.selected { border-color: var(--tile); background: var(--ink-sunk); }
+  .profile.selected { box-shadow: 0 0 0 3px var(--tile), 0 18px 40px -12px color-mix(in srgb, var(--tile) 45%, transparent), var(--glass-sheen); }
   .title { font-size: var(--t-md); font-weight: 650; line-height: 1.15; }
   .meta { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--paper-dim); font-size: var(--t-xs); }
 

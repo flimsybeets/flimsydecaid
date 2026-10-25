@@ -48,7 +48,7 @@
 
 <div class="stepper" class:disabled class:compact>
   <span class="label">{label}</span>
-  <div class="row">
+  <div class="row well">
     <button
       aria-label="Decrease {label}"
       disabled={disabled || (value !== undefined && value <= min)}
@@ -79,8 +79,7 @@
     display: grid;
     grid-template-columns: var(--touch) minmax(0, 1fr) var(--touch);
     align-items: center;
-    background: var(--ink-sunk);
-    border-radius: var(--radius-control);
+    border-radius: 20px;
   }
   button {
     height: var(--touch);
@@ -89,7 +88,7 @@
     color: var(--paper);
     border-radius: var(--radius-control);
   }
-  button:active:not(:disabled) { background: var(--line); }
+  button:active:not(:disabled) { background: rgb(255 255 255 / 0.12); }
   button:disabled { color: var(--paper-faint); cursor: default; }
   output {
     text-align: center;

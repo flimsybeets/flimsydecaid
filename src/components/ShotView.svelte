@@ -28,9 +28,9 @@
     </div>
     <div class="clock">{elapsed.toFixed(1)}<small>s</small></div>
     {#if app.shotActive}
-      <button class="stop" onclick={stop} disabled={stopping}>{stopping ? 'Stopping…' : 'Stop'}</button>
+      <button class="stop glass" onclick={stop} disabled={stopping}>{stopping ? 'Stopping…' : 'Stop'}</button>
     {:else}
-      <button class="done" onclick={onClose}>Done</button>
+      <button class="done glass solid" onclick={onClose}>Done</button>
     {/if}
   </header>
 
@@ -42,7 +42,7 @@
     </ol>
   {/if}
 
-  <div class="graph">
+  <div class="graph glass thick">
     <ShotChart samples={app.shot} {yieldTarget} />
   </div>
 </section>
@@ -52,7 +52,15 @@
     position: fixed;
     inset: 0;
     z-index: 30;
-    background: var(--ink);
+    /* Its own copy of the page backdrop, so the full-screen view still has
+       colour behind its glass. */
+    background: inherit;
+    background:
+      radial-gradient(60vmax 48vmax at 4% -6%, rgb(64 170 160 / 0.5), transparent 62%),
+      radial-gradient(52vmax 46vmax at 34% 112%, rgb(201 154 216 / 0.3), transparent 62%),
+      radial-gradient(40vmax 34vmax at 100% 10%, rgb(242 179 61 / 0.22), transparent 60%),
+      linear-gradient(165deg, #12313a, #0a181c 70%);
+    animation: appear 220ms ease;
     display: grid;
     grid-template-rows: auto auto 1fr;
     gap: 16px;
@@ -72,9 +80,12 @@
     font-size: var(--t-lg);
     font-weight: 700;
   }
-  .stop { background: var(--stop); color: #2a0b07; }
+  .stop {
+    color: #2a0b07;
+    background: linear-gradient(170deg, #ff8a7f, var(--stop));
+    box-shadow: 0 16px 34px -12px rgb(255 107 94 / 0.7), inset 0 1px 0 rgb(255 255 255 / 0.55);
+  }
   .stop:disabled { opacity: 0.6; }
-  .done { background: var(--paper); color: var(--ink); }
 
   .steps {
     display: flex;
@@ -87,12 +98,15 @@
   .steps li {
     padding: 10px 18px;
     border-radius: var(--radius-pill);
-    background: var(--ink-raised);
+    background: var(--well);
+    box-shadow: var(--well-shadow);
     color: var(--paper-faint);
     white-space: nowrap;
   }
   .steps li.past { color: var(--paper-dim); }
-  .steps li.current { background: var(--paper); color: var(--ink); font-weight: 650; }
+  .steps li.current { background: linear-gradient(170deg, #fff, #dde9e5); color: var(--ink); font-weight: 650; box-shadow: 0 6px 16px -6px rgb(0 0 0 / 0.5); }
 
-  .graph { min-height: 0; }
+  .graph { min-height: 0; display: flex; padding: 18px 20px 14px; border-radius: 34px; }
+  .graph > :global(*) { flex: 1; }
+  @keyframes appear { from { opacity: 0; transform: scale(1.01); } }
 </style>

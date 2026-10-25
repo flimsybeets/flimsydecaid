@@ -15,8 +15,8 @@
   }
 </script>
 
-<footer>
-  <button class="scale" class:off={!app.scaleConnected} onclick={onScaleTap}>
+<footer class="glass">
+  <button class="scale well" class:off={!app.scaleConnected} onclick={onScaleTap}>
     <span class="label">
       <span class="dot" aria-hidden="true"></span>
       {app.scaleConnected ? scaleName : app.scanning ? 'Looking for scale…' : 'No scale'}
@@ -37,7 +37,7 @@
     <span class="t puck"><i aria-hidden="true"></i>Puck {app.machine.groupTemperature?.toFixed(1) ?? '–'}°</span>
   </div>
 
-  <button class="steam" class:on={steamIsOn} onclick={onSteam} aria-haspopup="dialog">
+  <button class="steam glass" class:solid={steamIsOn} class:on={steamIsOn} onclick={onSteam} aria-haspopup="dialog">
     <span class="label">Steam</span>
     <span class="value">
       {#if steamIsOn}
@@ -51,14 +51,16 @@
 </footer>
 
 <style>
+  /* Floating glass dock, inset from the screen edges. */
   footer {
     display: grid;
     grid-template-columns: minmax(280px, 1fr) auto minmax(220px, auto);
     align-items: stretch;
     gap: 12px;
-    padding: 12px var(--gutter);
-    border-top: 1px solid var(--line);
-    background: var(--ink-sunk);
+    margin: 10px var(--gutter) 14px;
+    padding: 10px;
+    border-radius: 34px;
+    z-index: 5;
   }
 
   .scale, .steam {
@@ -67,10 +69,10 @@
     gap: 18px;
     min-height: 76px;
     padding: 0 22px;
-    border-radius: var(--radius-control);
-    background: var(--ink-raised);
+    border-radius: 24px;
     text-align: left;
   }
+  .scale:active { background: rgb(4 14 17 / 0.5); }
 
   .label {
     display: flex;
@@ -79,8 +81,8 @@
     color: var(--paper-dim);
     font-size: var(--t-sm);
   }
-  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--go); }
-  .scale.off .dot { background: var(--paper-faint); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--go); box-shadow: 0 0 10px var(--go); }
+  .scale.off .dot { background: var(--paper-faint); box-shadow: none; }
   .battery { color: var(--paper-faint); }
 
   .weight {
@@ -108,7 +110,6 @@
 
   .steam { justify-content: space-between; }
   .steam .value { font-size: var(--t-lg); font-weight: 650; color: var(--paper-faint); }
-  .steam.on { background: var(--paper); color: var(--ink); }
   .steam.on .label, .steam.on .value small { color: #3c5559; }
   .steam.on .value { color: var(--ink); }
 

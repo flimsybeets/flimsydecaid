@@ -96,11 +96,11 @@
 </script>
 
 <div class="page">
-  <aside class="list">
+  <aside class="list glass">
     <div class="filters" role="group" aria-label="Show shots for">
-      <button class="chip" class:on={bagFilter === null} onclick={() => (bagFilter = null)}>All shots</button>
+      <button class="chip glass" class:solid={bagFilter === null} class:on={bagFilter === null} onclick={() => (bagFilter = null)}>All shots</button>
       {#each openBags as b (b.id)}
-        <button class="chip" class:on={bagFilter === b.id} onclick={() => (bagFilter = b.id)}>
+        <button class="chip glass" class:solid={bagFilter === b.id} class:on={bagFilter === b.id} onclick={() => (bagFilter = b.id)}>
           {beanName(b.beanId)}{#if fmtDay(b.roastDate)}<small>{fmtDay(b.roastDate)}</small>{/if}
         </button>
       {/each}
@@ -110,7 +110,7 @@
       {#if error}
         <div class="note">
           <p>{error}</p>
-          <button class="more" onclick={() => load(true)}>Try again</button>
+          <button class="more glass" onclick={() => load(true)}>Try again</button>
         </div>
       {:else if !loading && shots.length === 0}
         <div class="note">
@@ -126,7 +126,7 @@
             {@const ctx = s.workflow?.context}
             {@const out = outWeight(s) ?? ctx?.targetYield}
             <li>
-              <button class="row" class:selected={s.id === selectedId} aria-pressed={s.id === selectedId} onclick={() => (selectedId = s.id)}>
+              <button class="row glass" class:solid={s.id === selectedId} class:selected={s.id === selectedId} aria-pressed={s.id === selectedId} onclick={() => (selectedId = s.id)}>
                 <span class="main">
                   <span class="title">{s.workflow?.profile?.title ?? 'Unknown profile'}</span>
                   <span class="sub">{fmtTime(s.timestamp)} · {bagLabel(s)}</span>
@@ -143,7 +143,7 @@
       {/each}
 
       {#if shots.length < total}
-        <button class="more" disabled={loading} onclick={() => load(false)}>{loading ? 'Loading…' : `Show more (${total - shots.length} older)`}</button>
+        <button class="more glass" disabled={loading} onclick={() => load(false)}>{loading ? 'Loading…' : `Show more (${total - shots.length} older)`}</button>
       {/if}
     </div>
   </aside>
@@ -173,7 +173,7 @@
 
       {#if selected.annotations?.espressoNotes}<p class="notes">{selected.annotations.espressoNotes}</p>{/if}
 
-      <div class="graph">
+      <div class="graph glass thick">
         {#if detailError}
           <p class="note">{detailError}</p>
         {:else if !detail}
@@ -193,25 +193,26 @@
     height: 100%;
     display: grid;
     grid-template-columns: minmax(360px, 440px) 1fr;
+    gap: 6px;
     min-height: 0;
+    padding: 4px 0 4px var(--gutter);
   }
 
-  .list { display: grid; grid-template-rows: auto 1fr; min-height: 0; border-right: 1px solid var(--line); }
-  .filters { display: flex; gap: 8px; overflow-x: auto; padding: 16px var(--gutter) 12px; }
+  .list { display: grid; grid-template-rows: auto 1fr; min-height: 0; border-radius: 34px; overflow: hidden; }
+  .filters { display: flex; gap: 8px; overflow-x: auto; padding: 14px 16px 10px; }
   .chip {
     flex: none;
     min-height: 56px;
     padding: 0 20px;
     border-radius: var(--radius-pill);
-    border: 2px solid var(--line);
     color: var(--paper-dim);
     white-space: nowrap;
   }
   .chip small { margin-left: 8px; font-size: var(--t-xs); color: var(--paper-faint); }
-  .chip.on { background: var(--paper); border-color: var(--paper); color: var(--ink); font-weight: 650; }
+  .chip.on { color: var(--ink); font-weight: 650; }
   .chip.on small { color: var(--ink); opacity: 0.7; }
 
-  .scroll { overflow-y: auto; padding: 0 var(--gutter) var(--gutter); min-height: 0; }
+  .scroll { overflow-y: auto; padding: 0 16px 16px; min-height: 0; }
   ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
   .day { font-size: var(--t-xs); font-weight: 600; color: var(--paper-faint); text-transform: uppercase; letter-spacing: 0.06em; margin: 18px 0 8px; }
 
@@ -222,11 +223,9 @@
     align-items: center;
     gap: 14px;
     padding: 10px 16px;
-    border-radius: var(--radius-control);
-    background: var(--ink-raised);
+    border-radius: 22px;
     text-align: left;
   }
-  .row.selected { background: var(--paper); color: var(--ink); }
   .row.selected .sub { color: var(--ink); opacity: 0.7; }
   .main { flex: 1; min-width: 0; display: grid; }
   .title { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -247,8 +246,7 @@
     width: 100%;
     min-height: var(--touch);
     margin-top: 14px;
-    border-radius: var(--radius-control);
-    border: 2px solid var(--line);
+    border-radius: var(--radius-pill);
     color: var(--paper-dim);
   }
 
@@ -274,7 +272,7 @@
   dd small { font-size: var(--t-sm); color: var(--paper-dim); margin-left: 2px; font-weight: 500; }
   .notes { color: var(--paper-dim); font-style: italic; max-width: 70ch; }
 
-  .graph { flex: 1; min-height: 0; display: flex; }
+  .graph { flex: 1; min-height: 0; display: flex; padding: 18px 20px 14px; border-radius: 32px; }
   .graph > :global(*) { flex: 1; }
 
   @media (max-width: 1100px) {

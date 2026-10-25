@@ -24,8 +24,8 @@
     <input bind:this={input} bind:value={name} maxlength="40" onkeydown={(e) => { if (e.key === 'Enter' && trimmed) onSave(trimmed); }} />
   </label>
   {#snippet actions()}
-    <button class="secondary" onclick={onClose}>Cancel</button>
-    <button class="primary" disabled={!trimmed} onclick={() => onSave(trimmed)}>{action}</button>
+    <button class="secondary glass" onclick={onClose}>Cancel</button>
+    <button class="primary glass solid" disabled={!trimmed} onclick={() => onSave(trimmed)}>{action}</button>
   {/snippet}
 </Modal>
 
@@ -35,15 +35,15 @@
     min-height: var(--touch);
     padding: 0 18px;
     border-radius: var(--radius-control);
-    border: 2px solid var(--line);
-    background: var(--ink-sunk);
+    border: 1px solid rgb(255 255 255 / 0.08);
+    background: var(--well);
+    box-shadow: var(--well-shadow);
     font-size: var(--t-md);
     color: var(--paper);
     user-select: text;
   }
   input:focus { border-color: var(--paper); outline: none; }
   .primary, .secondary { min-height: var(--touch); padding: 0 28px; border-radius: var(--radius-control); font-weight: 650; }
-  .primary { background: var(--paper); color: var(--ink); }
   .primary:disabled { opacity: 0.4; }
   .secondary { color: var(--paper-dim); }
 </style>

@@ -97,7 +97,8 @@ Source of truth: `assets/api/rest_v1.yml`, `assets/api/websocket_v1.yml` and `do
 ## Design
 
 Tablet next to the machine, read at arm's length, wet hands.
-- Base: deep ink-teal (`--ink`), cream text (`--paper`). One loud element: the category tiles in riso-label colours (`--cat-1…8`). Keep everything else quiet.
+- Base: deep ink-teal (`--ink`), cream text (`--paper`), over a fixed backdrop of soft colour pools (in `styles.css` on `body`) for the glass to refract. One loud element: the category tiles in riso-label colours (`--cat-1…8`), as tinted glass. Keep everything else quiet.
+- **Glass (Apple-style materials), global classes in `styles.css`:** `.glass` (blurred translucent fill, rim light via `::before`, sheen, soft shadow), `.glass.thick` (sheets: modal, brew panel, graphs), `.glass.solid` (bright prominent action, dark text), `.glass.lit` / `aria-pressed|checked="true"` (selected), `.well` (recessed: steppers, inputs). A component's scoped `background`/`color` beats these, so drop them from elements that use the classes. `.glass` needs its `::before` free. Blur cost is unknown on the tablet; `--glass-blur` is the one knob to turn down.
 - Font: Bricolage Grotesque (bundled via @fontsource, works offline). Tabular figures everywhere.
 - Touch targets ≥ 64px (`--touch`). Primary actions 84px+.
 - Graph colours are fixed across every graph: pressure green, flow blue, weight brown, water coral (thin), puck gold (thick). Targets dashed.
