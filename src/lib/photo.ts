@@ -37,13 +37,14 @@ export async function toJpegDataUrl(source: Blob | HTMLVideoElement, maxEdge = 9
  * Live camera via getUserMedia. Decaid only allows this for the installed
  * skin on its own http://localhost:<port> origin, with per-skin consent, so
  * it fails on the dev server and whenever the user says no. Callers must
- * fall back to <input type="file" accept="image/*" capture="environment">.
+ * fall back to <input type="file" accept="image/*" capture="user">.
+ * Front camera: the tablet is mounted facing you, so the back one faces the wall.
  */
-export async function openRearCamera(): Promise<MediaStream | null> {
+export async function openFrontCamera(): Promise<MediaStream | null> {
   if (!navigator.mediaDevices?.getUserMedia) return null;
   try {
     return await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' } },
+      video: { facingMode: { ideal: 'user' } },
       audio: false,
     });
   } catch {
