@@ -6,7 +6,7 @@
 import type { Gateway, Subscriptions } from './gateway';
 import type {
   Bean, BeanBatch, DevicesState, MachineSnapshot, MachineState, MachineSubstate,
-  Profile, ProfileRecord, ProfileStep, Workflow, WorkflowPatch,
+  Profile, ProfileRecord, ProfileStep, ShotMeasurement, ShotRecord, ShotSummary, Workflow, WorkflowPatch,
 } from './types';
 
 const now = () => new Date().toISOString();
@@ -67,6 +67,65 @@ const STORE = new Map<string, unknown>([
   }],
 ]);
 
+/**
+ * A believable saved shot: preinfusion at low pressure, a ramp, a slow
+ * decline, weight arriving after the first few seconds.
+ */
+function pastShot(id: string, when: string, p: ProfileRecord, batch: BeanBatch, grind: string, dose: number, yieldTarget: number, enjoyment: number | null, notes: string | null): ShotRecord {
+  const bean = BEANS.find((b) => b.id === batch.beanId)!;
+  const start = Date.parse(when);
+  const temp = p.profile.steps[0]?.temperature ?? 93;
+  const measurements: ShotMeasurement[] = [];
+  let weight = 0;
+  let mix = temp - 0.6;
+  let group = temp - 1.2;
+  for (let i = 0; weight < yieldTarget && i < 900; i++) {
+    const t = i / 10;
+    const pre = t < 8;
+    const pressure = pre ? Math.min(2.5, t * 0.5) : Math.max(5.5, 9 - Math.max(0, t - 14) * 0.12);
+    const flow = pre ? 4 - t * 0.3 : 1.6 + Math.min(1, (t - 8) * 0.05);
+    if (t > 6) weight += flow * 0.085;
+    mix += (temp - mix) * 0.2 + Math.sin(i / 7) * 0.08;
+    group += (mix - group) * 0.03;
+    const ts = new Date(start + i * 100).toISOString();
+    measurements.push({
+      machine: {
+        timestamp: ts,
+        state: { state: 'espresso', substate: pre ? 'preinfusion' : 'pouring' },
+        pressure, flow,
+        targetPressure: pre ? 0 : 9, targetFlow: pre ? 4 : 0,
+        mixTemperature: mix, groupTemperature: group,
+        targetMixTemperature: temp, targetGroupTemperature: temp,
+        profileFrame: pre ? 0 : 1,
+      },
+      scale: { timestamp: ts, weight: Math.round(weight * 10) / 10 },
+    });
+  }
+  return {
+    id, timestamp: when, createdAt: when, updatedAt: when,
+    workflow: {
+      profile: p.profile,
+      context: { beanBatchId: batch.id, coffeeName: bean.name, coffeeRoaster: bean.roaster, grinderSetting: grind, targetDoseWeight: dose, targetYield: yieldTarget },
+    },
+    annotations: { enjoyment, espressoNotes: notes },
+    stopReason: 'targetWeight',
+    measurements,
+  };
+}
+
+const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
+const byId = (id: string) => PROFILES.find((p) => p.id === id)!;
+const batch = (id: string) => BATCHES.find((b) => b.id === id)!;
+
+const SHOTS: ShotRecord[] = [
+  pastShot('shot-6', hoursAgo(2), byId('profile:mock-classic-v2'), batch('batch-2a'), '14', 18, 36, 8, null),
+  pastShot('shot-5', hoursAgo(3), byId('profile:mock-classic-v2'), batch('batch-2a'), '13.5', 18, 36, 6, 'A bit sharp, going finer'),
+  pastShot('shot-4', hoursAgo(26), byId('profile:mock-blooming'), batch('batch-1b'), '11', 18, 45, 9, 'Peach for days'),
+  pastShot('shot-3', hoursAgo(50), byId('profile:mock-gentle'), batch('batch-3a'), '15', 18, 36, null, null),
+  pastShot('shot-2', hoursAgo(24 * 9), byId('profile:mock-blooming'), batch('batch-1a'), '11', 18, 45, 7, null),
+  pastShot('shot-1', hoursAgo(24 * 16), byId('profile:mock-blooming'), batch('batch-1a'), '12', 18, 45, 5, 'Too fast'),
+];
+
 // JSON round-trip rather than structuredClone: values passed in from the UI
 // can be Svelte state proxies, which structuredClone refuses.
 function clone<T>(v: T): T {
@@ -87,6 +146,22 @@ export function createMockGateway(): Gateway {
   const beans = clone(BEANS);
   const batches = clone(BATCHES);
   const store = new Map([...STORE].map(([k, v]) => [k, clone(v)]));
+  const shots = clone(SHOTS);
+  let recording: ShotMeasurement[] | null = null;
+  let stopReason: string | null = null;
+
+  /** Save the finished shot the way Decaid does: measurements plus the workflow at the time. */
+  const saveShot = () => {
+    if (!recording?.length) return;
+    const when = recording[0]!.machine.timestamp ?? now();
+    shots.unshift({
+      id: `shot-${crypto.randomUUID()}`, timestamp: when, createdAt: when, updatedAt: now(),
+      workflow: clone({ profile: workflow.profile, context: workflow.context }),
+      annotations: null,
+      stopReason,
+      measurements: recording,
+    });
+  };
 
   let workflow: Workflow = {
     name: 'Mock workflow',
@@ -156,6 +231,7 @@ export function createMockGateway(): Gateway {
       if ((yieldTarget > 0 && weight >= yieldTarget) || frame === p.steps.length - 1 && shotT >= p.steps.reduce((a, b) => a + b.seconds, 0)) {
         substate = 'pouringDone';
         state = 'idle';
+        stopReason = yieldTarget > 0 && weight >= yieldTarget ? 'targetWeight' : 'machineEnded';
         setTimeout(() => { if (state === 'idle') substate = 'idle'; }, 300);
       }
     } else {
@@ -179,8 +255,13 @@ export function createMockGateway(): Gateway {
       steamTemperature: steam,
       profileFrame: frame,
     };
+    const scaleFrame = { timestamp: now(), weight: Math.round(weight * 10) / 10, weightFlow: state === 'espresso' ? flow * 0.85 : 0, battery: 82, timerValue: null };
+    if (recording) {
+      recording.push({ machine: snapshot, scale: scaleConnected ? scaleFrame : null });
+      if (state !== 'espresso') { saveShot(); recording = null; }
+    }
     subs?.onMachine(snapshot);
-    if (scaleConnected) subs?.onScale({ timestamp: now(), weight: Math.round(weight * 10) / 10, weightFlow: state === 'espresso' ? flow * 0.85 : 0, battery: 82, timerValue: null });
+    if (scaleConnected) subs?.onScale(scaleFrame);
   };
 
   const delay = (ms = 120) => new Promise((r) => setTimeout(r, ms));
@@ -207,7 +288,8 @@ export function createMockGateway(): Gateway {
 
     async requestState(next) {
       await delay();
-      if (next === 'espresso') { shotT = 0; weight = 0; pressure = 0; flow = 0; }
+      if (next === 'espresso') { shotT = 0; weight = 0; pressure = 0; flow = 0; recording = []; stopReason = null; }
+      else if (state === 'espresso') stopReason = 'apiStop';
       state = next;
       substate = next === 'espresso' ? 'preparingForShot' : 'idle';
     },
@@ -248,6 +330,26 @@ export function createMockGateway(): Gateway {
       if (i < 0) throw new Error('Batch not found');
       batches[i] = { ...batches[i]!, ...patch, updatedAt: now() };
       return clone(batches[i]!);
+    },
+
+    async getShots(q = {}) {
+      await delay();
+      let items = shots;
+      if (q.beanBatchId) items = items.filter((x) => x.workflow?.context?.beanBatchId === q.beanBatchId);
+      if (q.beanId) {
+        const ids = new Set(batches.filter((b) => b.beanId === q.beanId).map((b) => b.id));
+        items = items.filter((x) => ids.has(x.workflow?.context?.beanBatchId ?? ''));
+      }
+      const offset = q.offset ?? 0;
+      const limit = Math.min(100, Math.max(1, q.limit ?? 20));
+      const page = items.slice(offset, offset + limit).map(({ measurements: _, ...summary }): ShotSummary => summary);
+      return clone({ items: page, total: items.length, limit, offset });
+    },
+    async getShot(id) {
+      await delay();
+      const shot = shots.find((x) => x.id === id);
+      if (!shot) throw new Error('Shot not found');
+      return clone(shot);
     },
 
     async storeGet<T>(key: string) { await delay(40); return (store.has(key) ? clone(store.get(key)) : null) as T | null; },

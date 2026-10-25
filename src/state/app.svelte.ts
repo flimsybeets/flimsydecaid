@@ -7,7 +7,8 @@ import { createHttpGateway, type Gateway } from '../api/gateway';
 import { createMockGateway } from '../api/mock';
 import type { SocketStatus } from '../api/socket';
 import type {
-  Bean, BeanBatch, DeviceInfo, MachineSnapshot, ProfileRecord, ScaleFrame, SteamSettings, Workflow,
+  Bean, BeanBatch, DeviceInfo, MachineSnapshot, ProfileRecord, ScaleFrame, ShotPage, ShotQuery, ShotRecord,
+  SteamSettings, Workflow,
 } from '../api/types';
 import { CATEGORIES_KEY, parseCategories, type CategoryDoc } from '../lib/categories';
 import { withDialIn, type DialIn } from '../lib/dialIn';
@@ -35,6 +36,8 @@ class AppState {
   scaleBattery = $state<number | null>(null);
   shot = $state<ShotSample[]>([]);
   shotActive = $state(false);
+  /** Bumped when a pull ends, so History knows to refetch. */
+  shotsFinished = $state(0);
 
   // Library
   profiles = $state<ProfileRecord[]>([]);
@@ -99,6 +102,7 @@ class AppState {
       this.shot = this.recorder.samples.slice();
     }
     this.shotActive = this.recorder.active;
+    if (wasActive && !this.recorder.active) this.shotsFinished++;
     if (!wasActive && this.recorder.active && this.scaleConnected) {
       // Tare once as the pull begins, in case the cup wasn't zeroed.
       void gateway.tareScale().catch(() => {});
@@ -202,6 +206,10 @@ class AppState {
     const updated = await gateway.updateBatch(batchId, { archived: true, weightRemaining: 0 });
     this.batches = this.batches.map((b) => (b.id === updated.id ? updated : b));
   }
+
+  // Shot history is read straight from Decaid; nothing to keep in memory.
+  getShots(query: ShotQuery): Promise<ShotPage> { return gateway.getShots(query); }
+  getShot(id: string): Promise<ShotRecord> { return gateway.getShot(id); }
 
   async startEspresso(): Promise<void> { await gateway.requestState('espresso'); }
   async stop(): Promise<void> { await gateway.requestState('idle'); }

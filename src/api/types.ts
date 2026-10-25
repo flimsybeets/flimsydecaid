@@ -199,3 +199,54 @@ export interface Grinder {
   settingBigStep?: number | null;
   archived: boolean;
 }
+
+/** Post-shot notes and measurements. Enjoyment is Decaid's 0–10 scale. */
+export interface ShotAnnotations {
+  actualDoseWeight?: number | null;
+  actualYield?: number | null;
+  drinkTds?: number | null;
+  drinkEy?: number | null;
+  enjoyment?: number | null;
+  espressoNotes?: string | null;
+  extras?: Record<string, unknown> | null;
+}
+
+/** GET /api/v1/shots item: a shot without its measurements. */
+export interface ShotSummary {
+  id: string;
+  timestamp: string;
+  createdAt?: string;
+  updatedAt?: string;
+  /** The workflow as it was when the shot was pulled. Context fields can be null. */
+  workflow?: Workflow;
+  annotations?: ShotAnnotations | null;
+  /** Open set: targetWeight, targetVolume, apiStop, appStop, machineEnded, error, … */
+  stopReason?: string | null;
+}
+
+/** One recorded sample: the machine frame plus the scale reading at that moment. */
+export interface ShotMeasurement {
+  machine: MachineSnapshot;
+  scale?: ScaleWeightFrame | null;
+  volume?: number | null;
+}
+
+/** GET /api/v1/shots/{id} */
+export interface ShotRecord extends ShotSummary {
+  measurements: ShotMeasurement[];
+}
+
+export interface ShotPage {
+  items: ShotSummary[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+/** Query for GET /api/v1/shots. Newest first. limit is 1–100. */
+export interface ShotQuery {
+  limit?: number;
+  offset?: number;
+  beanBatchId?: string;
+  beanId?: string;
+}

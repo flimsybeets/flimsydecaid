@@ -67,7 +67,8 @@
   const timeTicks = $derived(Array.from({ length: Math.floor(tMax / 5) + 1 }, (_, i) => i * 5));
   const tempTicks = $derived.by(() => {
     const [lo, hi] = tempRange;
-    const step = hi - lo > 8 ? 2 : 1;
+    // Keep labels at least ~22px apart however short the panel is.
+    const step = [1, 2, 5, 10].find((st) => (tempH / (hi - lo)) * st >= 22) ?? 10;
     const out: number[] = [];
     for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) out.push(v);
     return out;

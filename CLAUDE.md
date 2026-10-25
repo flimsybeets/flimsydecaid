@@ -29,6 +29,7 @@ Run `npm run check && npm test` before committing.
 - **Dial-in is per bag + profile.** Each bag remembers grind, dose, yield and temp offset for every profile used with it.
 - **Bottom bar** (always visible): scale name, weight, connection (tap to tare, or to scan when disconnected); water and puck temps; steam heater on/off with live steam temp. Tapping steam opens the steam modal (heater toggle, temperature, flow).
 - **Shot view** takes over while pulling and stays until "Done". Temperatures get their own panel under pressure/flow/weight.
+- **History**: shot list grouped by day (filter chips per open bag) beside the selected shot's numbers and graph. Refetches after a pull ends.
 - **Bag photos** from the tablet camera when adding a bag.
 
 ## Architecture
@@ -46,7 +47,8 @@ src/
     dialIn.ts     per bag + profile dial-in storage and lookup
     categories.ts category document in the KV store
     steam.ts      steam heater rules and ranges
-    shot.ts       ShotRecorder: samples for the live graph
+    shot.ts       ShotRecorder (live graph) + samplesFromMeasurements (saved shots)
+    history.ts    day grouping, ratio, stop-reason wording, shot stats
     photo.ts      camera + JPEG downscale
   state/app.svelte.ts  single app state (Svelte 5 runes class) + actions
   components/  BottomBar, SteamModal, ShotView, ShotChart, Stepper, Modal, NameDialog
@@ -87,6 +89,7 @@ Source of truth: `assets/api/rest_v1.yml`, `assets/api/websocket_v1.yml` and `do
 - **Don't hammer the API.** Decaid doesn't debounce and drops requests that queue too long. Edits are drafts until Save/Load.
 - **Camera** (`doc/Skins.md` § Live Camera Access): `getUserMedia({video:true,audio:false})` works only from the *installed* skin's `http://localhost:<port>` origin with per-skin consent; never from the dev server or live-edit. `AddBag` falls back to `<input type="file" accept="image/*" capture="environment">`.
 - **Background reloads**: Decaid unloads the WebView after ~10 min in the background and reloads the skin. Keep anything important in Decaid (KV store, beans, workflow), not in memory. `sessionStorage` doesn't survive.
+- **Shots**: `GET /shots` is paginated (`limit` ≤ 100, `offset`, newest first) and has no measurements; `GET /shots/{id}` has `measurements: [{machine, scale, volume}]` covering the whole espresso state, so trim to preinfusion/pouring like the live graph (`samplesFromMeasurements`). `annotations.actualYield` is often null; use the last scale weight. `stopReason` is an open set. `enjoyment` is 0–10.
 - **Settings**: Decaid's bundled settings plugin lives at `/api/v1/plugins/settings.reaplugin/ui?backName=FlimsyDecaid`.
 - **GHC machines**: the Group Head Controller owns shot start. The Start button isn't hidden yet; detect GHC and hide it (see how Streamline.js does it).
 - **Manifest**: `public/skin-manifest.json`. Keep `id` = `flimsydecaid` forever (it's the install folder and update identity). Version is numeric dot-segments only; `npm run package` stamps it from `package.json` or the `v*` tag.
@@ -102,9 +105,9 @@ Tablet next to the machine, read at arm's length, wet hands.
 
 ## Next up
 
-1. History tab: `GET /api/v1/shots` (+ `?beanBatchId=`), reuse `ShotChart`.
-2. Hide Start on GHC machines.
-3. Grind stepper should use the grinder's `settingSmallStep` / preset values (`/api/v1/grinders`).
-4. Reorder and rename categories; pick tile colour and icon.
-5. Decrement `weightRemaining` after each shot (or check whether Decaid already does).
-6. Test camera capture on the installed skin.
+1. Hide Start on GHC machines.
+2. Grind stepper should use the grinder's `settingSmallStep` / preset values (`/api/v1/grinders`).
+3. Reorder and rename categories; pick tile colour and icon.
+4. Decrement `weightRemaining` after each shot (or check whether Decaid already does).
+5. Test camera capture on the installed skin.
+6. History extras: rate a shot / add notes (`PUT /shots/{id}` `annotations`), "Brew this again" (load its profile, bag and dial-in), a "Shots" link from each bag on the Beans tab.
