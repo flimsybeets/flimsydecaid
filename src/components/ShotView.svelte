@@ -93,19 +93,19 @@
     animation: appear 220ms ease;
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    padding: 20px var(--gutter) 24px;
+    gap: 12px;
+    padding: 15px var(--gutter) 18px;
   }
-  header { flex: none; display: flex; align-items: center; gap: 28px; }
+  header { flex: none; display: flex; align-items: center; gap: 21px; }
   .what { flex: 1; min-width: 0; }
   h2 { font-size: var(--t-xl); font-weight: 700; letter-spacing: -0.01em; }
   .what p { color: var(--paper-dim); font-size: var(--t-md); }
   .clock { font-size: var(--t-xxl); font-weight: 700; letter-spacing: -0.02em; }
-  .clock small { font-size: var(--t-md); color: var(--paper-dim); margin-left: 4px; }
+  .clock small { font-size: var(--t-md); color: var(--paper-dim); margin-left: 3px; }
 
   .stop, .done {
-    min-width: 180px;
-    min-height: 76px;
+    min-width: 135px;
+    min-height: 65px;
     border-radius: var(--radius-tile);
     font-size: var(--t-lg);
     font-weight: 700;
@@ -113,21 +113,21 @@
   .stop {
     color: #2a0b07;
     background: linear-gradient(170deg, #ff8a7f, var(--stop));
-    box-shadow: 0 16px 34px -12px rgb(255 107 94 / 0.7), inset 0 1px 0 rgb(255 255 255 / 0.55);
+    box-shadow: 0 12px 26px -12px rgb(255 107 94 / 0.7), inset 0 1px 0 rgb(255 255 255 / 0.55);
   }
   .stop:disabled { opacity: 0.6; }
 
   .steps {
     flex: none;
     display: flex;
-    gap: 8px;
+    gap: 6px;
     margin: 0;
     padding: 0;
     list-style: none;
     overflow-x: auto;
   }
   .steps li {
-    padding: 10px 18px;
+    padding: 8px 14px;
     border-radius: var(--radius-pill);
     background: var(--well);
     box-shadow: var(--well-shadow);
@@ -135,24 +135,24 @@
     white-space: nowrap;
   }
   .steps li.past { color: var(--paper-dim); }
-  .steps li.current { background: linear-gradient(170deg, #fff, #dde9e5); color: var(--ink); font-weight: 650; box-shadow: 0 6px 16px -6px rgb(0 0 0 / 0.5); }
+  .steps li.current { background: linear-gradient(170deg, #fff, #dde9e5); color: var(--ink); font-weight: 650; box-shadow: 0 4px 12px -6px rgb(0 0 0 / 0.5); }
 
   .dials {
     flex: none;
-    height: clamp(150px, 25vh, 260px);
+    height: clamp(112px, 25vh, 195px);
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     grid-template-rows: minmax(0, 1fr);
-    gap: 12px;
+    gap: 9px;
     animation: appear 260ms ease;
   }
 
   @media (max-height: 760px) {
-    .shot { gap: 12px; padding-top: 14px; }
+    .shot { gap: 9px; padding-top: 10px; }
     .dials { height: 21vh; }
   }
 
-  .graph { flex: 1; min-height: 180px; display: flex; padding: 18px 20px 14px; border-radius: 34px; }
+  .graph { flex: 1; min-height: 135px; display: flex; padding: 14px 15px 10px; border-radius: 26px; }
   .graph > :global(*) { flex: 1; }
   @keyframes appear { from { opacity: 0; transform: scale(1.01); } }
 </style>

@@ -66,15 +66,15 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    min-height: 72px;
-    padding: 0 16px 0 24px;
-    border-radius: 24px;
+    min-height: 61px;
+    padding: 0 12px 0 18px;
+    border-radius: 18px;
     font-size: var(--t-md);
     font-weight: 600;
   }
   .heater .state {
-    min-width: 96px;
-    padding: 10px 0;
+    min-width: 72px;
+    padding: 8px 0;
     text-align: center;
     border-radius: var(--radius-pill);
     background: var(--well);
@@ -82,15 +82,15 @@
     color: var(--paper-dim);
     transition: background 180ms ease, color 180ms ease;
   }
-  .heater.on .state { background: var(--go); color: var(--cat-ink); box-shadow: 0 0 18px rgb(143 211 192 / 0.55), inset 0 1px 0 rgb(255 255 255 / 0.6); }
+  .heater.on .state { background: var(--go); color: var(--cat-ink); box-shadow: 0 0 14px rgb(143 211 192 / 0.55), inset 0 1px 0 rgb(255 255 255 / 0.6); }
   .live { color: var(--paper-dim); margin-top: -10px; }
 
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
-  .temp { display: grid; gap: 10px; }
-  .presets { display: flex; gap: 8px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; align-items: start; }
+  .temp { display: grid; gap: 8px; }
+  .presets { display: flex; gap: 6px; }
   .presets button {
     flex: 1;
-    min-height: 48px;
+    min-height: 40px;
     border-radius: var(--radius-pill);
     color: var(--paper-dim);
   }
@@ -101,7 +101,7 @@
 
   .primary, .secondary {
     min-height: var(--touch);
-    padding: 0 28px;
+    padding: 0 21px;
     border-radius: var(--radius-control);
     font-weight: 650;
   }

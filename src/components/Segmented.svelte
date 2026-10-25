@@ -32,31 +32,31 @@
 <style>
   .seg {
     display: flex;
-    gap: 4px;
-    padding: 4px;
-    border-radius: 16px;
-    min-height: 56px;
+    gap: 3px;
+    padding: 3px;
+    border-radius: 12px;
+    min-height: 42px;
   }
   .seg.disabled { opacity: 0.45; }
   button {
     flex: 1;
     min-width: 0;
-    padding: 0 12px;
-    border-radius: 12px;
+    padding: 0 9px;
+    border-radius: 9px;
     color: var(--paper-dim);
     font-size: var(--t-sm);
     white-space: nowrap;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
     transition: background 150ms ease, color 150ms ease;
   }
   button.on {
     background: linear-gradient(170deg, rgb(255 255 255 / 0.95), rgb(226 236 232 / 0.86));
     color: var(--ink);
     font-weight: 650;
-    box-shadow: 0 4px 12px -4px rgb(0 0 0 / 0.5), inset 0 1px 0 #fff;
+    box-shadow: 0 3px 9px -4px rgb(0 0 0 / 0.5), inset 0 1px 0 #fff;
   }
-  i { width: 10px; height: 10px; border-radius: 50%; background: var(--tone); flex: none; }
+  i { width: 8px; height: 8px; border-radius: 50%; background: var(--tone); flex: none; }
 </style>

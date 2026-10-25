@@ -13,7 +13,7 @@
   let width = $state(800);
   let height = $state(480);
 
-  const PAD = { l: 48, r: 58, t: 14, b: 34 };
+  const PAD = { l: 38, r: 48, t: 12, b: 28 };
   const TEMP_SHARE = 0.32;
 
   const tMax = $derived.by(() => {
@@ -43,7 +43,7 @@
   });
 
   // Gap between the two panels: roomy on a tall graph, tighter on a short one.
-  const GAP = $derived(Math.round(Math.min(48, Math.max(22, (height - PAD.t - PAD.b) * 0.12))));
+  const GAP = $derived(Math.round(Math.min(38, Math.max(18, (height - PAD.t - PAD.b) * 0.12))));
   const plotW = $derived(Math.max(10, width - PAD.l - PAD.r));
   const innerH = $derived(Math.max(10, height - PAD.t - PAD.b - GAP));
   const mainH = $derived(innerH * (1 - TEMP_SHARE));
@@ -96,8 +96,8 @@
       {@const yy = yWeight(yieldTarget)}
       <line class="yield" x1={PAD.l} x2={PAD.l + plotW} y1={yy} y2={yy} />
       <g class="yield-pill">
-        <rect x={PAD.l + plotW + 4} y={yy - 13} width={PAD.r - 2} height="26" rx="13" />
-        <text x={PAD.l + plotW + 4 + (PAD.r - 2) / 2} y={yy + 5} text-anchor="middle">{yieldTarget} g</text>
+        <rect x={PAD.l + plotW + 4} y={yy - 11} width={PAD.r - 2} height="22" rx="11" />
+        <text x={PAD.l + plotW + 4 + (PAD.r - 2) / 2} y={yy + 4} text-anchor="middle">{yieldTarget} g</text>
       </g>
     {/if}
 
@@ -137,19 +137,19 @@
 </div>
 
 <style>
-  .chart { width: 100%; height: 100%; min-height: 160px; display: grid; grid-template-rows: minmax(0, 1fr) auto; }
+  .chart { width: 100%; height: 100%; min-height: 120px; display: grid; grid-template-rows: minmax(0, 1fr) auto; }
   .plot { position: relative; min-height: 0; }
   svg { position: absolute; inset: 0; display: block; overflow: visible; }
   .grid { stroke: var(--g-grid); stroke-width: 1; }
-  .axis { fill: var(--paper-faint); font-size: 14px; font-family: var(--font); }
+  .axis { fill: var(--paper-faint); font-size: 11px; font-family: var(--font); }
   .yield {
     stroke: var(--g-weight);
     stroke-width: 3;
     stroke-dasharray: 12 8;
-    filter: drop-shadow(0 0 5px color-mix(in srgb, var(--g-weight) 70%, transparent));
+    filter: drop-shadow(0 0 3.8px color-mix(in srgb, var(--g-weight) 70%, transparent));
   }
-  .yield-pill rect { fill: var(--g-weight); filter: drop-shadow(0 4px 10px rgb(0 0 0 / 0.35)); }
-  .yield-pill text { fill: #23140a; font-family: var(--font); font-size: 14px; font-weight: 700; }
+  .yield-pill rect { fill: var(--g-weight); filter: drop-shadow(0 3px 8px rgb(0 0 0 / 0.35)); }
+  .yield-pill text { fill: #23140a; font-family: var(--font); font-size: 11px; font-weight: 700; }
   .line { fill: none; stroke-linejoin: round; stroke-linecap: round; }
   .target { stroke-width: 2.5; stroke-dasharray: 8 7; opacity: 0.7; }
   .target.thin { stroke-width: 1.5; }
@@ -157,16 +157,16 @@
   .legend {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px 28px;
+    gap: 6px 21px;
     margin: 0;
-    padding: 10px 0 0 48px;
+    padding: 8px 0 0 36px;
     list-style: none;
     color: var(--paper-dim);
     font-size: var(--t-sm);
   }
-  .legend li { display: flex; align-items: center; gap: 8px; }
-  .legend i { display: block; width: 26px; height: 4px; border-radius: 2px; background: var(--c); }
+  .legend li { display: flex; align-items: center; gap: 6px; }
+  .legend i { display: block; width: 20px; height: 3px; border-radius: 2px; background: var(--c); }
   .legend .water i { height: 2.5px; }
-  .legend .puck i { height: 7px; }
+  .legend .puck i { height: 5px; }
   .legend b { color: var(--paper); font-size: var(--t-md); font-weight: 650; }
 </style>

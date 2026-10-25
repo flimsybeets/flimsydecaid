@@ -76,15 +76,15 @@
 {/if}
 
 <style>
-  label { display: grid; gap: 6px; color: var(--paper-dim); font-size: var(--t-sm); }
-  input:not([type=checkbox]) { min-height: var(--touch); padding: 0 16px; border-radius: var(--radius-control); border: 1px solid rgb(255 255 255 / 0.08); color: var(--paper); font-size: var(--t-md); user-select: text; }
+  label { display: grid; gap: 4px; color: var(--paper-dim); font-size: var(--t-sm); }
+  input:not([type=checkbox]) { min-height: var(--touch); padding: 0 12px; border-radius: var(--radius-control); border: 1px solid rgb(255 255 255 / 0.08); color: var(--paper); font-size: var(--t-md); user-select: text; }
   input:focus { outline: none; border-color: rgb(255 255 255 / 0.45); }
-  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .check { display: flex; align-items: center; gap: 10px; min-height: var(--touch); }
-  .check input { width: 26px; height: 26px; accent-color: var(--paper); }
-  .remove { justify-self: start; min-height: 48px; padding: 0 18px; border-radius: var(--radius-pill); color: #ffb3ab; font-size: var(--t-xs); font-weight: 650; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .check { display: flex; align-items: center; gap: 8px; min-height: var(--touch); }
+  .check input { width: 20px; height: 20px; accent-color: var(--paper); }
+  .remove { justify-self: start; min-height: 40px; padding: 0 14px; border-radius: var(--radius-pill); color: #ffb3ab; font-size: var(--t-xs); font-weight: 650; }
   .error { color: var(--stop); }
-  .primary, .secondary { min-height: var(--touch); padding: 0 26px; border-radius: var(--radius-control); font-weight: 650; }
+  .primary, .secondary { min-height: var(--touch); padding: 0 20px; border-radius: var(--radius-control); font-weight: 650; }
   .secondary { color: var(--paper-dim); }
   .primary:disabled { opacity: 0.4; }
 </style>

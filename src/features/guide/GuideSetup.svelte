@@ -95,22 +95,22 @@
 </Modal>
 
 <style>
-  .cols { display: grid; grid-template-columns: 1.3fr 1fr; gap: 18px; }
-  section { display: grid; gap: 10px; align-content: start; min-width: 0; }
+  .cols { display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px; }
+  section { display: grid; gap: 8px; align-content: start; min-width: 0; }
   h3 { font-size: var(--t-xs); font-weight: 650; text-transform: uppercase; letter-spacing: 0.06em; color: var(--paper-faint); }
-  .search { min-height: 52px; padding: 0 16px; border-radius: 14px; border: 1px solid rgb(255 255 255 / 0.08); font-size: var(--t-sm); user-select: text; }
+  .search { min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid rgb(255 255 255 / 0.08); font-size: var(--t-sm); user-select: text; }
   .search:focus { outline: none; border-color: rgb(255 255 255 / 0.45); }
-  .list { list-style: none; margin: 0; padding: 4px; display: grid; gap: 6px; max-height: 300px; overflow-y: auto; margin: -4px; }
-  .opt { width: 100%; min-height: 56px; padding: 8px 16px; border-radius: 16px; text-align: left; display: grid; color: var(--paper); font-weight: 600; }
+  .list { list-style: none; margin: 0; padding: 3px; display: grid; gap: 4px; max-height: 225px; overflow-y: auto; margin: -4px; }
+  .opt { width: 100%; min-height: 42px; padding: 6px 12px; border-radius: 12px; text-align: left; display: grid; color: var(--paper); font-weight: 600; }
   .opt small { color: var(--paper-faint); font-weight: 500; font-size: var(--t-xs); }
   .opt.lit { box-shadow: 0 0 0 3px var(--go), var(--glass-sheen); }
-  .none { color: var(--paper-faint); padding: 8px 4px; }
+  .none { color: var(--paper-faint); padding: 6px 3px; }
   .preview { font-size: var(--t-md); font-weight: 700; }
   .preview span { display: block; font-size: var(--t-xs); color: var(--paper-faint); font-weight: 500; }
   .error { color: var(--stop); }
-  .primary, .secondary { min-height: var(--touch); padding: 0 28px; border-radius: var(--radius-control); font-weight: 650; }
+  .primary, .secondary { min-height: var(--touch); padding: 0 21px; border-radius: var(--radius-control); font-weight: 650; }
   .secondary { color: var(--paper-dim); }
-  .remove { margin-right: auto; min-height: var(--touch); padding: 0 20px; border-radius: var(--radius-control); color: #ffb3ab; font-size: var(--t-xs); font-weight: 650; }
+  .remove { margin-right: auto; min-height: var(--touch); padding: 0 15px; border-radius: var(--radius-control); color: #ffb3ab; font-size: var(--t-xs); font-weight: 650; }
   .primary:disabled { opacity: 0.4; }
   @media (max-width: 700px) { .cols { grid-template-columns: 1fr; } }
 </style>

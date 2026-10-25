@@ -50,12 +50,12 @@
 </Modal>
 
 <style>
-  .rate { display: grid; grid-template-columns: minmax(0, 320px) auto; gap: 12px; align-items: end; }
-  .clear { min-height: 48px; padding: 0 16px; border-radius: var(--radius-pill); color: var(--paper-dim); font-size: var(--t-xs); }
-  label { display: grid; gap: 6px; color: var(--paper-dim); font-size: var(--t-sm); }
-  textarea { padding: 12px 16px; border-radius: var(--radius-control); border: 1px solid rgb(255 255 255 / 0.08); color: var(--paper); font: inherit; font-size: var(--t-sm); line-height: 1.4; resize: vertical; user-select: text; }
+  .rate { display: grid; grid-template-columns: minmax(0, 240px) auto; gap: 9px; align-items: end; }
+  .clear { min-height: 40px; padding: 0 12px; border-radius: var(--radius-pill); color: var(--paper-dim); font-size: var(--t-xs); }
+  label { display: grid; gap: 4px; color: var(--paper-dim); font-size: var(--t-sm); }
+  textarea { padding: 9px 12px; border-radius: var(--radius-control); border: 1px solid rgb(255 255 255 / 0.08); color: var(--paper); font: inherit; font-size: var(--t-sm); line-height: 1.4; resize: vertical; user-select: text; }
   textarea:focus { outline: none; border-color: rgb(255 255 255 / 0.45); }
   .error { color: var(--stop); }
-  .primary, .secondary { min-height: var(--touch); padding: 0 26px; border-radius: var(--radius-control); font-weight: 650; }
+  .primary, .secondary { min-height: var(--touch); padding: 0 20px; border-radius: var(--radius-control); font-weight: 650; }
   .secondary { color: var(--paper-dim); }
 </style>

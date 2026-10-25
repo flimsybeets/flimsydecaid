@@ -48,7 +48,7 @@
 <style>
   .message { color: var(--paper-dim); max-width: 52ch; }
   .error { color: var(--stop); }
-  .secondary, .danger { min-height: var(--touch); padding: 0 26px; border-radius: var(--radius-control); font-weight: 650; }
+  .secondary, .danger { min-height: var(--touch); padding: 0 20px; border-radius: var(--radius-control); font-weight: 650; }
   .secondary { color: var(--paper-dim); }
   .danger { background: linear-gradient(170deg, #ff8a7f, var(--stop)); color: #2a0b07; }
   .danger:disabled { opacity: 0.5; }

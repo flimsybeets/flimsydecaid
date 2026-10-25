@@ -113,45 +113,45 @@
 </section>
 
 <style>
-  .inspector { display: grid; gap: 14px; align-content: start; }
+  .inspector { display: grid; gap: 10px; align-content: start; }
   /* Stays put while the settings scroll under it. */
   header {
     position: sticky;
     top: 0;
     z-index: 1;
     margin: 0 -20px;
-    padding: 16px 20px 12px;
+    padding: 12px 15px 9px;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 9px;
     flex-wrap: wrap;
     background: linear-gradient(#122a30 0 82%, rgb(18 42 48 / 0));
-    border-radius: 30px 30px 0 0;
+    border-radius: 22px 22px 0 0;
   }
   .num { font-size: var(--t-md); font-weight: 700; white-space: nowrap; }
-  .num small { font-size: var(--t-xs); color: var(--paper-faint); font-weight: 500; margin-left: 6px; }
+  .num small { font-size: var(--t-xs); color: var(--paper-faint); font-weight: 500; margin-left: 4px; }
   .name {
     flex: 1;
-    min-width: 160px;
-    min-height: 52px;
-    padding: 0 16px;
-    border-radius: 14px;
+    min-width: 120px;
+    min-height: 40px;
+    padding: 0 12px;
+    border-radius: 10px;
     border: 1px solid rgb(255 255 255 / 0.08);
     font-size: var(--t-md);
     font-weight: 600;
     user-select: text;
   }
   .name:focus { outline: none; border-color: rgb(255 255 255 / 0.45); }
-  .tools { display: flex; gap: 6px; }
-  .tools button { min-width: 52px; min-height: 52px; padding: 0 14px; border-radius: 14px; font-size: var(--t-md); color: var(--paper); }
+  .tools { display: flex; gap: 4px; }
+  .tools button { min-width: 40px; min-height: 40px; padding: 0 10px; border-radius: 10px; font-size: var(--t-md); color: var(--paper); }
   .tools button.text { font-size: var(--t-sm); }
   .tools button.danger { color: #ffb3ab; }
   .tools button:disabled { opacity: 0.35; }
 
-  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 20px; }
-  .group { display: grid; gap: 10px; align-content: start; }
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 15px; }
+  .group { display: grid; gap: 8px; align-content: start; }
   h3 { font-size: var(--t-xs); font-weight: 650; text-transform: uppercase; letter-spacing: 0.06em; color: var(--paper-faint); }
-  .pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: end; }
+  .pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; align-items: end; }
 
   @media (min-width: 1500px) { .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 </style>

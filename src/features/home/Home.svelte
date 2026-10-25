@@ -131,8 +131,8 @@
 
   .tiles {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 18px;
+    grid-template-columns: repeat(auto-fill, minmax(222px, 1fr));
+    gap: 14px;
   }
 
   /* The one loud thing in the skin: big riso-label tiles. */
@@ -141,10 +141,10 @@
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
-    gap: 6px;
-    min-height: 176px;
-    padding: 22px 24px;
-    border-radius: 34px;
+    gap: 4px;
+    min-height: 150px;
+    padding: 19px 20px;
+    border-radius: 26px;
     color: var(--cat-ink);
     text-align: left;
     overflow: hidden;
@@ -154,15 +154,15 @@
     background:
       radial-gradient(120% 70% at 18% 0%, rgb(255 255 255 / 0.45), transparent 55%),
       linear-gradient(160deg, color-mix(in srgb, var(--tile) 92%, transparent), color-mix(in srgb, var(--tile) 70%, transparent));
-    box-shadow: 0 22px 44px -16px color-mix(in srgb, var(--tile) 55%, transparent), var(--glass-shadow), inset 0 1px 0 rgb(255 255 255 / 0.6);
+    box-shadow: 0 16px 33px -16px color-mix(in srgb, var(--tile) 55%, transparent), var(--glass-shadow), inset 0 1px 0 rgb(255 255 255 / 0.6);
   }
   .tile .icon {
     position: absolute;
-    top: 18px;
-    right: 22px;
-    font-size: 46px;
+    top: 14px;
+    right: 16px;
+    font-size: 39px;
     line-height: 1;
-    filter: drop-shadow(0 6px 10px rgb(0 0 0 / 0.25));
+    filter: drop-shadow(0 4px 8px rgb(0 0 0 / 0.25));
   }
   .tile .name {
     font-size: var(--t-xl);
@@ -178,14 +178,14 @@
     color: var(--paper);
     background: #0d2228;
     isolation: isolate;
-    box-shadow: 0 22px 44px -16px rgb(134 166 238 / 0.55), var(--glass-shadow), inset 0 1px 0 rgb(255 255 255 / 0.35);
+    box-shadow: 0 16px 33px -16px rgb(134 166 238 / 0.55), var(--glass-shadow), inset 0 1px 0 rgb(255 255 255 / 0.35);
   }
   .tile.guide .aurora {
     position: absolute;
     inset: -40%;
     z-index: -1;
     background: conic-gradient(from var(--spin, 0deg), var(--cat-2), var(--cat-4), var(--cat-3), var(--cat-6), var(--cat-1), var(--cat-2));
-    filter: blur(28px) saturate(130%);
+    filter: blur(21px) saturate(130%);
     opacity: 0.85;
     animation: aurora 9s linear infinite;
   }
@@ -199,21 +199,21 @@
   }
   @property --spin { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
   @keyframes aurora { to { --spin: 360deg; } }
-  .tile.guide .compass { width: 56px; height: 56px; color: var(--paper); filter: drop-shadow(0 4px 12px rgb(0 0 0 / 0.35)); }
+  .tile.guide .compass { width: 42px; height: 42px; color: var(--paper); filter: drop-shadow(0 3px 9px rgb(0 0 0 / 0.35)); }
   .tile.guide .count { opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
   .change {
     position: absolute;
-    top: 16px;
-    left: 18px;
-    min-height: 44px;
-    padding: 0 16px;
+    top: 12px;
+    left: 14px;
+    min-height: 40px;
+    padding: 0 12px;
     border-radius: var(--radius-pill);
     background: rgb(8 22 26 / 0.45);
     color: var(--paper);
     font-size: var(--t-xs);
     font-weight: 650;
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
   }
 
   .tile.add {
@@ -225,15 +225,15 @@
     text-align: center;
   }
   .tile.add .name { font-size: var(--t-md); font-weight: 600; letter-spacing: 0; }
-  .plus { width: 44px; height: 44px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+  .plus { width: 40px; height: 40px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
 
-  .empty { max-width: 60ch; display: grid; gap: 10px; margin-bottom: 24px; color: var(--paper-dim); }
+  .empty { max-width: 60ch; display: grid; gap: 8px; margin-bottom: 18px; color: var(--paper-dim); }
   .empty .big { color: var(--paper); font-size: var(--t-lg); font-weight: 650; }
   .go-profiles {
     justify-self: start;
-    margin-top: 6px;
+    margin-top: 4px;
     min-height: var(--touch);
-    padding: 0 26px;
+    padding: 0 20px;
     border-radius: var(--radius-control);
     font-weight: 650;
   }
@@ -245,53 +245,53 @@
     padding: 0;
     overflow: hidden;
   }
-  .chosen.with-panel { grid-template-columns: minmax(0, 1fr) clamp(400px, 38vw, 520px); }
+  .chosen.with-panel { grid-template-columns: minmax(0, 1fr) clamp(300px, 38vw, 390px); }
   .list { overflow-y: auto; padding: var(--gutter); }
 
   .crumb {
     display: flex;
     align-items: center;
-    gap: 18px;
-    margin-bottom: 20px;
+    gap: 14px;
+    margin-bottom: 15px;
   }
   .back {
-    min-height: 56px;
-    padding: 0 20px 0 14px;
+    min-height: 42px;
+    padding: 0 15px 0 10px;
     border-radius: var(--radius-pill);
     color: var(--paper-dim);
     font-size: var(--t-sm);
   }
-  .edit-cat { margin-left: auto; min-height: 48px; padding: 0 18px; border-radius: var(--radius-pill); color: var(--paper); font-size: var(--t-xs); font-weight: 650; }
+  .edit-cat { margin-left: auto; min-height: 40px; padding: 0 14px; border-radius: var(--radius-pill); color: var(--paper); font-size: var(--t-xs); font-weight: 650; }
   .crumb h1 {
     font-size: var(--t-xl);
     font-weight: 750;
     letter-spacing: -0.02em;
     color: var(--tile);
-    text-shadow: 0 0 28px color-mix(in srgb, var(--tile) 45%, transparent);
+    text-shadow: 0 0 21px color-mix(in srgb, var(--tile) 45%, transparent);
   }
 
   .profiles {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 14px;
+    grid-template-columns: repeat(auto-fill, minmax(222px, 1fr));
+    gap: 10px;
     margin: 0;
     padding: 0;
     list-style: none;
   }
   .profile {
     width: 100%;
-    min-height: 120px;
+    min-height: 90px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    gap: 14px;
-    padding: 20px 22px;
-    border-radius: 26px;
+    gap: 10px;
+    padding: 15px 16px;
+    border-radius: 20px;
     text-align: left;
   }
-  .profile.selected { box-shadow: 0 0 0 3px var(--tile), 0 18px 40px -12px color-mix(in srgb, var(--tile) 45%, transparent), var(--glass-sheen); }
+  .profile.selected { box-shadow: 0 0 0 3px var(--tile), 0 14px 30px -12px color-mix(in srgb, var(--tile) 45%, transparent), var(--glass-sheen); }
   .title { font-size: var(--t-md); font-weight: 650; line-height: 1.15; }
-  .meta { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--paper-dim); font-size: var(--t-xs); }
+  .meta { display: flex; flex-wrap: wrap; gap: 4px 10px; color: var(--paper-dim); font-size: var(--t-xs); }
 
   @media (max-width: 960px) {
     .chosen.with-panel { grid-template-columns: 1fr; }

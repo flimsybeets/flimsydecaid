@@ -102,17 +102,17 @@
 {/if}
 
 <style>
-  label { display: grid; gap: 6px; color: var(--paper-dim); font-size: var(--t-sm); }
-  input[type=date] { min-height: var(--touch); padding: 0 16px; border-radius: var(--radius-control); border: 1px solid rgb(255 255 255 / 0.08); color: var(--paper); font-size: var(--t-md); }
-  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: end; }
-  .check { display: flex; align-items: center; gap: 10px; min-height: var(--touch); }
-  .check input { width: 26px; height: 26px; accent-color: var(--paper); }
-  .photo { display: flex; align-items: center; gap: 14px; }
-  .photo img { width: 96px; height: 96px; object-fit: cover; border-radius: 16px; }
-  .row { display: flex; flex-wrap: wrap; gap: 8px; }
-  .small { min-height: 48px; padding: 0 18px; border-radius: var(--radius-pill); color: var(--paper); font-size: var(--t-xs); font-weight: 650; }
+  label { display: grid; gap: 4px; color: var(--paper-dim); font-size: var(--t-sm); }
+  input[type=date] { min-height: var(--touch); padding: 0 12px; border-radius: var(--radius-control); border: 1px solid rgb(255 255 255 / 0.08); color: var(--paper); font-size: var(--t-md); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: end; }
+  .check { display: flex; align-items: center; gap: 8px; min-height: var(--touch); }
+  .check input { width: 20px; height: 20px; accent-color: var(--paper); }
+  .photo { display: flex; align-items: center; gap: 10px; }
+  .photo img { width: 72px; height: 72px; object-fit: cover; border-radius: 12px; }
+  .row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .small { min-height: 40px; padding: 0 14px; border-radius: var(--radius-pill); color: var(--paper); font-size: var(--t-xs); font-weight: 650; }
   .small.danger { color: #ffb3ab; }
   .error { color: var(--stop); }
-  .primary, .secondary { min-height: var(--touch); padding: 0 26px; border-radius: var(--radius-control); font-weight: 650; }
+  .primary, .secondary { min-height: var(--touch); padding: 0 20px; border-radius: var(--radius-control); font-weight: 650; }
   .secondary { color: var(--paper-dim); }
 </style>

@@ -159,38 +159,38 @@
   .panel {
     display: grid;
     grid-template-rows: auto minmax(0, 1fr) auto;
-    gap: 18px;
+    gap: 14px;
     min-height: 0;
     overflow: hidden;
-    margin: 4px var(--gutter) 4px 0;
+    margin: 3px var(--gutter) 3px 0;
     padding: var(--gutter);
-    border-radius: 36px;
+    border-radius: 27px;
     animation: slide 200ms cubic-bezier(.2,.8,.2,1);
   }
-  @keyframes slide { from { transform: translateX(30px); opacity: 0; } }
+  @keyframes slide { from { transform: translateX(22px); opacity: 0; } }
 
-  .body { display: grid; gap: 18px; align-content: start; min-height: 0; overflow-y: auto; margin: 0 -8px; padding: 4px 8px; }
-  .head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .body { display: grid; gap: 14px; align-content: start; min-height: 0; overflow-y: auto; margin: 0 -8px; padding: 3px 6px; }
+  .head { display: flex; align-items: flex-start; justify-content: space-between; gap: 9px; }
   h2 { font-size: var(--t-lg); font-weight: 700; line-height: 1.1; letter-spacing: -0.01em; }
-  h3 { font-size: var(--t-sm); font-weight: 500; color: var(--paper-dim); margin-bottom: 8px; }
-  .edit { flex: none; height: 56px; padding: 0 18px; margin-left: auto; border-radius: var(--radius-pill); color: var(--paper); font-size: var(--t-xs); font-weight: 650; }
-  .close { width: 56px; height: 56px; flex: none; border-radius: 50%; color: var(--paper-dim); font-size: var(--t-md); }
+  h3 { font-size: var(--t-sm); font-weight: 500; color: var(--paper-dim); margin-bottom: 6px; }
+  .edit { flex: none; height: 42px; padding: 0 14px; margin-left: auto; border-radius: var(--radius-pill); color: var(--paper); font-size: var(--t-xs); font-weight: 650; }
+  .close { width: 42px; height: 42px; flex: none; border-radius: 50%; color: var(--paper-dim); font-size: var(--t-md); }
 
-  .bag-list { display: grid; gap: 8px; max-height: 268px; overflow-y: auto; padding: 4px; margin: -4px; }
+  .bag-list { display: grid; gap: 6px; max-height: 201px; overflow-y: auto; padding: 3px; margin: -4px; }
   .bag {
     display: flex;
     align-items: center;
-    gap: 14px;
-    padding: 10px;
-    border-radius: 22px;
+    gap: 10px;
+    padding: 8px;
+    border-radius: 16px;
     text-align: left;
   }
   .bag.selected { box-shadow: 0 0 0 3px var(--tile), var(--glass-sheen); }
   .bag img, .swatch {
-    width: 58px; height: 58px; flex: none;
-    border-radius: 14px;
+    width: 44px; height: 44px; flex: none;
+    border-radius: 10px;
     object-fit: cover;
-    box-shadow: 0 4px 12px rgb(0 0 0 / 0.3);
+    box-shadow: 0 3px 9px rgb(0 0 0 / 0.3);
   }
   .swatch {
     display: grid; place-items: center;
@@ -204,17 +204,17 @@
   .sub { color: var(--paper-dim); font-size: var(--t-xs); }
   .none { color: var(--paper-dim); }
 
-  .dial { display: grid; gap: 14px; align-content: start; }
+  .dial { display: grid; gap: 10px; align-content: start; }
   .source { color: var(--paper-dim); font-size: var(--t-xs); }
-  .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
   .offset { color: var(--paper-dim); font-size: var(--t-xs); }
 
-  .go { display: grid; grid-template-columns: 1fr 1.6fr; gap: 12px; align-items: center; }
+  .go { display: grid; grid-template-columns: 1fr 1.6fr; gap: 9px; align-items: center; }
   .ghc { color: var(--paper-dim); font-size: var(--t-sm); }
   .msg { grid-column: 1 / -1; color: var(--go); font-size: var(--t-sm); }
   .msg.bad { color: var(--stop); }
   .load, .start {
-    min-height: 72px;
+    min-height: 61px;
     border-radius: var(--radius-tile);
     font-size: var(--t-md);
     font-weight: 700;
@@ -226,7 +226,7 @@
     background:
       radial-gradient(120% 80% at 20% 0%, rgb(255 255 255 / 0.5), transparent 60%),
       linear-gradient(165deg, var(--tile), color-mix(in srgb, var(--tile) 78%, black));
-    box-shadow: 0 16px 34px -12px color-mix(in srgb, var(--tile) 70%, transparent), inset 0 1px 0 rgb(255 255 255 / 0.7);
+    box-shadow: 0 12px 26px -12px color-mix(in srgb, var(--tile) 70%, transparent), inset 0 1px 0 rgb(255 255 255 / 0.7);
   }
   .load:disabled, .start:disabled { opacity: 0.5; }
 </style>

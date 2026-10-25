@@ -72,21 +72,21 @@
   .clock {
     display: block;
     color: rgb(255 255 255 / 0.5);
-    font-size: clamp(96px, 22vmin, 260px);
+    font-size: clamp(72px, 22vmin, 195px);
     font-weight: 500;
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.03em;
     line-height: 1;
     /* A faint shadow so it stays legible over bright photos. */
-    text-shadow: 0 2px 30px rgb(0 0 0 / 0.18);
+    text-shadow: 0 2px 22px rgb(0 0 0 / 0.18);
   }
 
   .hint {
     position: absolute;
-    bottom: 28px;
+    bottom: 21px;
     left: 50%;
     transform: translateX(-50%);
-    padding: 12px 22px;
+    padding: 9px 16px;
     border-radius: var(--radius-pill);
     background: rgb(0 0 0 / 0.4);
     color: rgb(255 255 255 / 0.8);

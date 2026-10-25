@@ -83,25 +83,25 @@
 </div>
 
 <style>
-  .page { height: 100%; overflow-y: auto; padding: var(--gutter); display: grid; gap: 28px; align-content: start; max-width: 760px; }
-  section { display: grid; gap: 12px; padding: 26px 28px; border-radius: 32px; }
+  .page { height: 100%; overflow-y: auto; padding: var(--gutter); display: grid; gap: 21px; align-content: start; max-width: 570px; }
+  section { display: grid; gap: 9px; padding: 20px 21px; border-radius: 24px; }
   h2 { font-size: var(--t-lg); font-weight: 700; }
   p { color: var(--paper-dim); }
   .button {
     justify-self: start;
     display: inline-flex; align-items: center;
-    min-height: var(--touch); padding: 0 26px;
+    min-height: var(--touch); padding: 0 20px;
     border-radius: var(--radius-control);
     font-weight: 650; text-decoration: none;
   }
-  .row { display: flex; flex-wrap: wrap; gap: 12px; }
+  .row { display: flex; flex-wrap: wrap; gap: 9px; }
   .row .button { justify-self: auto; }
   .button:not(.solid) { color: var(--paper); }
   .button:disabled { opacity: 0.5; }
-  .saver-preview { width: 100%; max-width: 360px; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 22px; box-shadow: var(--glass-shadow); }
+  .saver-preview { width: 100%; max-width: 270px; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 16px; box-shadow: var(--glass-shadow); }
   .small { font-size: var(--t-xs); }
   .error { color: var(--stop); }
-  dl { display: grid; grid-template-columns: max-content 1fr; gap: 10px 24px; margin: 0; }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: 8px 18px; margin: 0; }
   dt { color: var(--paper-dim); }
   dd { margin: 0; }
 </style>

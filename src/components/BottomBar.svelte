@@ -57,22 +57,22 @@
 
   footer {
     display: grid;
-    grid-template-columns: minmax(280px, 1fr) auto minmax(220px, auto);
+    grid-template-columns: minmax(210px, 1fr) auto minmax(165px, auto);
     align-items: stretch;
-    gap: 12px;
-    margin: 10px var(--gutter) 14px;
-    padding: 10px;
-    border-radius: 34px;
+    gap: 9px;
+    margin: 8px var(--gutter) 10px;
+    padding: 8px;
+    border-radius: 26px;
     z-index: 5;
   }
 
   .scale, .steam {
     display: flex;
     align-items: center;
-    gap: 18px;
-    min-height: 66px;
-    padding: 0 22px;
-    border-radius: 24px;
+    gap: 14px;
+    min-height: 56px;
+    padding: 0 16px;
+    border-radius: 18px;
     text-align: left;
   }
   .scale:active { background: rgb(4 14 17 / 0.5); }
@@ -80,11 +80,11 @@
   .label {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     color: var(--paper-dim);
     font-size: var(--t-sm);
   }
-  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--go); box-shadow: 0 0 10px var(--go); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--go); box-shadow: 0 0 8px var(--go); }
   .scale.off .dot { background: var(--paper-faint); box-shadow: none; }
   .battery { color: var(--paper-faint); }
 
@@ -94,22 +94,22 @@
     letter-spacing: -0.01em;
     min-width: 4.2ch;
   }
-  .weight small, .value small { font-size: var(--t-sm); font-weight: 500; color: var(--paper-dim); margin-left: 4px; }
+  .weight small, .value small { font-size: var(--t-sm); font-weight: 500; color: var(--paper-dim); margin-left: 3px; }
   .action { margin-left: auto; color: var(--paper-faint); font-size: var(--t-xs); }
 
   .temps {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 6px;
-    padding: 0 12px;
+    gap: 4px;
+    padding: 0 9px;
     font-size: var(--t-sm);
     color: var(--paper-dim);
   }
-  .t { display: flex; align-items: center; gap: 10px; }
-  .t i { display: block; width: 22px; border-radius: 2px; }
+  .t { display: flex; align-items: center; gap: 8px; }
+  .t i { display: block; width: 16px; border-radius: 2px; }
   .water i { height: 3px; background: var(--g-water); }
-  .puck i { height: 6px; background: var(--g-puck); }
+  .puck i { height: 4px; background: var(--g-puck); }
 
   .steam { justify-content: space-between; }
   .steam .value { font-size: var(--t-lg); font-weight: 650; color: var(--paper-faint); }

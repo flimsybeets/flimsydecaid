@@ -133,7 +133,7 @@
     align-items: center;
     justify-content: space-between;
     gap: var(--gutter);
-    padding: 14px var(--gutter) 10px;
+    padding: 10px var(--gutter) 8px;
     position: relative;
     z-index: 5;
   }
@@ -141,14 +141,14 @@
   /* Floating glass tab bar; the active tab is a lens of brighter glass. */
   nav {
     display: flex;
-    gap: 4px;
-    padding: 6px;
+    gap: 3px;
+    padding: 4px;
     border-radius: var(--radius-pill);
   }
 
   .tab {
-    min-height: 56px;
-    padding: 0 24px;
+    min-height: 42px;
+    padding: 0 18px;
     border-radius: var(--radius-pill);
     font-size: var(--t-md);
     font-weight: 500;
@@ -159,21 +159,21 @@
     background: linear-gradient(170deg, rgb(255 255 255 / 0.95), rgb(226 236 232 / 0.86));
     color: var(--ink);
     font-weight: 650;
-    box-shadow: 0 6px 16px -6px rgb(0 0 0 / 0.5), inset 0 1px 0 #fff;
+    box-shadow: 0 4px 12px -6px rgb(0 0 0 / 0.5), inset 0 1px 0 #fff;
   }
 
   .status {
     display: flex;
     align-items: center;
-    gap: 10px;
-    min-height: 56px;
-    padding: 0 20px;
+    gap: 8px;
+    min-height: 42px;
+    padding: 0 15px;
     border-radius: var(--radius-pill);
     font-size: var(--t-sm);
     color: var(--paper-dim);
     white-space: nowrap;
   }
-  .dot { width: 12px; height: 12px; border-radius: 50%; color: var(--go); background: currentColor; box-shadow: 0 0 10px currentColor; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; color: var(--go); background: currentColor; box-shadow: 0 0 8px currentColor; }
   .status.warm .dot { color: var(--warn); }
   .status.bad .dot { color: var(--stop); }
   .status.demo .dot { color: var(--cat-3); }
@@ -186,11 +186,11 @@
   }
 
   .problem {
-    max-width: 640px;
+    max-width: 480px;
     margin: 12vh auto 0;
     padding: 0 var(--gutter);
     display: grid;
-    gap: 16px;
+    gap: 12px;
     font-size: var(--t-md);
   }
   .hint { color: var(--paper-dim); font-size: var(--t-sm); }
@@ -198,13 +198,13 @@
   .retry {
     justify-self: start;
     min-height: var(--touch);
-    padding: 0 28px;
+    padding: 0 21px;
     border-radius: var(--radius-control);
     font-weight: 650;
   }
 
   @media (max-width: 900px) {
-    .tab { padding: 0 14px; font-size: var(--t-sm); }
+    .tab { padding: 0 10px; font-size: var(--t-sm); }
     .status .temp { display: none; }
   }
 </style>
