@@ -281,7 +281,11 @@ export function createMockGateway(): Gateway {
     subscribe(s) {
       // Demo-only hook, so the guide's weighing step can be tried without a
       // scale: __flimsyMock.setWeight(17.6) in the console.
-      (globalThis as { __flimsyMock?: unknown }).__flimsyMock = { setWeight: (g: number) => { weight = g; } };
+      // Same for the rinse, which is started on the machine: __flimsyMock.pressFlush().
+      (globalThis as { __flimsyMock?: unknown }).__flimsyMock = {
+        setWeight: (g: number) => { weight = g; },
+        pressFlush: () => { void this.requestState('flush'); },
+      };
       subs = s;
       s.onSocketStatus('machine', 'open');
       s.onSocketStatus('scale', 'open');

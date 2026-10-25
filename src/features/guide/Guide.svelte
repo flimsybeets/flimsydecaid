@@ -69,9 +69,9 @@
     try { await app.startEspresso(); } catch (e) { startError = (e as Error).message; } finally { starting = false; }
   }
 
-  // Rinse: follow the machine into flush and back out.
+  // Rinse: started with the machine's own flush button; follow the machine
+  // into flush and back out.
   let seenFlush = $state(false);
-  let rinseError = $state('');
   const machineState = $derived(app.machine.state?.state);
   $effect(() => { if (step === 'rinse' && machineState === 'flush') seenFlush = true; });
   const rinse = $derived(rinseProgress(seenFlush, machineState));
@@ -80,10 +80,6 @@
     const t = setTimeout(() => go('done'), 900);
     return () => clearTimeout(t);
   });
-  async function startRinse() {
-    rinseError = '';
-    try { await app.rinse(); } catch (e) { rinseError = (e as Error).message; }
-  }
 
   // Summary
   const stats = $derived(shotStats(app.shot));
@@ -189,15 +185,11 @@
               <p class="body">A short flush to clear the shower screen.</p>
               {#if rinse === 'rinsing'}
                 <p class="waiting"><span class="dot"></span>Rinsing…</p>
-                {#if !app.ghc}<button class="go-btn glass" onclick={() => app.stop()}>Stop</button>{/if}
               {:else if rinse === 'finished'}
                 <p class="waiting ok">Clean</p>
-              {:else if app.ghc}
-                <p class="waiting"><span class="dot"></span>Start the flush on the group head</p>
               {:else}
-                <button class="go-btn rinse" onclick={startRinse}>Rinse</button>
+                <p class="waiting"><span class="dot"></span>Press the flush button on the machine</p>
               {/if}
-              {#if rinseError}<p class="error">{rinseError}</p>{/if}
             {:else}
               <h1>Enjoy</h1>
               <dl class="summary">
@@ -310,13 +302,12 @@
   .tare { justify-self: start; min-height: var(--touch); padding: 0 30px; border-radius: var(--radius-pill); font-weight: 650; color: var(--paper); }
 
   .go-btn { justify-self: start; min-height: 92px; min-width: 260px; padding: 0 36px; border-radius: 30px; font-size: var(--t-lg); font-weight: 800; color: var(--paper); }
-  .go-btn.start, .go-btn.rinse {
+  .go-btn.start {
     color: var(--cat-ink);
     background: linear-gradient(165deg, #b9f0dd, var(--go));
     box-shadow: 0 18px 40px -12px rgb(143 211 192 / 0.8), inset 0 1px 0 rgb(255 255 255 / 0.8);
     animation: breathe 2.2s ease-in-out infinite;
   }
-  .go-btn.rinse { background: linear-gradient(165deg, #cfe9ff, var(--g-flow)); box-shadow: 0 18px 40px -12px rgb(99 174 245 / 0.8), inset 0 1px 0 rgb(255 255 255 / 0.8); }
   .go-btn:disabled { opacity: 0.55; animation: none; }
   @keyframes breathe { 50% { transform: scale(1.03); } }
   .waiting { display: flex; align-items: center; gap: 12px; font-size: var(--t-md); font-weight: 700; color: rgb(var(--accent)); }

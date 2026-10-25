@@ -247,8 +247,6 @@ class AppState {
     this.guide = setup;
   }
 
-  async rinse(): Promise<void> { await gateway.requestState('flush'); }
-
   async loadMachineInfo(): Promise<void> {
     const info = await gateway.getMachineInfo().catch(() => null);
     if (info) this.ghc = info.GHC === true;

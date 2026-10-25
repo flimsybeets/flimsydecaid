@@ -184,14 +184,15 @@
     </g>
     <ellipse class="puck" cx="200" cy="0" rx="38" ry="10" fill="url(#grounds)" />
   {:else if step === 'rinse'}
-    <!-- Flush the group head. -->
+    <!-- Flush the group head: the machine's button pulses until the water runs. -->
     <rect x="100" y="30" width="200" height="80" rx="18" fill="url(#metal)" />
     <rect x="136" y="108" width="128" height="16" rx="4" fill="url(#metal-h)" />
     {#each [0, 1, 2, 3, 4, 5, 6, 7] as w (w)}
       <line class="stream" class:on={active} x1={146 + w * 15} y1="126" x2={146 + w * 15} y2="244" style="--i: {w}" />
     {/each}
     <rect x="110" y="244" width="180" height="16" rx="6" fill="url(#dark)" stroke="rgb(255 255 255 / 0.18)" />
-    {#if ghc}<circle cx="276" cy="70" r="11" fill="var(--g-flow)" stroke="#fff" stroke-width="2" class:pulse={!active} />{/if}
+    {#if !active}<circle cx="276" cy="70" r="22" fill="url(#glow)" style="--glow: var(--g-flow)" class="pulse" />{/if}
+    <circle cx="276" cy="70" r="11" fill="var(--g-flow)" stroke="#fff" stroke-width="2" />
   {:else}
     <!-- Done: a cup with steam. -->
     <circle cx="200" cy="140" r="120" fill="url(#glow)" />
