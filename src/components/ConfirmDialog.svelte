@@ -36,11 +36,12 @@
   }
 </script>
 
-<Modal {title} {onClose}>
+<!-- No cancelling once it's under way: the action would still finish. -->
+<Modal {title} onClose={() => { if (!busy) onClose(); }}>
   <p class="message">{message}</p>
   {#if error}<p class="error" role="alert">That didn't work: {error}</p>{/if}
   {#snippet actions()}
-    <button class="secondary glass" onclick={onClose}>Cancel</button>
+    <button class="secondary glass" disabled={busy} onclick={onClose}>Cancel</button>
     <button class="danger glass" disabled={busy} onclick={confirm}>{busy ? 'Working…' : action}</button>
   {/snippet}
 </Modal>
@@ -50,6 +51,7 @@
   .error { color: var(--stop); }
   .secondary, .danger { min-height: var(--touch); padding: 0 20px; border-radius: var(--radius-control); font-weight: 650; }
   .secondary { color: var(--paper-dim); }
+  .secondary:disabled { opacity: 0.4; }
   .danger { background: linear-gradient(170deg, #ff8a7f, var(--stop)); color: #2a0b07; }
   .danger:disabled { opacity: 0.5; }
 </style>

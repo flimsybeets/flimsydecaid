@@ -16,7 +16,7 @@ import { photoKey, toJpegDataUrl } from '../lib/photo';
 import { fitDataUrl, SCREENSAVER_BRIGHTNESS, SCREENSAVER_KEY } from '../lib/screensaver';
 import { saveProfile, type SaveResult } from '../lib/profileEdit';
 import { GUIDE_KEY, parseGuideSetup, type GuideSetup } from '../lib/guide';
-import { indexProfiles, latestPerLineage, lineageRoot, shiftTemperature } from '../lib/profiles';
+import { hideOrder, indexProfiles, latestPerLineage, lineageRoot, shiftTemperature } from '../lib/profiles';
 import { ShotRecorder, type ShotSample } from '../lib/shot';
 import { clampSteamFlow, clampSteamTemp, LAST_STEAM_TEMP_KEY, STEAM_DEFAULT_C } from '../lib/steam';
 
@@ -264,10 +264,25 @@ class AppState {
    * so shot history and other skins keep their records.
    */
   async removeCoffee(beanId: string): Promise<void> {
-    for (const b of this.batches.filter((x) => x.beanId === beanId && !x.archived)) {
-      await this.updateBag(b.id, { archived: true });
+    try {
+      for (const b of this.batches.filter((x) => x.beanId === beanId && !x.archived)) {
+        await this.updateBag(b.id, { archived: true });
+      }
+      await this.updateBean(beanId, { archived: true });
+    } catch (e) {
+      // Show what Decaid actually has; trying again finishes the job.
+      await this.refreshBeans();
+      throw e;
     }
-    await this.updateBean(beanId, { archived: true });
+    if (this.guide?.beanId === beanId) await this.removeGuide();
+  }
+
+  private async refreshBeans(): Promise<void> {
+    try {
+      const [beans, batches] = await Promise.all([gateway.getBeans(), gateway.getBatches()]);
+      this.beans = beans;
+      this.batches = batches;
+    } catch { /* keep what we have; the caller reports the original error */ }
   }
 
   /**
@@ -277,7 +292,13 @@ class AppState {
    */
   async deleteProfile(profileRoot: string): Promise<void> {
     const versions = this.profiles.filter((r) => this.rootOf(r.id) === profileRoot);
-    for (const r of versions) await gateway.setProfileVisibility(r.id, 'hidden');
+    try {
+      // Newest first: if this stops partway, the rest still hang off the same root.
+      for (const r of hideOrder(versions, this.profilesById)) await gateway.setProfileVisibility(r.id, 'hidden');
+    } catch (e) {
+      this.profiles = await gateway.getProfiles().catch(() => this.profiles);
+      throw e;
+    }
     if (this.categories.categories.some((c) => c.profiles.includes(profileRoot))) {
       await this.saveCategories(removeProfileEverywhere(this.categories, profileRoot));
     }

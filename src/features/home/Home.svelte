@@ -23,6 +23,8 @@
   }
 
   const category = $derived(app.categories.categories.find((c) => c.id === categoryId) ?? null);
+  // A profile deleted from its editor closes its brew panel.
+  $effect(() => { if (profileRoot && !app.profileLineages.has(profileRoot)) profileRoot = null; });
   const profilesInCategory = $derived(
     (category?.profiles ?? [])
       .map((root) => ({ root, record: app.profileLineages.get(root) }))

@@ -12,7 +12,12 @@
 
   let { bag, onClose }: { bag: BeanBatch; onClose: () => void } = $props();
 
-  const dateInput = (iso?: string | null) => (iso ? iso.slice(0, 10) : '');
+  // The local calendar day (a UTC slice would show the day before or after east/west of UTC).
+  function dateInput(iso?: string | null): string {
+    const d = iso ? new Date(iso) : null;
+    if (!d || Number.isNaN(d.getTime())) return '';
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
   // svelte-ignore state_referenced_locally
   let roastDate = $state(dateInput(bag.roastDate));
   // svelte-ignore state_referenced_locally
@@ -36,6 +41,12 @@
     try { photo = await toJpegDataUrl(file); } catch { error = "That photo couldn't be read. Try another."; }
   }
 
+  // Finishing a bag set what's left to 0; reopening shouldn't leave it looking empty.
+  function reopen() {
+    if (!remaining && weight) remaining = weight;
+    return save({ archived: false });
+  }
+
   async function save(patch: Partial<BeanBatch> = {}) {
     saving = true;
     error = null;
@@ -46,7 +57,8 @@
       await app.updateBag(bag.id, {
         ...(changedRoast ? { roastDate: roast } : {}),
         weight: weight ?? null,
-        weightRemaining: remaining ?? null,
+        // What's left can't be more than the bag held.
+        weightRemaining: remaining == null ? null : weight == null ? remaining : Math.min(remaining, weight),
         frozen,
         ...(frozen !== bag.frozen ? (frozen ? { freezeDate: new Date().toISOString() } : { unfreezeDate: new Date().toISOString() }) : {}),
         ...patch,
@@ -79,7 +91,7 @@
 
   <div class="row">
     {#if bag.archived}
-      <button class="small glass" disabled={saving} onclick={() => save({ archived: false })}>Reopen this bag</button>
+      <button class="small glass" disabled={saving} onclick={reopen}>Reopen this bag</button>
     {/if}
     <button class="small glass danger" disabled={saving} onclick={() => (confirming = true)}>Delete bag</button>
   </div>

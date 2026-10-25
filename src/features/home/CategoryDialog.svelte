@@ -38,7 +38,7 @@
 
   const save = () => run(async () => {
     if (category) {
-      await app.saveCategories(updateCategory(app.categories, category.id, { name: trimmed, colour, icon }));
+      await app.saveCategories(updateCategory(app.categories, category.id, { name: trimmed, colour, icon: icon.trim() }));
     } else {
       const c: Category = { id: newCategoryId(), name: trimmed, colour, profiles: [], ...(icon.trim() ? { icon: icon.trim() } : {}) };
       await app.saveCategories({ ...app.categories, categories: [...app.categories.categories, c] });
@@ -53,7 +53,7 @@
 <Modal title={category ? 'Edit category' : 'New category'} {onClose}>
   <label class="field">
     <span>Name</span>
-    <input class="well" bind:value={name} placeholder="e.g. Light roasts" maxlength="40" onkeydown={(e) => { if (e.key === 'Enter' && trimmed) save(); }} />
+    <input class="well" bind:value={name} placeholder="e.g. Light roasts" maxlength="40" onkeydown={(e) => { if (e.key === 'Enter' && trimmed && !saving) save(); }} />
   </label>
 
   <div class="field">
