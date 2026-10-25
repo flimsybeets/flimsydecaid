@@ -270,7 +270,7 @@
   dt { color: var(--paper-faint); font-size: var(--t-xs); }
   dd { margin: 0; font-size: var(--t-lg); font-weight: 650; }
   dd small { font-size: var(--t-sm); color: var(--paper-dim); margin-left: 2px; font-weight: 500; }
-  .notes { color: var(--paper-dim); font-style: italic; max-width: 70ch; }
+  .notes { color: var(--paper-dim); max-width: 70ch; padding-left: 14px; border-left: 3px solid rgb(255 255 255 / 0.25); }
 
   .graph { flex: 1; min-height: 0; display: flex; padding: 18px 20px 14px; border-radius: 32px; }
   .graph > :global(*) { flex: 1; }

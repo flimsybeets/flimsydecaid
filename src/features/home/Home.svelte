@@ -148,7 +148,6 @@
   .tile .name {
     font-size: var(--t-xl);
     font-weight: 750;
-    font-variation-settings: 'opsz' 72;
     letter-spacing: -0.02em;
     line-height: 1.02;
   }

@@ -1,5 +1,4 @@
-import '@fontsource-variable/literata/opsz.css';
-import '@fontsource-variable/literata/opsz-italic.css';
+import '@fontsource-variable/sen/wght.css';
 import './styles.css';
 import { mount } from 'svelte';
 import App from './App.svelte';
