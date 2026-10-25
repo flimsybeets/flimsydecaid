@@ -218,7 +218,7 @@
 
   .row {
     width: 100%;
-    min-height: 76px;
+    min-height: 66px;
     display: flex;
     align-items: center;
     gap: 14px;

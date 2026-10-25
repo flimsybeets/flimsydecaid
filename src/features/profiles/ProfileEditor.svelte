@@ -268,7 +268,7 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
-    padding: 14px var(--gutter) 16px;
+    padding: 14px var(--gutter) calc(16px + var(--kb));
     background:
       radial-gradient(60vmax 48vmax at 4% -6%, rgb(64 170 160 / 0.45), transparent 62%),
       radial-gradient(52vmax 46vmax at 34% 112%, rgb(201 154 216 / 0.28), transparent 62%),
@@ -319,11 +319,14 @@
   .ghost-toggle { margin-left: auto; min-height: 36px; padding: 0 14px; border-radius: var(--radius-pill); background: var(--well); color: var(--paper-dim); font-size: var(--t-xs); }
   .ghost-toggle.on { background: rgb(255 255 255 / 0.85); color: var(--ink); font-weight: 650; }
 
+  /* While typing, fold the chart and step strip away so the fields stay visible. */
+  :global(html.kb-open) .chart, :global(html.kb-open) .strip { display: none; }
+
   .strip { flex: none; display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 6px; }
   .card {
     flex: none;
     width: 168px;
-    min-height: 84px;
+    min-height: 72px;
     padding: 10px 14px;
     border-radius: 20px;
     display: grid;

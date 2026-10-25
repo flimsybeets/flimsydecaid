@@ -106,6 +106,7 @@ Source of truth: `assets/api/rest_v1.yml`, `assets/api/websocket_v1.yml` and `do
 - **Archived beans and bags are hidden by default**: `GET /beans` and `GET /bean-batches` need `?includeArchived=true` (dial-in carry-over from a finished bag, "Show finished bags", old shots' bag names all depend on it). Filter `archived` in the UI instead.
 - **Batch PUT merges top-level fields only**: `extras` is replaced whole, hence `withDialIn` copies other keys. Missing KV keys answer 200 `null`, not 404.
 - **Layers**: profile editor 25, guide 27, shot view 30, modals 60/61, screensaver 100. Full-screen views with oversized decoration use `overflow: clip` (not hidden), so focus/scrollIntoView can't shift them.
+- **On-screen keyboard** (`src/keyboard.ts`): while a text field has focus and the visible area shrinks, `<html>` gets `kb-open` and `--kb` = the part of the page the keyboard covers (0 when the WebView resizes instead). The bottom bar hides, modals sit above it, the profile editor folds its chart and step strip, and the focused field is scrolled into view. Any new full-screen form should honour `--kb` / `kb-open` too.
 - **Glass + scrolling**: a `.glass` element must not be the scroll container (its `::before` rim scrolls away). Scroll an inner element instead, as BrewPanel and Modal do.
 - **Manifest**: `public/skin-manifest.json`. Keep `id` = `flimsydecaid` forever (it's the install folder and update identity). Version is numeric dot-segments only; `npm run package` stamps it from `package.json` or the `v*` tag.
 
@@ -115,7 +116,7 @@ Tablet next to the machine, read at arm's length, wet hands.
 - Base: deep ink-teal (`--ink`), cream text (`--paper`), over a fixed backdrop of soft colour pools (in `styles.css` on `body`) for the glass to refract. One loud element: the category tiles in riso-label colours (`--cat-1…8`), as tinted glass. Keep everything else quiet.
 - **Glass (Apple-style materials), global classes in `styles.css`:** `.glass` (blurred translucent fill, rim light via `::before`, sheen, soft shadow), `.glass.thick` (sheets: modal, brew panel, graphs), `.glass.solid` (bright prominent action, dark text), `.glass.lit` / `aria-pressed|checked="true"` (selected), `.well` (recessed: steppers, inputs). A component's scoped `background`/`color` beats these, so drop them from elements that use the classes. `.glass` needs its `::before` free. Blur cost is unknown on the tablet; `--glass-blur` is the one knob to turn down.
 - Font: Sen (bundled via @fontsource-variable/sen, weights 400–800, works offline; don't load it from Google Fonts). No italic, so don't use `font-style: italic` (it would be faked). Tabular figures everywhere.
-- Touch targets ≥ 64px (`--touch`). Primary actions 84px+.
+- Touch targets ≥ 56px (`--touch`). Primary actions ~72px+. Sizes were scaled down ~12% after first use on the tablet felt zoomed in; keep new UI on the tokens rather than fixed px.
 - Graph colours are fixed across every graph: pressure green, flow blue, weight brown, water coral (thin), puck gold (thick). Targets dashed.
 - Copy: plain, sentence case, says what happens ("Load", "Start shot", "Save steam settings").
 

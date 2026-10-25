@@ -36,10 +36,11 @@
   }
   .dialog {
     position: fixed;
-    left: 50%; bottom: 14px;
+    left: 50%; bottom: calc(14px + var(--kb));
     transform: translateX(-50%);
     width: min(720px, calc(100% - 28px));
-    max-height: calc(100% - 40px);
+    max-height: calc(100% - 40px - var(--kb));
+    transition: bottom 180ms ease, max-height 180ms ease;
     overflow: hidden;
     grid-template-rows: auto minmax(0, 1fr) auto;
     z-index: 61;

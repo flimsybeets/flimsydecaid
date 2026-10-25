@@ -105,7 +105,7 @@
 
   .stop, .done {
     min-width: 180px;
-    min-height: 88px;
+    min-height: 76px;
     border-radius: var(--radius-tile);
     font-size: var(--t-lg);
     font-weight: 700;

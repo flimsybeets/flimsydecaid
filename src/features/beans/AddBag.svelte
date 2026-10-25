@@ -132,7 +132,7 @@
   .camera {
     display: flex; align-items: center; gap: 16px;
     width: 100%;
-    min-height: 120px;
+    min-height: 96px;
     padding: 0 24px;
     border-radius: 24px;
     color: var(--paper-dim);

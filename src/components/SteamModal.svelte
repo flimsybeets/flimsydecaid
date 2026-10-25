@@ -66,7 +66,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    min-height: 84px;
+    min-height: 72px;
     padding: 0 16px 0 24px;
     border-radius: 24px;
     font-size: var(--t-md);

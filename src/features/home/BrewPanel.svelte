@@ -214,7 +214,7 @@
   .msg { grid-column: 1 / -1; color: var(--go); font-size: var(--t-sm); }
   .msg.bad { color: var(--stop); }
   .load, .start {
-    min-height: 84px;
+    min-height: 72px;
     border-radius: var(--radius-tile);
     font-size: var(--t-md);
     font-weight: 700;

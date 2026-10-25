@@ -52,6 +52,9 @@
 
 <style>
   /* Floating glass dock, inset from the screen edges. */
+  /* Out of the way while typing, so forms get the room. */
+  :global(html.kb-open) footer { display: none; }
+
   footer {
     display: grid;
     grid-template-columns: minmax(280px, 1fr) auto minmax(220px, auto);
@@ -67,7 +70,7 @@
     display: flex;
     align-items: center;
     gap: 18px;
-    min-height: 76px;
+    min-height: 66px;
     padding: 0 22px;
     border-radius: 24px;
     text-align: left;

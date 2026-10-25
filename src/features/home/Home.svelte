@@ -139,7 +139,7 @@
 
   .tiles {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
     gap: 18px;
   }
 
@@ -150,8 +150,8 @@
     flex-direction: column;
     justify-content: flex-end;
     gap: 6px;
-    min-height: 210px;
-    padding: 26px 28px;
+    min-height: 176px;
+    padding: 22px 24px;
     border-radius: 34px;
     color: var(--cat-ink);
     text-align: left;
@@ -168,7 +168,7 @@
     position: absolute;
     top: 18px;
     right: 22px;
-    font-size: 56px;
+    font-size: 46px;
     line-height: 1;
     filter: drop-shadow(0 6px 10px rgb(0 0 0 / 0.25));
   }

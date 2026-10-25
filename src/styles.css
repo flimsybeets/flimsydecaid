@@ -66,15 +66,17 @@
   --font: 'Sen Variable', system-ui, sans-serif;
 
   /* Type scale (perfect fourth), tuned for arm's-length reading */
-  --t-xs: 15px;
-  --t-sm: 18px;
-  --t-md: 22px;
-  --t-lg: 30px;
-  --t-xl: 40px;
-  --t-xxl: 54px;
+  --t-xs: 14px;
+  --t-sm: 16px;
+  --t-md: 19px;
+  --t-lg: 26px;
+  --t-xl: 34px;
+  --t-xxl: 46px;
 
-  --touch: 64px; /* minimum target height */
-  --gutter: 24px;
+  --touch: 56px; /* minimum target height */
+  --gutter: 20px;
+  /* Height of the on-screen keyboard over the page (see src/keyboard.ts). */
+  --kb: 0px;
 
   color-scheme: dark;
 }

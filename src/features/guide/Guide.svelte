@@ -288,12 +288,12 @@
   .weigh.under { --c: 242 179 61; }
   .weigh.over { --c: 255 111 97; }
   .weigh.ok { --c: 76 230 140; }
-  .ring { width: 150px; height: 150px; flex: none; transform: rotate(-90deg); filter: drop-shadow(0 0 16px rgb(var(--c) / 0.45)); }
+  .ring { width: 130px; height: 130px; flex: none; transform: rotate(-90deg); filter: drop-shadow(0 0 16px rgb(var(--c) / 0.45)); }
   .ring circle { fill: none; stroke-width: 10; }
   .ring .track { stroke: rgb(255 255 255 / 0.08); }
   .ring .fill { stroke: rgb(var(--c)); stroke-linecap: round; transition: stroke-dasharray 140ms linear, stroke 300ms ease; }
   .readout { display: grid; }
-  .readout b { font-size: 84px; font-weight: 800; line-height: 1; letter-spacing: -0.03em; color: rgb(var(--c)); transition: color 300ms ease; text-shadow: 0 0 30px rgb(var(--c) / 0.35); }
+  .readout b { font-size: 72px; font-weight: 800; line-height: 1; letter-spacing: -0.03em; color: rgb(var(--c)); transition: color 300ms ease; text-shadow: 0 0 30px rgb(var(--c) / 0.35); }
   .readout small { font-size: var(--t-lg); color: var(--paper-dim); margin-left: 4px; }
   .readout .num { white-space: nowrap; }
   .status { font-size: var(--t-md); font-weight: 700; color: rgb(var(--c)); }
@@ -301,7 +301,7 @@
   .weigh.noscale .ring { opacity: 0.3; }
   .tare { justify-self: start; min-height: var(--touch); padding: 0 30px; border-radius: var(--radius-pill); font-weight: 650; color: var(--paper); }
 
-  .go-btn { justify-self: start; min-height: 92px; min-width: 260px; padding: 0 36px; border-radius: 30px; font-size: var(--t-lg); font-weight: 800; color: var(--paper); }
+  .go-btn { justify-self: start; min-height: 80px; min-width: 230px; padding: 0 32px; border-radius: 30px; font-size: var(--t-lg); font-weight: 800; color: var(--paper); }
   .go-btn.start {
     color: var(--cat-ink);
     background: linear-gradient(165deg, #b9f0dd, var(--go));
@@ -323,7 +323,7 @@
   .summary small { font-size: var(--t-md); color: var(--paper-dim); margin-left: 4px; font-weight: 600; }
 
   footer { flex: none; display: flex; justify-content: space-between; gap: 12px; }
-  .nav { min-height: 84px; min-width: 200px; padding: 0 34px; border-radius: 28px; font-size: var(--t-md); font-weight: 750; color: var(--paper); }
+  .nav { min-height: 72px; min-width: 180px; padding: 0 30px; border-radius: 28px; font-size: var(--t-md); font-weight: 750; color: var(--paper); }
   .nav.primary { color: var(--ink); }
   .nav.ready {
     background: linear-gradient(165deg, #c6ffdc, rgb(76 230 140));
