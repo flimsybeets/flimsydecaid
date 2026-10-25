@@ -32,7 +32,7 @@
 </script>
 
 <button class="saver" onclick={onDismiss} aria-label={preview ? 'Close preview' : 'Wake the machine'}>
-  {#if image}<img src={image} alt="" />{/if}
+  {#if image}<img src={image} alt="" decoding="async" />{/if}
   <span class="drift-x" aria-hidden="true">
     <span class="drift-y">
       <span class="clock">{time}</span>
