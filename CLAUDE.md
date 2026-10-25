@@ -28,7 +28,7 @@ Run `npm run check && npm test` before committing.
 - **Categories are for organising only.** They never affect settings.
 - **Dial-in is per bag + profile.** Each bag remembers grind, dose, yield and temp offset for every profile used with it.
 - **Bottom bar** (always visible): scale name, weight, connection (tap to tare, or to scan when disconnected); water and puck temps; steam heater on/off with live steam temp. Tapping steam opens the steam modal (heater toggle, temperature, flow).
-- **Shot view** takes over while pulling and stays until "Done". Temperatures get their own panel under pressure/flow/weight.
+- **Shot view** takes over while pulling and stays until "Done". While pouring, four car-style dials sit above the graph: flow in (machine, ml/s, with target), flow out (scale `weightFlow`, g/s), pressure (with target, red zone from 10 bar), and water + puck on one dial (thin coral and thick gold needles, both targets). Dials hide when the shot ends so the graph gets the room. Temperatures get their own panel under pressure/flow/weight.
 - **History**: shot list grouped by day (filter chips per open bag) beside the selected shot's numbers and graph. Refetches after a pull ends.
 - **Bag photos** from the tablet camera when adding a bag.
 
@@ -49,9 +49,10 @@ src/
     steam.ts      steam heater rules and ranges
     shot.ts       ShotRecorder (live graph) + samplesFromMeasurements (saved shots)
     history.ts    day grouping, ratio, stop-reason wording, shot stats
+    gauge.ts      dial geometry (240° sweep), ticks, temperature dial range
     photo.ts      camera + JPEG downscale
   state/app.svelte.ts  single app state (Svelte 5 runes class) + actions
-  components/  BottomBar, SteamModal, ShotView, ShotChart, Stepper, Modal, NameDialog
+  components/  BottomBar, SteamModal, ShotView, ShotChart, Gauge, Stepper, Modal, NameDialog
   features/    home (wizard + BrewPanel), profiles, beans (+ AddBag), history, settings
   styles.css   design tokens
 ```

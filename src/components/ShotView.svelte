@@ -1,6 +1,8 @@
 <script lang="ts">
   import { app } from '../state/app.svelte';
   import ShotChart from './ShotChart.svelte';
+  import Gauge from './Gauge.svelte';
+  import { tempDialRange } from '../lib/gauge';
 
   let { onClose }: { onClose: () => void } = $props();
 
@@ -9,6 +11,12 @@
   const frame = $derived(app.machine.profileFrame ?? 0);
   const elapsed = $derived(app.shot.at(-1)?.t ?? 0);
   const yieldTarget = $derived(app.workflow.context?.targetYield || null);
+
+  // Live dials. The machine zeroes the target of the pump it isn't using, so
+  // 0 means "no target" here, same as on the graph.
+  const m = $derived(app.machine);
+  const activeTarget = (v: number | undefined) => (v ? v : null);
+  const tempRange = $derived(tempDialRange(steps.map((s) => s.temperature)));
 
   $effect(() => { if (!app.shotActive) stopping = false; });
 
@@ -42,6 +50,28 @@
     </ol>
   {/if}
 
+  {#if app.shotActive}
+    <div class="dials" aria-label="Live readings">
+      <Gauge label="Flow in" unit="ml/s" min={0} max={8} major={1} minor={2}
+        needles={[{ value: m.flow, colour: 'var(--g-flow)', width: 3.2 }]}
+        targets={[{ value: activeTarget(m.targetFlow), colour: 'var(--g-flow)' }]} />
+      <Gauge label="Flow out" unit="g/s" min={0} max={8} major={1} minor={2}
+        needles={[{ value: app.scaleConnected ? app.weightFlow : null, colour: 'var(--g-weight)', width: 3.2 }]} />
+      <Gauge label="Pressure" unit="bar" min={0} max={12} major={2} minor={4} redline={10}
+        needles={[{ value: m.pressure, colour: 'var(--g-pressure)', width: 3.2 }]}
+        targets={[{ value: activeTarget(m.targetPressure), colour: 'var(--g-pressure)' }]} />
+      <Gauge label="Water · Puck" unit="°C" min={tempRange[0]} max={tempRange[1]} major={5} minor={5}
+        needles={[
+          { name: 'Water', value: m.mixTemperature, colour: 'var(--g-water)', width: 2 },
+          { name: 'Puck', value: m.groupTemperature, colour: 'var(--g-puck)', width: 4.2 },
+        ]}
+        targets={[
+          { value: m.targetMixTemperature, colour: 'var(--g-water)' },
+          { value: m.targetGroupTemperature, colour: 'var(--g-puck)' },
+        ]} />
+    </div>
+  {/if}
+
   <div class="graph glass thick">
     <ShotChart samples={app.shot} {yieldTarget} />
   </div>
@@ -61,8 +91,8 @@
       radial-gradient(40vmax 34vmax at 100% 10%, rgb(242 179 61 / 0.22), transparent 60%),
       linear-gradient(165deg, #12313a, #0a181c 70%);
     animation: appear 220ms ease;
-    display: grid;
-    grid-template-rows: auto auto 1fr;
+    display: flex;
+    flex-direction: column;
     gap: 16px;
     padding: 20px var(--gutter) 24px;
   }
@@ -106,7 +136,17 @@
   .steps li.past { color: var(--paper-dim); }
   .steps li.current { background: linear-gradient(170deg, #fff, #dde9e5); color: var(--ink); font-weight: 650; box-shadow: 0 6px 16px -6px rgb(0 0 0 / 0.5); }
 
-  .graph { min-height: 0; display: flex; padding: 18px 20px 14px; border-radius: 34px; }
+  .dials {
+    flex: none;
+    height: clamp(180px, 30vh, 270px);
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-rows: minmax(0, 1fr);
+    gap: 12px;
+    animation: appear 260ms ease;
+  }
+
+  .graph { flex: 1; min-height: 240px; display: flex; padding: 18px 20px 14px; border-radius: 34px; }
   .graph > :global(*) { flex: 1; }
   @keyframes appear { from { opacity: 0; transform: scale(1.01); } }
 </style>

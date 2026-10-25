@@ -33,6 +33,8 @@ class AppState {
   scanning = $state(false);
   scaleConnected = $state(false);
   weight = $state<number | null>(null);
+  /** Flow into the cup in g/s, from the scale. */
+  weightFlow = $state<number | null>(null);
   scaleBattery = $state<number | null>(null);
   shot = $state<ShotSample[]>([]);
   shotActive = $state(false);
@@ -113,11 +115,12 @@ class AppState {
     if ('status' in f) {
       // A status frame is not a reading: don't show 0 g on connect.
       this.scaleConnected = f.status === 'connected';
-      if (!this.scaleConnected) this.weight = null;
+      if (!this.scaleConnected) { this.weight = null; this.weightFlow = null; }
       return;
     }
     this.scaleConnected = true;
     this.weight = f.weight;
+    this.weightFlow = f.weightFlow ?? null;
     this.scaleBattery = f.battery ?? null;
     this.recorder.onScale(f);
   }
