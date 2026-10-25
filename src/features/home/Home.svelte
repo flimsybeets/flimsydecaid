@@ -4,11 +4,22 @@
   import { baseTemperature } from '../../lib/profiles';
   import BrewPanel from './BrewPanel.svelte';
   import NameDialog from '../../components/NameDialog.svelte';
+  import GuideSetup from '../guide/GuideSetup.svelte';
 
   // Wizard: category → profile → brew panel.
   let categoryId = $state<string | null>(null);
   let profileRoot = $state<string | null>(null);
   let naming = $state(false);
+  let settingUpGuide = $state(false);
+
+  // "Guide me" tile: what it's set to, and whether that still exists.
+  const guideProfile = $derived(app.guide ? app.profileLineages.get(app.guide.profileRoot) : undefined);
+  const guideBean = $derived(app.guide ? app.beans.find((b) => b.id === app.guide!.beanId) : undefined);
+  const guideReady = $derived(!!guideProfile && !!guideBean);
+  function openGuide() {
+    if (guideReady) app.guiding = true;
+    else settingUpGuide = true;
+  }
 
   const category = $derived(app.categories.categories.find((c) => c.id === categoryId) ?? null);
   const profilesInCategory = $derived(
@@ -56,6 +67,18 @@
           <span class="count">{profileCount(c)} {profileCount(c) === 1 ? 'profile' : 'profiles'}</span>
         </button>
       {/each}
+      <div class="guide-wrap">
+        <button class="tile guide" onclick={openGuide}>
+          <span class="aurora" aria-hidden="true"></span>
+          <svg class="icon compass" viewBox="0 0 48 48" aria-hidden="true">
+            <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" stroke-width="3" />
+            <path d="M31,17 L26.5,26.5 L17,31 L21.5,21.5 Z" fill="currentColor" />
+          </svg>
+          <span class="name">Guide me</span>
+          <span class="count">{guideReady ? `${guideProfile!.profile.title} · ${guideBean!.name}` : 'Tap to choose a profile and coffee'}</span>
+        </button>
+        {#if guideReady}<button class="change" onclick={() => (settingUpGuide = true)}>Change</button>{/if}
+      </div>
       <button class="tile add glass" onclick={() => (naming = true)}>
         <svg class="plus" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16" /></svg>
         <span class="name">New category</span>
@@ -101,6 +124,10 @@
       {/key}
     {/if}
   </div>
+{/if}
+
+{#if settingUpGuide}
+  <GuideSetup onClose={() => (settingUpGuide = false)} onSaved={() => (app.guiding = true)} />
 {/if}
 
 {#if naming}
@@ -152,6 +179,50 @@
     line-height: 1.02;
   }
   .tile .count { font-size: var(--t-sm); font-weight: 500; opacity: 0.75; }
+
+  /* Guide me: a slowly turning aurora of all the tile inks under dark glass. */
+  .guide-wrap { position: relative; display: grid; }
+  .tile.guide {
+    color: var(--paper);
+    background: #0d2228;
+    isolation: isolate;
+    box-shadow: 0 22px 44px -16px rgb(134 166 238 / 0.55), var(--glass-shadow), inset 0 1px 0 rgb(255 255 255 / 0.35);
+  }
+  .tile.guide .aurora {
+    position: absolute;
+    inset: -40%;
+    z-index: -1;
+    background: conic-gradient(from var(--spin, 0deg), var(--cat-2), var(--cat-4), var(--cat-3), var(--cat-6), var(--cat-1), var(--cat-2));
+    filter: blur(28px) saturate(130%);
+    opacity: 0.85;
+    animation: aurora 9s linear infinite;
+  }
+  .tile.guide::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background: linear-gradient(160deg, rgb(255 255 255 / 0.22), rgb(8 22 26 / 0.45) 55%, rgb(8 22 26 / 0.6));
+  }
+  @property --spin { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+  @keyframes aurora { to { --spin: 360deg; } }
+  .tile.guide .compass { width: 56px; height: 56px; color: var(--paper); filter: drop-shadow(0 4px 12px rgb(0 0 0 / 0.35)); }
+  .tile.guide .count { opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .change {
+    position: absolute;
+    top: 16px;
+    left: 18px;
+    min-height: 44px;
+    padding: 0 16px;
+    border-radius: var(--radius-pill);
+    background: rgb(8 22 26 / 0.45);
+    color: var(--paper);
+    font-size: var(--t-xs);
+    font-weight: 650;
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
 
   .tile.add {
     background: var(--glass-fill);

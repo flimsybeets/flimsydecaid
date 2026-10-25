@@ -279,6 +279,9 @@ export function createMockGateway(): Gateway {
     mock: true,
 
     subscribe(s) {
+      // Demo-only hook, so the guide's weighing step can be tried without a
+      // scale: __flimsyMock.setWeight(17.6) in the console.
+      (globalThis as { __flimsyMock?: unknown }).__flimsyMock = { setWeight: (g: number) => { weight = g; } };
       subs = s;
       s.onSocketStatus('machine', 'open');
       s.onSocketStatus('scale', 'open');
@@ -301,6 +304,11 @@ export function createMockGateway(): Gateway {
       else if (state === 'espresso') stopReason = 'apiStop';
       state = next;
       substate = next === 'espresso' ? 'preparingForShot' : 'idle';
+      // A rinse runs for the workflow's rinse time, then the machine goes idle.
+      if (next === 'flush') {
+        const secs = Math.min(8, workflow.rinseData?.duration ?? 5);
+        setTimeout(() => { if (state === 'flush') state = 'idle'; }, secs * 1000);
+      }
     },
     // ?mock=1&ghc=1 pretends a Group Head Controller is fitted.
     async getMachineInfo() {

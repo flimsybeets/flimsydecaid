@@ -26,6 +26,7 @@ Run `npm run check && npm test` before committing.
 - Top tabs: Home, Profiles, History, Beans, Settings.
 - **Home is a wizard**: big category tiles → profiles in that category → side panel to pick a bag and set grind, dose, yield, temperature → Load / Start shot.
 - **Categories are for organising only.** They never affect settings.
+- **Guide me** (last tile on Home): set to one profile + one coffee (Change on the tile). Uses the coffee's newest open bag and its dial-in, loads it onto the machine on open, then walks through weigh (live scale, green within ±0.1 g, add/take-out amounts) → spray → grinder setting → grind → funnel → settle and tamp → paper → pull (Start shot, or wait for the group head on GHC) → shot view → knock out → rinse (`flush`, follows the machine state) → summary. Animated SVG scene per step (`features/guide/GuideArt.svelte`); pure parts in `lib/guide.ts`. In mock mode `__flimsyMock.setWeight(g)` drives the scale.
 - **Dial-in is per bag + profile.** Each bag remembers grind, dose, yield and temp offset for every profile used with it.
 - **Bottom bar** (always visible): scale name, weight, connection (tap to tare, or to scan when disconnected); water and puck temps; steam heater on/off with live steam temp. Tapping steam opens the steam modal (heater toggle, temperature, flow).
 - **Shot view** takes over while pulling and stays until "Done". While pouring, four car-style dials sit above the graph: flow in (machine, ml/s, with target), flow out (scale `weightFlow`, g/s), pressure (with target, red zone from 10 bar), and water + puck on one dial (thin coral and thick gold needles, both targets). Dials hide when the shot ends so the graph gets the room. The target yield is a bold dashed line on the graph with its value in a pill. Temperatures get their own panel under pressure/flow/weight.
@@ -53,11 +54,12 @@ src/
     history.ts    day grouping, ratio, stop-reason wording, shot stats
     screensaver.ts  clock text, fitting the photo under the store limit
     profileEdit.ts  step ops, planned curve, validation, undo history, save rules
+    guide.ts      Guide me: setup, bag pick, brew plan, weigh state, step order
     gauge.ts      dial geometry (240° sweep), ticks, temperature dial range
     photo.ts      camera + JPEG downscale
   state/app.svelte.ts  single app state (Svelte 5 runes class) + actions
   components/  BottomBar, SteamModal, ShotView, ShotChart, Gauge, Screensaver, Stepper (typeable), Segmented, Modal, NameDialog
-  features/    home (wizard + BrewPanel), profiles (+ ProfileEditor, ProfileCurve, StepInspector), beans (+ AddBag), history, settings
+  features/    home (wizard + BrewPanel), profiles (+ ProfileEditor, ProfileCurve, StepInspector), guide (Guide, GuideArt, GuideSetup), beans (+ AddBag), history, settings
   styles.css   design tokens
 ```
 
@@ -76,6 +78,7 @@ Rules:
 | Dial-in | `BeanBatch.extras.flimsydecaid.dialIn[<profileRootId>]` = `{grind, dose, yield, tempOffset, updatedAt}` | Always preserve other keys in `extras` |
 | Bag photo | KV `flimsydecaid/photo:<batchId>` (JPEG data URL, ~900px) | Not in `extras`, so listing beans stays light |
 | Last steam temp | KV `flimsydecaid/lastSteamTemp` | Restored when the heater is switched back on |
+| Guide me setup | KV `flimsydecaid/guide` = `{profileRoot, beanId}` | A coffee, not a bag, so it survives finishing bags |
 | Screensaver photo | KV `flimsydecaid/screensaver` (JPEG data URL, up to 1920px) | Shrunk until under 950k chars: the KV body limit is 1 MiB |
 | Shot ↔ bag link | `PUT /api/v1/workflow` `context.beanBatchId`, `coffeeName`, `coffeeRoaster`, `grinderSetting`, `targetDoseWeight`, `targetYield` | Decaid stores this on every shot |
 
@@ -102,7 +105,7 @@ Source of truth: `assets/api/rest_v1.yml`, `assets/api/websocket_v1.yml` and `do
 - **GHC machines**: the Group Head Controller owns shot start. `GET /api/v1/machine/info` → `GHC: true`; read each time the machine connects. BrewPanel then shows "Then start the shot on the group head" instead of Start shot. `?mock=1&ghc=1` fakes it.
 - **Archived beans and bags are hidden by default**: `GET /beans` and `GET /bean-batches` need `?includeArchived=true` (dial-in carry-over from a finished bag, "Show finished bags", old shots' bag names all depend on it). Filter `archived` in the UI instead.
 - **Batch PUT merges top-level fields only**: `extras` is replaced whole, hence `withDialIn` copies other keys. Missing KV keys answer 200 `null`, not 404.
-- **Layers**: profile editor 25, shot view 30, modals 60/61, screensaver 100.
+- **Layers**: profile editor 25, guide 27, shot view 30, modals 60/61, screensaver 100. Full-screen views with oversized decoration use `overflow: clip` (not hidden), so focus/scrollIntoView can't shift them.
 - **Glass + scrolling**: a `.glass` element must not be the scroll container (its `::before` rim scrolls away). Scroll an inner element instead, as BrewPanel and Modal do.
 - **Manifest**: `public/skin-manifest.json`. Keep `id` = `flimsydecaid` forever (it's the install folder and update identity). Version is numeric dot-segments only; `npm run package` stamps it from `package.json` or the `v*` tag.
 

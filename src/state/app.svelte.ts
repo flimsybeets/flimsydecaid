@@ -15,6 +15,7 @@ import { withDialIn, type DialIn } from '../lib/dialIn';
 import { photoKey, toJpegDataUrl } from '../lib/photo';
 import { fitDataUrl, SCREENSAVER_BRIGHTNESS, SCREENSAVER_KEY } from '../lib/screensaver';
 import { saveProfile, type SaveResult } from '../lib/profileEdit';
+import { GUIDE_KEY, parseGuideSetup, type GuideSetup } from '../lib/guide';
 import { indexProfiles, latestPerLineage, lineageRoot, shiftTemperature } from '../lib/profiles';
 import { ShotRecorder, type ShotSample } from '../lib/shot';
 import { clampSteamFlow, clampSteamTemp, LAST_STEAM_TEMP_KEY, STEAM_DEFAULT_C } from '../lib/steam';
@@ -70,6 +71,10 @@ class AppState {
   /** Profile editor: the record being edited, `null` for a new profile, undefined when closed. */
   editing = $state<ProfileRecord | null | undefined>(undefined);
 
+  /** "Guide me": the profile + coffee it's set to (null until set up), and whether it's running. */
+  guide = $state<GuideSetup | null>(null);
+  guiding = $state(false);
+
   /** Settings' "Preview" shows the screensaver without the machine asleep. */
   screensaverPreview = $state(false);
 
@@ -97,13 +102,15 @@ class AppState {
 
   async reload(): Promise<void> {
     try {
-      const [profiles, workflow, categories, beans, batches] = await Promise.all([
+      const [profiles, workflow, categories, beans, batches, guide] = await Promise.all([
         gateway.getProfiles(),
         gateway.getWorkflow(),
         gateway.storeGet(CATEGORIES_KEY),
         gateway.getBeans(),
         gateway.getBatches(),
+        gateway.storeGet(GUIDE_KEY).catch(() => null),
       ]);
+      this.guide = parseGuideSetup(guide);
       this.profiles = profiles;
       this.workflow = workflow;
       this.categories = parseCategories(categories);
@@ -234,6 +241,13 @@ class AppState {
   // Shot history is read straight from Decaid; nothing to keep in memory.
   getShots(query: ShotQuery): Promise<ShotPage> { return gateway.getShots(query); }
   getShot(id: string): Promise<ShotRecord> { return gateway.getShot(id); }
+
+  async saveGuide(setup: GuideSetup): Promise<void> {
+    await gateway.storeSet(GUIDE_KEY, setup);
+    this.guide = setup;
+  }
+
+  async rinse(): Promise<void> { await gateway.requestState('flush'); }
 
   async loadMachineInfo(): Promise<void> {
     const info = await gateway.getMachineInfo().catch(() => null);
