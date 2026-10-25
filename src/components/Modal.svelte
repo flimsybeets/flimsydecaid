@@ -10,12 +10,40 @@
 
   let dialog: HTMLDivElement;
   $effect(() => { dialog?.focus(); });
+
+  // On-screen keyboard: Enter moves to the next field, and on the last one
+  // presses the dialog's main button (the last one in the actions row), so a
+  // form can be filled without reaching back up. The key is labelled to match.
+  // Stepper's tap-to-type box (.type) is left out: Enter there just confirms the number.
+  const TEXT = 'input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=date]):not([type=button]):not(.sr-only):not(.type)';
+  const fields = () => [...dialog.querySelectorAll<HTMLInputElement>(TEXT)].filter((el) => !el.disabled && el.offsetParent !== null);
+  const mainButton = () => dialog.querySelector<HTMLButtonElement>('.actions button:last-child');
+
+  function onFocusIn(e: FocusEvent) {
+    const el = e.target;
+    if (!(el instanceof HTMLInputElement) || !el.matches(TEXT)) return;
+    const list = fields();
+    el.enterKeyHint = list.indexOf(el) < list.length - 1 ? 'next' : mainButton() ? 'done' : 'enter';
+  }
+
+  function onKeyDown(e: KeyboardEvent) {
+    const el = e.target;
+    if (e.key !== 'Enter' || e.defaultPrevented || !(el instanceof HTMLInputElement) || !el.matches(TEXT)) return;
+    const list = fields();
+    const next = list[list.indexOf(el) + 1];
+    e.preventDefault();
+    if (next) next.focus();
+    else {
+      const button = mainButton();
+      if (button && !button.disabled) { el.blur(); button.click(); }
+    }
+  }
 </script>
 
 <svelte:window onkeydown={(e) => { if (e.key === 'Escape') onClose(); }} />
 
 <div class="backdrop" role="presentation" onclick={onClose}></div>
-<div class="dialog glass thick" role="dialog" aria-modal="true" aria-label={title} tabindex="-1" bind:this={dialog}>
+<div class="dialog glass thick" role="dialog" aria-modal="true" aria-label={title} tabindex="-1" bind:this={dialog} onfocusin={onFocusIn} onkeydown={onKeyDown}>
   <div class="head">
     <h2>{title}</h2>
     <button class="close glass" onclick={onClose} aria-label="Close">✕</button>
@@ -63,4 +91,20 @@
   }
   .body { display: grid; gap: 16px; align-content: start; min-height: 0; overflow-y: auto; margin: 0 -8px; padding: 3px 6px; }
   .actions { display: flex; gap: 9px; justify-content: flex-end; }
+
+  /* While typing: use all the room above the keyboard, and keep the title
+     and buttons slim so the fields get it. */
+  :global(html.kb-open) .dialog {
+    top: 8px;
+    bottom: calc(8px + var(--kb));
+    max-height: none;
+    width: min(720px, calc(100% - 16px));
+    padding: 10px 16px 12px;
+    gap: 10px;
+    border-radius: 20px;
+  }
+  :global(html.kb-open) h2 { font-size: var(--t-md); }
+  :global(html.kb-open) .close { width: 40px; height: 40px; }
+  :global(html.kb-open) .body { gap: 10px; }
+  :global(html.kb-open) .actions :global(button) { min-height: 40px; }
 </style>

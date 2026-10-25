@@ -1,6 +1,6 @@
 <script lang="ts">
-  // Big −/+ control for wet-hand use. Press and hold to repeat. With
-  // `typeable`, tapping the number lets you type a value instead.
+  // Big −/+ control for wet-hand use. Press and hold to repeat, or tap the
+  // number to type a value on the number pad (typeable, on by default).
   let {
     label,
     value = $bindable(),
@@ -12,7 +12,7 @@
     disabled = false,
     placeholder = '–',
     compact = false,
-    typeable = false,
+    typeable = true,
     hint,
   }: {
     label: string;

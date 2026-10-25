@@ -115,19 +115,7 @@
 <style>
   .inspector { display: grid; gap: 10px; align-content: start; }
   /* Stays put while the settings scroll under it. */
-  header {
-    position: sticky;
-    top: 0;
-    z-index: 1;
-    margin: 0 -20px;
-    padding: 12px 15px 9px;
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    flex-wrap: wrap;
-    background: linear-gradient(#122a30 0 82%, rgb(18 42 48 / 0));
-    border-radius: 22px 22px 0 0;
-  }
+  header { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
   .num { font-size: var(--t-md); font-weight: 700; white-space: nowrap; }
   .num small { font-size: var(--t-xs); color: var(--paper-faint); font-weight: 500; margin-left: 4px; }
   .name {
@@ -148,10 +136,11 @@
   .tools button.danger { color: #ffb3ab; }
   .tools button:disabled { opacity: 0.35; }
 
-  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 15px; }
+  /* As many columns as fit, so a wide screen shows every setting at once. */
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px 15px; }
   .group { display: grid; gap: 8px; align-content: start; }
   h3 { font-size: var(--t-xs); font-weight: 650; text-transform: uppercase; letter-spacing: 0.06em; color: var(--paper-faint); }
   .pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; align-items: end; }
 
-  @media (min-width: 1500px) { .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
 </style>

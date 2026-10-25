@@ -2,7 +2,7 @@
   import { app } from '../../state/app.svelte';
   import Modal from '../../components/Modal.svelte';
   import Stepper from '../../components/Stepper.svelte';
-  import { openRearCamera, stopStream, toJpegDataUrl } from '../../lib/photo';
+  import { openFrontCamera, stopStream, toJpegDataUrl } from '../../lib/photo';
 
   let { onClose }: { onClose: () => void } = $props();
 
@@ -35,7 +35,7 @@
 
   async function takePhoto() {
     cameraNote = null;
-    const s = await openRearCamera();
+    const s = await openFrontCamera();
     if (s) { stream = s; return; }
     // Live camera unavailable (dev server, consent denied, iOS picker).
     // Fall back to the system capture/file picker.
@@ -93,7 +93,7 @@
         Photograph the bag
       </button>
     {/if}
-    <input bind:this={fileInput} class="sr-only" type="file" accept="image/*" capture="environment" onchange={onFile} tabindex="-1" aria-hidden="true" />
+    <input bind:this={fileInput} class="sr-only" type="file" accept="image/*" capture="user" onchange={onFile} tabindex="-1" aria-hidden="true" />
     {#if cameraNote}<p class="note">{cameraNote}</p>{/if}
   </div>
 
@@ -140,6 +140,8 @@
   }
   .lens { width: 40px; height: 26px; border: 3px solid currentColor; border-radius: 7px; position: relative; }
   .lens::after { content: ''; position: absolute; inset: 5px 9px; border: 3px solid currentColor; border-radius: 50%; }
+  /* Mirrored like a selfie view so it's easy to line the bag up; the saved photo isn't, so its label reads right. */
+  video { transform: scaleX(-1); }
   video, img { width: 100%; max-height: 240px; object-fit: cover; border-radius: 16px; background: var(--well); box-shadow: var(--glass-shadow); }
   .snap, .retake { min-height: var(--touch); padding: 0 20px; border-radius: var(--radius-pill); font-weight: 650; }
   .note { color: var(--warn); font-size: var(--t-xs); }

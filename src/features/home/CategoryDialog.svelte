@@ -53,7 +53,7 @@
 <Modal title={category ? 'Edit category' : 'New category'} {onClose}>
   <label class="field">
     <span>Name</span>
-    <input class="well" bind:value={name} placeholder="e.g. Light roasts" maxlength="40" onkeydown={(e) => { if (e.key === 'Enter' && trimmed && !saving) save(); }} />
+    <input class="well" bind:value={name} placeholder="e.g. Light roasts" maxlength="40" onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (trimmed && !saving) save(); } }} />
   </label>
 
   <div class="field">

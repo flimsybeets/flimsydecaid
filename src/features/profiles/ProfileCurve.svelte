@@ -92,7 +92,8 @@
         onpointerdown={() => onselect(s.index)}>
         <rect x={x0} y={PAD.t - 26} width={w} height={plotH + 26} class="band" class:odd={s.index % 2 === 1} />
         {#if s.index === selected}<rect x={x0} y={PAD.t - 26} width={w} height="3" class="sel-bar" />{/if}
-        <text class="name" x={x0 + 8} y={PAD.t - 9}>{#if w > 34}{s.index + 1} {w > 90 ? steps[s.index]?.name : ''}{:else}{s.index + 1}{/if}</text>
+        <!-- Thin columns (a 1 s step) get no label rather than one that runs into the next. -->
+        {#if w >= 18}<text class="name" x={x0 + 6} y={PAD.t - 9}>{s.index + 1}{w > 90 ? ` ${steps[s.index]?.name ?? ''}` : ''}</text>{/if}
       </g>
     {/each}
 
