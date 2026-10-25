@@ -1,4 +1,5 @@
-import '@fontsource-variable/bricolage-grotesque/opsz.css';
+import '@fontsource-variable/literata/opsz.css';
+import '@fontsource-variable/literata/opsz-italic.css';
 import './styles.css';
 import { mount } from 'svelte';
 import App from './App.svelte';

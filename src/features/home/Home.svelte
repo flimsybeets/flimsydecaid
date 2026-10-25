@@ -57,7 +57,7 @@
         </button>
       {/each}
       <button class="tile add glass" onclick={() => (naming = true)}>
-        <span class="plus" aria-hidden="true">+</span>
+        <svg class="plus" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16" /></svg>
         <span class="name">New category</span>
       </button>
     </div>
@@ -148,7 +148,7 @@
   .tile .name {
     font-size: var(--t-xl);
     font-weight: 750;
-    font-variation-settings: 'opsz' 96;
+    font-variation-settings: 'opsz' 72;
     letter-spacing: -0.02em;
     line-height: 1.02;
   }
@@ -163,7 +163,7 @@
     text-align: center;
   }
   .tile.add .name { font-size: var(--t-md); font-weight: 600; letter-spacing: 0; }
-  .plus { font-size: 54px; line-height: 1; font-weight: 300; }
+  .plus { width: 44px; height: 44px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
 
   .empty { max-width: 60ch; display: grid; gap: 10px; margin-bottom: 24px; color: var(--paper-dim); }
   .empty .big { color: var(--paper); font-size: var(--t-lg); font-weight: 650; }
