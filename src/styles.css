@@ -51,8 +51,8 @@
   --glass-fill: linear-gradient(155deg, rgb(255 255 255 / 0.13), rgb(255 255 255 / 0.05) 55%, rgb(255 255 255 / 0.08));
   --glass-fill-strong: linear-gradient(155deg, rgb(255 255 255 / 0.24), rgb(255 255 255 / 0.12) 60%, rgb(255 255 255 / 0.16));
   --glass-fill-thick: linear-gradient(160deg, rgb(28 58 66 / 0.72), rgb(12 30 35 / 0.78));
-  --glass-blur: blur(20px) saturate(180%);
-  --glass-blur-thick: blur(33px) saturate(190%);
+  --glass-blur: blur(12px) saturate(140%);
+  --glass-blur-thick: blur(16px) saturate(150%);
   --glass-rim: linear-gradient(150deg, rgb(255 255 255 / 0.55), rgb(255 255 255 / 0.10) 32%, rgb(255 255 255 / 0.03) 62%, rgb(255 255 255 / 0.24));
   --glass-sheen: inset 0 1px 0 rgb(255 255 255 / 0.18), inset 0 -1px 0 rgb(0 0 0 / 0.12);
   --glass-shadow: 0 14px 30px -12px rgb(0 0 0 / 0.45), 0 2px 4px rgb(0 0 0 / 0.18);
@@ -86,16 +86,29 @@
 html, body {
   margin: 0;
   height: 100%;
-  /* Glass needs something to refract: soft pools of the skin's own colours
-     over the deep ink. Fixed, so it stays put while content scrolls over it. */
+}
+html { background-color: var(--ink); }
+
+/* Glass needs something to refract: soft pools of the skin's own colours
+   over the deep ink. A fixed layer of its own rather than
+   background-attachment: fixed, which repaints the gradients on every
+   scroll and layout on a weak GPU. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
   background:
     radial-gradient(60vmax 48vmax at 4% -6%, rgb(64 170 160 / 0.55), transparent 62%),
     radial-gradient(46vmax 40vmax at 104% 22%, rgb(242 179 61 / 0.30), transparent 60%),
     radial-gradient(52vmax 46vmax at 34% 112%, rgb(201 154 216 / 0.34), transparent 62%),
     radial-gradient(36vmax 30vmax at 82% 96%, rgb(99 174 245 / 0.26), transparent 60%),
     linear-gradient(165deg, #12313a, #0a181c 70%);
-  background-color: var(--ink);
-  background-attachment: fixed;
+}
+
+body {
+  margin: 0;
   color: var(--paper);
   font-family: var(--font);
   font-size: var(--t-sm);
@@ -179,9 +192,27 @@ button.glass:active:not(:disabled) { transform: scale(0.975); }
   box-shadow: var(--well-shadow);
 }
 
-/* Less work for slower tablets: drop the blur, keep the look. */
+/* Small controls, list rows, and glass inside other glass skip the blur: a
+   sheet already blurs what is behind it, and on a plain translucent fill a
+   button looks the same. Blur stays on the big surfaces (sheets, panels,
+   graphs, bars, category tiles). */
+.glass .glass,
+button.glass:not(.tile),
+a.glass,
+label.glass,
+li.glass {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* Fallback with no blur at all: where the WebView can't do backdrop-filter,
+   or the person asked for less transparency. A denser fill keeps text legible. */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .glass { background: rgb(30 60 68 / 0.85); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .glass { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgb(30 60 68 / 0.9); }
+  .glass.thick { background: rgb(14 32 37 / 0.96); }
 }
 
 .sr-only {
