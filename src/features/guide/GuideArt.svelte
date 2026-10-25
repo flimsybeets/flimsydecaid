@@ -222,7 +222,7 @@
 </svg>
 
 <style>
-  .art { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 18px 30px rgb(0 0 0 / 0.35)); }
+  .art { width: 100%; height: 100%; overflow: visible; }
   text { font-family: var(--font); font-variant-numeric: tabular-nums; }
 
   /* weigh */
@@ -287,7 +287,7 @@
   .lock { transform-origin: 200px 118px; animation: lock 2.6s cubic-bezier(.3, .8, .3, 1) infinite; }
   @keyframes lock { 0% { transform: translateY(40px) rotate(-14deg); opacity: 0.4; } 35% { transform: translateY(0) rotate(-14deg); opacity: 1; } 60%, 100% { transform: translateY(0) rotate(0); } }
   .start-pill { transform-origin: 296px 236px; animation: pill 1.4s ease-in-out infinite; }
-  @keyframes pill { 0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0 transparent); } 50% { transform: scale(1.06); filter: drop-shadow(0 0 14px #8fd3c0); } }
+  @keyframes pill { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
   .pill-text { font-size: 20px; font-weight: 800; fill: var(--cat-ink); }
   .pulse { transform-box: fill-box; transform-origin: center; animation: pulse 1.3s ease-in-out infinite; }
   @keyframes pulse { 0%, 100% { transform: scale(0.8); opacity: 0.5; } 50% { transform: scale(1.3); opacity: 1; } }

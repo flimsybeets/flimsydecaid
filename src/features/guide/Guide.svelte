@@ -13,7 +13,7 @@
   // heats to the right temperature while you prep. Pulling hands over to the
   // usual shot view; the guide picks up again when the shot ends.
 
-  let { onclose }: { onclose: () => void } = $props();
+  let { onclose, covered = false }: { onclose: () => void; covered?: boolean } = $props();
 
   const setup = $derived(app.guide!);
   const record = $derived(app.profileLineages.get(setup.profileRoot) ?? null);
@@ -91,7 +91,7 @@
     : 'Nothing saved for this bag yet');
 </script>
 
-<section class="guide tone-{tone}" aria-label="Guided brew">
+<section class="guide tone-{tone}" class:covered inert={covered} aria-label="Guided brew">
   <div class="aurora" aria-hidden="true"></div>
 
   <header>
@@ -122,11 +122,14 @@
   {:else}
     <div class="stage">
       <div class="art glass thick">
-        {#key step}
-          <div class="art-in">
-            <GuideArt {step} weight={app.scaleConnected ? app.weight : null} weighState={weigh.state} grind={plan.grind} ghc={app.ghc} active={rinse === 'rinsing'} />
-          </div>
-        {/key}
+        <!-- Not drawn while the shot view covers the guide: nothing to animate or update under it. -->
+        {#if !covered}
+          {#key step}
+            <div class="art-in">
+              <GuideArt {step} weight={step === 'weigh' && app.scaleConnected ? app.weight : null} weighState={step === 'weigh' ? weigh.state : 'empty'} grind={plan.grind} ghc={app.ghc} active={rinse === 'rinsing'} />
+            </div>
+          {/key}
+        {/if}
       </div>
 
       <div class="copy">
@@ -234,6 +237,9 @@
     background: linear-gradient(165deg, #12313a, #091417 70%);
     animation: enter 260ms ease;
   }
+  /* Under a full-screen view: hidden, and nothing animates or transitions. */
+  .guide.covered { visibility: hidden; }
+  .guide.covered, .guide.covered :global(*) { animation: none !important; transition: none !important; }
   @keyframes enter { from { opacity: 0; transform: scale(1.015); } }
   .guide.tone-under { --accent: 242 179 61; }
   .guide.tone-over { --accent: 255 111 97; }
