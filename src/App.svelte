@@ -49,6 +49,17 @@
     needsWater: 'Refill the tank', error: 'Machine error', cleaning: 'Cleaning', descaling: 'Descaling',
   };
 
+  // Sleep / wake, next to the status. Only offered while the machine is
+  // resting or heating, never mid-shot, steam, flush or cleaning.
+  const SLEEPABLE = new Set(['idle', 'heating', 'preheating']);
+  const machineState = $derived(app.machine.state?.state ?? 'idle');
+  const power = $derived(!app.machineConnected && !app.mock ? null : app.asleep ? 'wake' : SLEEPABLE.has(machineState) ? 'sleep' : null);
+  let powerBusy = $state(false);
+  async function togglePower() {
+    powerBusy = true;
+    try { await (power === 'wake' ? app.wake() : app.sleep()); } catch { /* the status pill shows what the machine did */ } finally { powerBusy = false; }
+  }
+
   const status = $derived.by(() => {
     if (app.mock) return { text: 'Demo data', tone: 'demo' };
     if (!app.gatewayOnline) return { text: "Can't reach Decaid", tone: 'bad' };
@@ -74,6 +85,11 @@
         <span class="temp">{app.machine.groupTemperature.toFixed(1)}°</span>
       {/if}
     </div>
+    {#if power}
+      <button class="power glass" disabled={powerBusy} onclick={togglePower} aria-label={power === 'wake' ? 'Wake the machine' : 'Put the machine to sleep'}>
+        <span aria-hidden="true">{power === 'wake' ? '☀' : '☾'}</span>{power === 'wake' ? 'Wake' : 'Sleep'}
+      </button>
+    {/if}
   </header>
 
   <main>
@@ -163,6 +179,7 @@
   }
 
   .status {
+    margin-left: auto;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -178,6 +195,20 @@
   .status.bad .dot { color: var(--stop); }
   .status.demo .dot { color: var(--cat-3); }
   .temp { color: var(--paper); font-weight: 600; }
+  .power {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 42px;
+    padding: 0 15px;
+    border-radius: var(--radius-pill);
+    font-size: var(--t-sm);
+    font-weight: 650;
+    color: var(--paper);
+    white-space: nowrap;
+  }
+  .power span { font-size: var(--t-md); }
+  .power:disabled { opacity: 0.5; }
 
   main {
     min-height: 0;

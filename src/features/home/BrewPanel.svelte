@@ -3,6 +3,7 @@
   import { app } from '../../state/app.svelte';
   import { resolveDialIn, type DialIn, type DialInSource } from '../../lib/dialIn';
   import { baseTemperature } from '../../lib/profiles';
+  import { doseCheck } from '../../lib/guide';
   import Stepper from '../../components/Stepper.svelte';
   import type { BeanBatch } from '../../api/types';
 
@@ -161,6 +162,10 @@
 
   $effect(() => { for (const b of bags) void app.loadPhoto(b.batch.id); });
 
+  // Weighing beans: the scale's reading against the dose (green within 0.1 g).
+  const weigh = $derived(app.scaleConnected && !app.shotActive ? doseCheck(app.weight, dose) : null);
+  const weighText = $derived(!weigh ? '' : weigh.state === 'ok' ? 'Spot on' : weigh.state === 'under' ? `Add ${weigh.delta.toFixed(1)} g` : `Take out ${Math.abs(weigh.delta).toFixed(1)} g`);
+
 </script>
 
 <aside class="panel glass thick" aria-label="Brew settings">
@@ -200,7 +205,7 @@
     <div class="grid">
       <Stepper compact label="Grind" bind:value={grind} min={0} max={100} step={0.5} decimals={1} placeholder="Not set" />
       <Stepper compact label="Temperature" bind:value={temp} min={(base ?? 90) - 10} max={(base ?? 90) + 10} step={0.5} decimals={1} unit="°C" disabled={base === null} />
-      <Stepper compact label="Dose" bind:value={dose} min={5} max={30} step={0.1} decimals={1} unit="g" />
+      <div class="dose {weigh?.state ?? ''}"><Stepper compact label="Dose" bind:value={dose} min={5} max={30} step={0.1} decimals={1} unit="g" /></div>
       <Stepper compact label="Yield" bind:value={yieldG} min={0} max={400} step={0.5} decimals={1} unit="g" placeholder="Off" />
     </div>
     {#if base !== null && temp !== undefined && temp !== base}
@@ -211,6 +216,13 @@
   </div>
 
   <div class="go">
+    <!-- Pinned here, always in view, while beans are on the scale. -->
+    {#if weigh && dose}
+      <div class="weigh {weigh.state}" role="status" aria-label="Beans on the scale">
+        <div class="bar"><div class="fill" style="width: {Math.min(100, ((app.weight ?? 0) / dose) * 100)}%"></div></div>
+        <p><b>{(app.weight ?? 0).toFixed(1)}</b> of {dose.toFixed(1)} g <span>{weighText}</span></p>
+      </div>
+    {/if}
     <p class="sync {sync}" role="status">
       {#if sync === 'failed'}
         Not on the machine: {syncError} <button onclick={() => { lastSent = ''; void flush(); }}>Try again</button>
@@ -287,6 +299,20 @@
   .dial { display: grid; gap: 10px; align-content: start; }
   .source { color: var(--paper-dim); font-size: var(--t-xs); }
   .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+  /* Beans on the scale vs the dose: amber under, green spot on, coral over. */
+  .weigh { --c: 242 179 61; display: grid; gap: 6px; }
+  .weigh.ok { --c: 76 230 140; }
+  .weigh.over { --c: 255 111 97; }
+  .weigh .bar { height: 10px; border-radius: var(--radius-pill); background: var(--well); box-shadow: var(--well-shadow); overflow: hidden; }
+  .weigh .fill { height: 100%; border-radius: inherit; background: rgb(var(--c)); box-shadow: 0 0 12px rgb(var(--c) / 0.7); transition: width 120ms linear, background 250ms ease; }
+  .weigh p { display: flex; align-items: baseline; gap: 6px; color: var(--paper-dim); font-size: var(--t-sm); }
+  .weigh b { color: rgb(var(--c)); font-size: var(--t-md); }
+  .weigh span { margin-left: auto; color: rgb(var(--c)); font-weight: 700; }
+  .weigh.ok span::before { content: '✓ '; }
+  .dose :global(.row) { transition: box-shadow 250ms ease; }
+  .dose.under :global(.row) { box-shadow: 0 0 0 2px rgb(242 179 61 / 0.7), var(--well-shadow); }
+  .dose.ok :global(.row) { box-shadow: 0 0 0 2px rgb(76 230 140), 0 0 18px rgb(76 230 140 / 0.55); }
+  .dose.over :global(.row) { box-shadow: 0 0 0 2px rgb(255 111 97 / 0.8), var(--well-shadow); }
   .offset { color: var(--paper-dim); font-size: var(--t-xs); }
 
   .go { display: grid; gap: 9px; }

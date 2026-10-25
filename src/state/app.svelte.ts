@@ -398,6 +398,7 @@ class AppState {
   }
 
   async wake(): Promise<void> { await gateway.requestState('idle'); }
+  async sleep(): Promise<void> { await gateway.requestState('sleeping'); }
 
   async startEspresso(): Promise<void> { await gateway.requestState('espresso'); }
   async stop(): Promise<void> { await gateway.requestState('idle'); }
