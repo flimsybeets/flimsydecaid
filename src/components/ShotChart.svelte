@@ -14,7 +14,6 @@
   let height = $state(480);
 
   const PAD = { l: 48, r: 58, t: 14, b: 34 };
-  const GAP = 48;
   const TEMP_SHARE = 0.32;
 
   const tMax = $derived.by(() => {
@@ -39,6 +38,8 @@
     return [Math.floor(mid - half), Math.ceil(mid + half)] as const;
   });
 
+  // Gap between the two panels: roomy on a tall graph, tighter on a short one.
+  const GAP = $derived(Math.round(Math.min(48, Math.max(22, (height - PAD.t - PAD.b) * 0.12))));
   const plotW = $derived(Math.max(10, width - PAD.l - PAD.r));
   const innerH = $derived(Math.max(10, height - PAD.t - PAD.b - GAP));
   const mainH = $derived(innerH * (1 - TEMP_SHARE));
@@ -127,7 +128,7 @@
 </div>
 
 <style>
-  .chart { width: 100%; height: 100%; min-height: 280px; display: grid; grid-template-rows: minmax(0, 1fr) auto; }
+  .chart { width: 100%; height: 100%; min-height: 160px; display: grid; grid-template-rows: minmax(0, 1fr) auto; }
   .plot { position: relative; min-height: 0; }
   svg { position: absolute; inset: 0; display: block; overflow: visible; }
   .grid { stroke: var(--g-grid); stroke-width: 1; }
