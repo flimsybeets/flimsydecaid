@@ -30,6 +30,12 @@
     return planBrew(record, profileRoot, pickBag(beanId, app.batches), app.batches, app.workflow.context?.targetDoseWeight ?? 18);
   });
 
+  async function remove() {
+    saving = true;
+    error = null;
+    try { await app.removeGuide(); onClose(); } catch (e) { error = `Couldn't remove: ${(e as Error).message}`; } finally { saving = false; }
+  }
+
   async function save() {
     if (!profileRoot || !beanId) return;
     saving = true;
@@ -82,6 +88,7 @@
   {#if error}<p class="error">{error}</p>{/if}
 
   {#snippet actions()}
+    {#if app.guide}<button class="remove glass" disabled={saving} onclick={remove}>Remove Guide me setup</button>{/if}
     <button class="secondary glass" onclick={onClose}>Cancel</button>
     <button class="primary glass solid" disabled={!profileRoot || !beanId || saving} onclick={save}>{saving ? 'Saving…' : 'Save'}</button>
   {/snippet}
@@ -103,6 +110,7 @@
   .error { color: var(--stop); }
   .primary, .secondary { min-height: var(--touch); padding: 0 28px; border-radius: var(--radius-control); font-weight: 650; }
   .secondary { color: var(--paper-dim); }
+  .remove { margin-right: auto; min-height: var(--touch); padding: 0 20px; border-radius: var(--radius-control); color: #ffb3ab; font-size: var(--t-xs); font-weight: 650; }
   .primary:disabled { opacity: 0.4; }
   @media (max-width: 700px) { .cols { grid-template-columns: 1fr; } }
 </style>

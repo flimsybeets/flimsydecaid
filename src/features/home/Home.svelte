@@ -1,20 +1,21 @@
 <script lang="ts">
   import { app } from '../../state/app.svelte';
-  import { newCategoryId, type Category } from '../../lib/categories';
+  import type { Category } from '../../lib/categories';
   import { baseTemperature } from '../../lib/profiles';
   import BrewPanel from './BrewPanel.svelte';
-  import NameDialog from '../../components/NameDialog.svelte';
+  import CategoryDialog from './CategoryDialog.svelte';
   import GuideSetup from '../guide/GuideSetup.svelte';
 
   // Wizard: category → profile → brew panel.
   let categoryId = $state<string | null>(null);
   let profileRoot = $state<string | null>(null);
-  let naming = $state(false);
+  /** Category dialog: 'new', the category being edited, or closed. */
+  let editingCategory = $state<Category | 'new' | null>(null);
   let settingUpGuide = $state(false);
 
   // "Guide me" tile: what it's set to, and whether that still exists.
   const guideProfile = $derived(app.guide ? app.profileLineages.get(app.guide.profileRoot) : undefined);
-  const guideBean = $derived(app.guide ? app.beans.find((b) => b.id === app.guide!.beanId) : undefined);
+  const guideBean = $derived(app.guide ? app.beans.find((b) => b.id === app.guide!.beanId && !b.archived) : undefined);
   const guideReady = $derived(!!guideProfile && !!guideBean);
   function openGuide() {
     if (guideReady) app.guiding = true;
@@ -35,16 +36,6 @@
   function back() {
     categoryId = null;
     profileRoot = null;
-  }
-
-  async function addCategory(name: string) {
-    naming = false;
-    const used = new Set(app.categories.categories.map((c) => c.colour));
-    const colour = [1, 2, 3, 4, 5, 6, 7, 8].find((n) => !used.has(n)) ?? ((app.categories.categories.length % 8) + 1);
-    await app.saveCategories({
-      ...app.categories,
-      categories: [...app.categories.categories, { id: newCategoryId(), name, colour, profiles: [] }],
-    });
   }
 
   const profileCount = (c: Category) => c.profiles.filter((r) => app.profileLineages.has(r)).length;
@@ -79,7 +70,7 @@
         </button>
         {#if guideReady}<button class="change" onclick={() => (settingUpGuide = true)}>Change</button>{/if}
       </div>
-      <button class="tile add glass" onclick={() => (naming = true)}>
+      <button class="tile add glass" onclick={() => (editingCategory = 'new')}>
         <svg class="plus" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16" /></svg>
         <span class="name">New category</span>
       </button>
@@ -91,6 +82,7 @@
       <div class="crumb">
         <button class="back glass" onclick={back}>‹ Categories</button>
         <h1>{category.name}</h1>
+        <button class="edit-cat glass" onclick={() => (editingCategory = category)}>Edit</button>
       </div>
 
       {#if profilesInCategory.length === 0}
@@ -130,8 +122,8 @@
   <GuideSetup onClose={() => (settingUpGuide = false)} onSaved={() => (app.guiding = true)} />
 {/if}
 
-{#if naming}
-  <NameDialog title="New category" label="Name" action="Add category" onSave={addCategory} onClose={() => (naming = false)} />
+{#if editingCategory}
+  <CategoryDialog category={editingCategory === 'new' ? null : editingCategory} onClose={() => (editingCategory = null)} onDeleted={back} />
 {/if}
 
 <style>
@@ -269,6 +261,7 @@
     color: var(--paper-dim);
     font-size: var(--t-sm);
   }
+  .edit-cat { margin-left: auto; min-height: 48px; padding: 0 18px; border-radius: var(--radius-pill); color: var(--paper); font-size: var(--t-xs); font-weight: 650; }
   .crumb h1 {
     font-size: var(--t-xl);
     font-weight: 750;

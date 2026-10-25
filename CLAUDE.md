@@ -25,7 +25,7 @@ Run `npm run check && npm test` before committing.
 
 - Top tabs: Home, Profiles, History, Beans, Settings.
 - **Home is a wizard**: big category tiles → profiles in that category → side panel to pick a bag and set grind, dose, yield, temperature → Load / Start shot.
-- **Categories are for organising only.** They never affect settings.
+- **Categories are for organising only.** They never affect settings. Create/edit in `CategoryDialog` (name, colour, icon, move earlier/later, delete; Edit on the category page). Deleting a category never touches its profiles.
 - **Guide me** (last tile on Home): set to one profile + one coffee (Change on the tile). Uses the coffee's newest open bag and its dial-in, loads it onto the machine on open, then walks through weigh (live scale, green within ±0.1 g, add/take-out amounts) → spray → grinder setting → grind → funnel → settle and tamp → paper → pull (Start shot, or wait for the group head on GHC) → shot view → knock out → rinse group and portafilter (you press the machine's flush button and hold the portafilter under it; the guide follows the machine into `flush` and back out) → summary. Animated SVG scene per step (`features/guide/GuideArt.svelte`); pure parts in `lib/guide.ts`. In mock mode `__flimsyMock.setWeight(g)` drives the scale and `__flimsyMock.pressFlush()` stands in for the flush button.
 - **Dial-in is per bag + profile.** Each bag remembers grind, dose, yield and temp offset for every profile used with it.
 - **Bottom bar** (always visible): scale name, weight, connection (tap to tare, or to scan when disconnected); water and puck temps; steam heater on/off with live steam temp. Tapping steam opens the steam modal (heater toggle, temperature, flow).
@@ -33,6 +33,7 @@ Run `npm run check && npm test` before committing.
 - **History**: shot list grouped by day (filter chips per open bag) beside the selected shot's numbers and graph. Refetches after a pull ends.
 - **Profile editor** (Profiles tab: New profile / Edit, or Edit in BrewPanel): full screen. Planned-shape chart (pressure/flow targets with smooth ramps, exits, limiters, temperatures in their own lane, last real shot faint behind), step strip, every step setting visible, profile panel (stop at weight/volume, count-from step, tank preheat, type, author, notes, categories, checks). Undo/redo (Ctrl+Z / Ctrl+Shift+Z, held steppers coalesce), tap a number to type it, DE1-limit warnings that don't block, discard confirmation. Pure logic in `lib/profileEdit.ts`.
 - **Bag photos** from the tablet camera when adding a bag.
+- **Editing and deleting** (all destructive actions go through `ConfirmDialog`): coffees (`CoffeeDialog`: edit; Remove = archive coffee + its bags), bags (`BagDialog`: roast date, weight, left, frozen, photo, reopen, delete for good + photo key), profiles (editor → Delete profile = every version `hidden`, out of categories and Guide me), shots (History: rate 0–10 + notes via `PUT /shots/{id}` `annotations`, delete), Guide me setup (Remove).
 - **Screensaver** (Settings): a photo picked from the tablet's files, shown while the machine sleeps, with a 50% white clock drifting over it, screen dimmed to 12% (restored after). Off until a photo is chosen. Tap wakes the machine; if it stays asleep, the screensaver returns after a minute.
 
 ## Architecture
@@ -58,7 +59,7 @@ src/
     gauge.ts      dial geometry (240° sweep), ticks, temperature dial range
     photo.ts      camera + JPEG downscale
   state/app.svelte.ts  single app state (Svelte 5 runes class) + actions
-  components/  BottomBar, SteamModal, ShotView, ShotChart, Gauge, Screensaver, Stepper (typeable), Segmented, Modal, NameDialog
+  components/  BottomBar, SteamModal, ShotView, ShotChart, Gauge, Screensaver, Stepper (typeable), Segmented, Modal, ConfirmDialog
   features/    home (wizard + BrewPanel), profiles (+ ProfileEditor, ProfileCurve, StepInspector), guide (Guide, GuideArt, GuideSetup), beans (+ AddBag), history, settings
   styles.css   design tokens
 ```
@@ -123,7 +124,6 @@ Tablet next to the machine, read at arm's length, wet hands.
 ## Next up
 
 1. Grind stepper should use the grinder's `settingSmallStep` / preset values (`/api/v1/grinders`).
-2. Reorder and rename categories; pick tile colour and icon.
-3. Decrement `weightRemaining` after each shot (or check whether Decaid already does).
-4. Test camera capture on the installed skin.
-5. History extras: rate a shot / add notes (`PUT /shots/{id}` `annotations`), "Brew this again" (load its profile, bag and dial-in), a "Shots" link from each bag on the Beans tab.
+2. Decrement `weightRemaining` after each shot: Decaid does **not** (its `decrementBatchWeight` is never called).
+3. Test camera capture on the installed skin.
+4. History extras: "Brew this again" (load its profile, bag and dial-in), a "Shots" link from each bag on the Beans tab.

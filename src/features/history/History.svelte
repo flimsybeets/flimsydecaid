@@ -2,6 +2,8 @@
   import { app } from '../../state/app.svelte';
   import type { ShotRecord, ShotSummary } from '../../api/types';
   import ShotChart from '../../components/ShotChart.svelte';
+  import ConfirmDialog from '../../components/ConfirmDialog.svelte';
+  import ShotNotesDialog from './ShotNotesDialog.svelte';
   import { groupByDay, ratioText, shotStats, stopReasonText } from '../../lib/history';
   import { samplesFromMeasurements } from '../../lib/shot';
 
@@ -19,6 +21,21 @@
   let selectedId = $state<string | null>(null);
   let detail = $state<ShotRecord | null>(null);
   let detailError = $state<string | null>(null);
+  let annotating = $state(false);
+  let confirmDelete = $state(false);
+
+  function onAnnotated(updated: ShotSummary) {
+    shots = shots.map((s) => (s.id === updated.id ? { ...s, annotations: updated.annotations } : s));
+  }
+  async function deleteSelected() {
+    const id = selectedId;
+    if (!id) return;
+    await app.deleteShot(id);
+    const i = shots.findIndex((s) => s.id === id);
+    shots = shots.filter((s) => s.id !== id);
+    total = Math.max(0, total - 1);
+    selectedId = shots[Math.min(i, shots.length - 1)]?.id ?? null;
+  }
 
   // Bags worth filtering by: open ones, newest roast first.
   const openBags = $derived(
@@ -160,6 +177,10 @@
           </p>
           <p class="when">{new Date(selected.timestamp).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}{stopReasonText(selected.stopReason) ? ` · ${stopReasonText(selected.stopReason)}` : ''}</p>
         </div>
+        <div class="shot-actions">
+          <button class="glass" onclick={() => (annotating = true)}>{selected.annotations?.enjoyment != null || selected.annotations?.espressoNotes ? 'Edit notes' : 'Rate and add notes'}</button>
+          <button class="glass danger" aria-label="Delete this shot" onclick={() => (confirmDelete = true)}>Delete</button>
+        </div>
       </header>
 
       <dl class="stats">
@@ -187,6 +208,19 @@
     {/if}
   </section>
 </div>
+
+{#if annotating && selected}
+  <ShotNotesDialog shot={selected} onClose={() => (annotating = false)} onSaved={onAnnotated} />
+{/if}
+{#if confirmDelete && selected}
+  <ConfirmDialog
+    title="Delete this shot?"
+    message="It's removed from Decaid's shot history for good, with its graph and notes."
+    action="Delete shot"
+    onConfirm={deleteSelected}
+    onClose={() => (confirmDelete = false)}
+  />
+{/if}
 
 <style>
   .page {
@@ -261,6 +295,11 @@
     min-height: 0;
     min-width: 0;
   }
+  .detail header { display: flex; align-items: flex-start; gap: 16px; }
+  .detail header > div:first-child { flex: 1; min-width: 0; }
+  .shot-actions { display: flex; gap: 8px; flex: none; }
+  .shot-actions button { min-height: 48px; padding: 0 16px; border-radius: var(--radius-pill); color: var(--paper); font-size: var(--t-xs); font-weight: 650; }
+  .shot-actions .danger { color: #ffb3ab; }
   .detail h2 { font-size: var(--t-xl); font-weight: 700; letter-spacing: -0.01em; }
   .detail header p { color: var(--paper-dim); font-size: var(--t-md); }
   .detail .when { font-size: var(--t-sm); color: var(--paper-faint); }

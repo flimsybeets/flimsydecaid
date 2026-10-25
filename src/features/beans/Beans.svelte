@@ -1,8 +1,13 @@
 <script lang="ts">
   import { app } from '../../state/app.svelte';
   import AddBag from './AddBag.svelte';
+  import CoffeeDialog from './CoffeeDialog.svelte';
+  import BagDialog from './BagDialog.svelte';
+  import type { Bean, BeanBatch } from '../../api/types';
 
   let adding = $state(false);
+  let editingBean = $state<Bean | null>(null);
+  let editingBag = $state<BeanBatch | null>(null);
   let showFinished = $state(false);
 
   const beans = $derived(
@@ -40,6 +45,7 @@
     {#each beans as { bean, bags } (bean.id)}
       <li class="bean glass">
         <div class="bean-head">
+          <button class="edit glass" onclick={() => (editingBean = bean)}>Edit</button>
           <h2>{bean.name}</h2>
           <p>{bean.roaster}{bean.country ? `, ${bean.country}` : ''}{bean.processing ? `, ${bean.processing}` : ''}</p>
           {#if bean.notes}<p class="notes">{bean.notes}</p>{/if}
@@ -53,6 +59,7 @@
                 {#if b.weightRemaining != null}<span class="sub">{Math.round(b.weightRemaining)} of {Math.round(b.weight ?? b.weightRemaining)} g left</span>{/if}
                 {#if b.frozen}<span class="sub">Frozen</span>{/if}
               </div>
+              <button class="finish glass" onclick={() => (editingBag = b)}>Edit</button>
               {#if !b.archived}
                 <button class="finish glass" onclick={() => app.finishBag(b.id)}>Finished</button>
               {/if}
@@ -66,6 +73,12 @@
 
 {#if adding}
   <AddBag onClose={() => (adding = false)} />
+{/if}
+{#if editingBean}
+  <CoffeeDialog bean={editingBean} onClose={() => (editingBean = null)} />
+{/if}
+{#if editingBag}
+  <BagDialog bag={editingBag} onClose={() => (editingBag = null)} />
 {/if}
 
 <style>
@@ -81,6 +94,8 @@
   ul { list-style: none; margin: 0; padding: 0; }
   .beans { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 16px; }
   .bean { border-radius: 32px; padding: 22px 24px; display: grid; gap: 14px; align-content: start; }
+  .bean-head { position: relative; }
+  .edit { float: right; min-height: 48px; padding: 0 18px; border-radius: var(--radius-pill); color: var(--paper); font-size: var(--t-xs); font-weight: 650; }
   .bean-head h2 { font-size: var(--t-lg); font-weight: 700; letter-spacing: -0.01em; }
   .bean-head p { color: var(--paper-dim); }
   .notes { font-size: var(--t-xs); margin-top: 4px; }

@@ -3,6 +3,7 @@
   import type { Profile, ProfileRecord, ProfileStep } from '../../api/types';
   import Stepper from '../../components/Stepper.svelte';
   import Modal from '../../components/Modal.svelte';
+  import ConfirmDialog from '../../components/ConfirmDialog.svelte';
   import ProfileCurve from './ProfileCurve.svelte';
   import StepInspector from './StepInspector.svelte';
   import { toggleProfile } from '../../lib/categories';
@@ -127,6 +128,8 @@
   }
 
   let confirmClose = $state(false);
+  let confirmDelete = $state(false);
+  const versionCount = $derived(root ? app.profiles.filter((r) => app.rootOf(r.id) === root).length : 0);
   function close() {
     if (dirty) confirmClose = true;
     else onclose();
@@ -245,10 +248,23 @@
             {/each}
           </ul>
         {/if}
+        {#if original}
+          <button class="delete" onclick={() => (confirmDelete = true)}>Delete profile</button>
+        {/if}
       </div>
     </aside>
   </div>
 </section>
+
+{#if confirmDelete && root}
+  <ConfirmDialog
+    title="Delete “{draft.title}”?"
+    message="{versionCount > 1 ? `All ${versionCount} versions are` : 'It is'} hidden in Decaid and taken out of its categories{app.guide?.profileRoot === root ? ' and Guide me' : ''}. Shots pulled with it stay in History, and Decaid can unhide it from its own profile settings."
+    action="Delete profile"
+    onConfirm={async () => { await app.deleteProfile(root!); onclose(); }}
+    onClose={() => (confirmDelete = false)}
+  />
+{/if}
 
 {#if confirmClose}
   <Modal title="Discard your changes?" onClose={() => (confirmClose = false)}>
@@ -380,6 +396,7 @@
   .issues .error::before { background: var(--stop); }
   .issues button { text-align: left; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgb(255 255 255 / 0.25); }
 
+  .delete { justify-self: start; margin-top: 8px; min-height: 48px; padding: 0 18px; border-radius: var(--radius-pill); background: var(--well); color: #ffb3ab; font-size: var(--t-xs); font-weight: 650; }
   .confirm { color: var(--paper-dim); }
   .confirm-btn { min-height: var(--touch); padding: 0 24px; border-radius: var(--radius-control); font-weight: 650; color: var(--paper); }
   .confirm-btn.solid { color: var(--ink); }
