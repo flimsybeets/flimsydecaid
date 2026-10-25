@@ -16,26 +16,31 @@
   const PAD = { l: 38, r: 48, t: 12, b: 28 };
   const TEMP_SHARE = 0.32;
 
-  const tMax = $derived.by(() => {
-    const last = samples.at(-1)?.t ?? 0;
-    return Math.max(10, Math.ceil((last + 1) / 5) * 5);
+  // One walk over the samples for everything that needs a maximum or range
+  // (the live graph calls this about ten times a second).
+  const stats = $derived.by(() => {
+    let weight = 0, lo = Infinity, hi = -Infinity;
+    for (const s of samples) {
+      if (s.weight !== undefined && s.weight > weight) weight = s.weight;
+      for (const v of [s.waterTemp, s.puckTemp, s.targetWaterTemp, s.targetPuckTemp]) {
+        if (v === undefined) continue;
+        if (v < lo) lo = v;
+        if (v > hi) hi = v;
+      }
+    }
+    return { last: samples.at(-1)?.t ?? 0, weight, lo, hi };
   });
+  const tMax = $derived(Math.max(10, Math.ceil((stats.last + 1) / 5) * 5));
   // Weight has its own scale. With a target, the target sits near the top
   // (above the usual 9 bar of pressure) like a finish line the weight climbs
   // to; an overshoot stretches the scale so nothing is clipped.
   const weightMax = $derived.by(() => {
-    const seen = samples.reduce((m, s) => Math.max(m, s.weight ?? 0), 0);
+    const seen = stats.weight;
     if (yieldTarget) return Math.max(yieldTarget / 0.92, seen * 1.04);
     return Math.max(10, Math.ceil((seen * 1.15) / 10) * 10);
   });
   const tempRange = $derived.by(() => {
-    let lo = Infinity, hi = -Infinity;
-    for (const s of samples) {
-      for (const v of [s.waterTemp, s.puckTemp, s.targetWaterTemp, s.targetPuckTemp]) {
-        if (v === undefined) continue;
-        lo = Math.min(lo, v); hi = Math.max(hi, v);
-      }
-    }
+    const { lo, hi } = stats;
     if (!Number.isFinite(lo)) return [85, 95] as const;
     const mid = (lo + hi) / 2;
     const half = Math.max(3, (hi - lo) / 2 + 1);
@@ -56,18 +61,29 @@
   const yWeight = (v: number) => mainTop + mainH - (Math.max(0, v) / weightMax) * mainH;
   const yTemp = (v: number) => tempTop + tempH - ((v - tempRange[0]) / (tempRange[1] - tempRange[0])) * tempH;
 
-  /** SVG path with gaps where a value is missing. */
-  function path(key: keyof ShotSample, y: (v: number) => number): string {
-    let d = '';
-    let pen = false;
+  type Series = [key: keyof ShotSample, y: (v: number) => number];
+  const SERIES = $derived<Record<'tp' | 'tf' | 'tw' | 'tpk' | 'w' | 'p' | 'f' | 'wt' | 'pk', Series>>({
+    tp: ['targetPressure', yMain], tf: ['targetFlow', yMain], tw: ['targetWaterTemp', yTemp], tpk: ['targetPuckTemp', yTemp],
+    w: ['weight', yWeight], p: ['pressure', yMain], f: ['flow', yMain], wt: ['waterTemp', yTemp], pk: ['puckTemp', yTemp],
+  });
+
+  /** Every series' SVG path, in one pass over the samples, with gaps where a value is missing. */
+  const paths = $derived.by(() => {
+    const names = Object.keys(SERIES) as (keyof typeof SERIES)[];
+    const d = Object.fromEntries(names.map((n) => [n, ''])) as Record<keyof typeof SERIES, string>;
+    const pen = Object.fromEntries(names.map((n) => [n, false])) as Record<keyof typeof SERIES, boolean>;
     for (const s of samples) {
-      const v = s[key];
-      if (v === undefined || v === null) { pen = false; continue; }
-      d += `${pen ? 'L' : 'M'}${x(s.t).toFixed(1)},${y(v as number).toFixed(1)}`;
-      pen = true;
+      const px = x(s.t).toFixed(1);
+      for (const n of names) {
+        const [key, y] = SERIES[n];
+        const v = s[key];
+        if (v === undefined || v === null) { pen[n] = false; continue; }
+        d[n] += `${pen[n] ? 'L' : 'M'}${px},${y(v as number).toFixed(1)}`;
+        pen[n] = true;
+      }
     }
     return d;
-  }
+  });
 
   const timeTicks = $derived(Array.from({ length: Math.floor(tMax / 5) + 1 }, (_, i) => i * 5));
   const tempTicks = $derived.by(() => {
@@ -113,17 +129,17 @@
     {/each}
 
     <!-- targets (dashed) -->
-    <path class="line target" stroke="var(--g-pressure)" d={path('targetPressure', yMain)} />
-    <path class="line target" stroke="var(--g-flow)" d={path('targetFlow', yMain)} />
-    <path class="line target thin" stroke="var(--g-water)" d={path('targetWaterTemp', yTemp)} />
-    <path class="line target" stroke="var(--g-puck)" d={path('targetPuckTemp', yTemp)} />
+    <path class="line target" stroke="var(--g-pressure)" d={paths.tp} />
+    <path class="line target" stroke="var(--g-flow)" d={paths.tf} />
+    <path class="line target thin" stroke="var(--g-water)" d={paths.tw} />
+    <path class="line target" stroke="var(--g-puck)" d={paths.tpk} />
 
     <!-- measured -->
-    <path class="line" stroke="var(--g-weight)" stroke-width="3" d={path('weight', yWeight)} />
-    <path class="line" stroke="var(--g-pressure)" stroke-width="4" d={path('pressure', yMain)} />
-    <path class="line" stroke="var(--g-flow)" stroke-width="4" d={path('flow', yMain)} />
-    <path class="line" stroke="var(--g-water)" stroke-width="2.5" d={path('waterTemp', yTemp)} />
-    <path class="line" stroke="var(--g-puck)" stroke-width="6" d={path('puckTemp', yTemp)} />
+    <path class="line" stroke="var(--g-weight)" stroke-width="1.8" d={paths.w} />
+    <path class="line" stroke="var(--g-pressure)" stroke-width="2.4" d={paths.p} />
+    <path class="line" stroke="var(--g-flow)" stroke-width="2.4" d={paths.f} />
+    <path class="line" stroke="var(--g-water)" stroke-width="1.4" d={paths.wt} />
+    <path class="line" stroke="var(--g-puck)" stroke-width="3.4" d={paths.pk} />
   </svg>
   </div>
 
@@ -137,22 +153,17 @@
 </div>
 
 <style>
-  .chart { width: 100%; height: 100%; min-height: 120px; display: grid; grid-template-rows: minmax(0, 1fr) auto; }
+  .chart { width: 100%; height: 100%; min-height: 120px; contain: layout paint; display: grid; grid-template-rows: minmax(0, 1fr) auto; }
   .plot { position: relative; min-height: 0; }
   svg { position: absolute; inset: 0; display: block; overflow: visible; }
   .grid { stroke: var(--g-grid); stroke-width: 1; }
   .axis { fill: var(--paper-faint); font-size: 11px; font-family: var(--font); }
-  .yield {
-    stroke: var(--g-weight);
-    stroke-width: 3;
-    stroke-dasharray: 12 8;
-    filter: drop-shadow(0 0 3.8px color-mix(in srgb, var(--g-weight) 70%, transparent));
-  }
-  .yield-pill rect { fill: var(--g-weight); filter: drop-shadow(0 3px 8px rgb(0 0 0 / 0.35)); }
+  .yield { stroke: var(--g-weight); stroke-width: 2; stroke-dasharray: 10 7; }
+  .yield-pill rect { fill: var(--g-weight); }
   .yield-pill text { fill: #23140a; font-family: var(--font); font-size: 11px; font-weight: 700; }
   .line { fill: none; stroke-linejoin: round; stroke-linecap: round; }
-  .target { stroke-width: 2.5; stroke-dasharray: 8 7; opacity: 0.7; }
-  .target.thin { stroke-width: 1.5; }
+  .target { stroke-width: 1.5; stroke-dasharray: 7 6; opacity: 0.7; }
+  .target.thin { stroke-width: 1; }
 
   .legend {
     display: flex;
@@ -165,8 +176,8 @@
     font-size: var(--t-sm);
   }
   .legend li { display: flex; align-items: center; gap: 6px; }
-  .legend i { display: block; width: 20px; height: 3px; border-radius: 2px; background: var(--c); }
-  .legend .water i { height: 2.5px; }
-  .legend .puck i { height: 5px; }
+  .legend i { display: block; width: 20px; height: 2.5px; border-radius: 2px; background: var(--c); }
+  .legend .water i { height: 1.5px; }
+  .legend .puck i { height: 3.5px; }
   .legend b { color: var(--paper); font-size: var(--t-md); font-weight: 650; }
 </style>

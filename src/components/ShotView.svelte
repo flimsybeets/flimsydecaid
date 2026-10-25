@@ -145,6 +145,8 @@
     grid-template-rows: minmax(0, 1fr);
     gap: 9px;
     animation: appear 260ms ease;
+    /* The dials repaint ten times a second: keep that inside this box. */
+    contain: layout paint;
   }
 
   @media (max-height: 760px) {
@@ -152,7 +154,7 @@
     .dials { height: 21vh; }
   }
 
-  .graph { flex: 1; min-height: 135px; display: flex; padding: 14px 15px 10px; border-radius: 26px; }
+  .graph { flex: 1; min-height: 135px; contain: layout paint; display: flex; padding: 14px 15px 10px; border-radius: 26px; }
   .graph > :global(*) { flex: 1; }
   @keyframes appear { from { opacity: 0; transform: scale(1.01); } }
 </style>
