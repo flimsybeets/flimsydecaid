@@ -161,6 +161,8 @@
 
   {#if message}<p class="message {message.tone}" role="status">{message.text}</p>{/if}
 
+  <!-- One scrolling page under the title bar: chart, steps, then every setting. -->
+  <div class="editor-page">
   <div class="chart glass thick">
     <ProfileCurve steps={draft.steps} {selected} onselect={(i) => (selected = i)} overlay={showOverlay ? overlay : []} />
     <div class="legend">
@@ -189,7 +191,7 @@
 
   <div class="lower">
     <div class="pane glass thick">
-      <div class="scroll flush">
+      <div class="scroll">
         <StepInspector {step} index={selected} count={draft.steps.length}
           onchange={(next, field) => { const steps = snap().steps; steps[selected] = next; setSteps(steps, selected, field); }}
           onmove={(to) => setSteps(moveStep(snap().steps, selected, to), to)}
@@ -253,6 +255,7 @@
         {/if}
       </div>
     </aside>
+  </div>
   </div>
 </section>
 
@@ -321,8 +324,19 @@
   .message.warn { color: var(--warn); }
   .message.bad { color: var(--stop); }
 
+  /* The page scrolls (a plain div: glass must not be the scroller). */
+  .editor-page {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0 calc(-1 * var(--gutter));
+    padding: 0 var(--gutter) 16px;
+  }
   .chart {
-    flex: 0 0 clamp(142px, 31vh, 240px);
+    flex: 0 0 clamp(150px, 30vh, 260px);
     display: grid;
     grid-template-rows: minmax(0, 1fr) auto;
     padding: 8px 12px 6px;
@@ -332,13 +346,25 @@
   .legend span { display: flex; align-items: center; gap: 5px; }
   .legend i { width: 15px; height: 3px; border-radius: 2px; background: var(--c); }
   .legend .d i { height: 0; border-top: 2px dashed var(--paper-dim); background: none; }
-  .ghost-toggle { margin-left: auto; min-height: 27px; padding: 0 10px; border-radius: var(--radius-pill); background: var(--well); color: var(--paper-dim); font-size: var(--t-xs); }
+  .ghost-toggle { margin-left: auto; min-height: 36px; padding: 0 10px; border-radius: var(--radius-pill); background: var(--well); color: var(--paper-dim); font-size: var(--t-xs); }
   .ghost-toggle.on { background: rgb(255 255 255 / 0.85); color: var(--ink); font-weight: 650; }
 
   /* While typing, fold the chart and step strip away so the fields stay visible. */
   :global(html.kb-open) .chart, :global(html.kb-open) .strip { display: none; }
 
-  .strip { flex: none; display: flex; gap: 6px; overflow-x: auto; padding: 3px 2px 4px; }
+  /* Stays at the top while the settings scroll, so another step is always one tap away. */
+  .strip {
+    flex: none;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    margin: 0 calc(-1 * var(--gutter));
+    padding: 6px var(--gutter) 8px;
+    background: linear-gradient(rgb(14 34 39 / 0.96) 80%, rgb(14 34 39 / 0));
+  }
   .card {
     flex: none;
     width: 126px;
@@ -361,11 +387,9 @@
   .card.add { width: 90px; place-items: center; align-content: center; color: var(--paper-dim); }
   .plus { font-size: var(--t-lg); line-height: 1; }
 
-  .lower { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(225px, 30%); gap: 9px; }
-  .pane { min-height: 0; border-radius: 22px; overflow: hidden; display: flex; }
-  .scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 15px 15px; display: grid; gap: 9px; align-content: start; }
-  /* The step inspector's sticky header supplies its own top padding. */
-  .scroll.flush { padding-top: 0; }
+  .lower { flex: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(250px, 30%); gap: 10px; align-items: start; }
+  .pane { border-radius: 22px; }
+  .scroll { padding: 14px 15px 16px; display: grid; gap: 9px; align-content: start; }
 
   .side h3 { font-size: var(--t-xs); font-weight: 650; text-transform: uppercase; letter-spacing: 0.06em; color: var(--paper-faint); margin-top: 3px; }
   .two { display: grid; gap: 8px; }
@@ -401,8 +425,7 @@
   .confirm-btn { min-height: var(--touch); padding: 0 18px; border-radius: var(--radius-control); font-weight: 650; color: var(--paper); }
   .confirm-btn.solid { color: var(--ink); }
 
-  @media (max-width: 1100px) {
-    .lower { grid-template-columns: minmax(0, 1fr) 210px; }
-    .meta { display: none; }
-  }
+  @media (max-width: 1100px) { .meta { display: none; } }
+  /* Narrow screens: profile settings go under the step settings. */
+  @media (max-width: 820px) { .lower { grid-template-columns: 1fr; } }
 </style>
