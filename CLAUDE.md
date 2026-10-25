@@ -103,7 +103,7 @@ Source of truth: `assets/api/rest_v1.yml`, `assets/api/websocket_v1.yml` and `do
 - **Shots**: `GET /shots` is paginated (`limit` ≤ 100, `offset`, newest first) and has no measurements; `GET /shots/{id}` has `measurements: [{machine, scale, volume}]` covering the whole espresso state, so trim to preinfusion/pouring like the live graph (`samplesFromMeasurements`). `annotations.actualYield` is often null; use the last scale weight. `stopReason` is an open set. `enjoyment` is 0–10.
 - **Screen while asleep**: Decaid's wake-lock is auto-managed (screen allowed off while the machine sleeps). The screensaver holds `POST /api/v1/display/wakelock` while showing and `DELETE`s it on close, and dims via `PUT /display/brightness`, restoring the previous `requestedBrightness` (calls are queued so a quick close can't leave it dark). Request bodies are capped (1 MiB for the KV store, `bounded_request_body.dart`).
 - **Settings**: Decaid's bundled settings plugin lives at `/api/v1/plugins/settings.reaplugin/ui?backName=FlimsyDecaid`.
-- **GHC machines**: the Group Head Controller owns shot start. `GET /api/v1/machine/info` → `GHC: true`; read each time the machine connects. BrewPanel then shows "Then start the shot on the group head" instead of Start shot. `?mock=1&ghc=1` fakes it.
+- **GHC machines**: the Group Head Controller owns shot start. `GET /api/v1/machine/info` → `GHC: true`; read each time the machine connects. BrewPanel then shows "Start the shot on the group head" instead of Start shot. `?mock=1&ghc=1` fakes it.
 - **Archived beans and bags are hidden by default**: `GET /beans` and `GET /bean-batches` need `?includeArchived=true` (dial-in carry-over from a finished bag, "Show finished bags", old shots' bag names all depend on it). Filter `archived` in the UI instead.
 - **Batch PUT merges top-level fields only**: `extras` is replaced whole, hence `withDialIn` copies other keys. Missing KV keys answer 200 `null`, not 404.
 - **Layers**: profile editor 25, guide 27, shot view 30, modals 60/61, screensaver 100. Full-screen views with oversized decoration use `overflow: clip` (not hidden), so focus/scrollIntoView can't shift them.
@@ -120,7 +120,7 @@ Tablet next to the machine, read at arm's length, wet hands.
 - Numbers: every Stepper is tap-to-type by default (`inputmode=decimal`, the number pad), as well as −/+.
 - Touch targets ≥ 48px (`--touch`), small buttons ≥ 40px, primary actions ~60px+. The whole UI is at 75% of its first sizes (first use on the tablet felt zoomed in); text tokens are a little larger than 75% so they still read at arm's length. Keep new UI on the tokens rather than fixed px.
 - Graph colours are fixed across every graph: pressure green, flow blue, weight brown, water coral (thin), puck gold (thick). Targets dashed.
-- Copy: plain, sentence case, says what happens ("Load", "Start shot", "Save steam settings").
+- Copy: plain, sentence case, says what happens ("Start shot", "Save steam settings", "Delete bag").
 
 ## Next up
 
