@@ -3,6 +3,9 @@
   import BottomBar from './components/BottomBar.svelte';
   import SteamModal from './components/SteamModal.svelte';
   import ShotView from './components/ShotView.svelte';
+  import Screensaver from './components/Screensaver.svelte';
+  import ProfileEditor from './features/profiles/ProfileEditor.svelte';
+  import Guide from './features/guide/Guide.svelte';
   import Home from './features/home/Home.svelte';
   import Profiles from './features/profiles/Profiles.svelte';
   import History from './features/history/History.svelte';
@@ -23,6 +26,23 @@
   let shotOpen = $state(false);
   $effect(() => { if (app.shotActive) shotOpen = true; });
 
+  // Screensaver: up while the machine sleeps, once a photo is chosen.
+  // Tapping asks the machine to wake. If it stays asleep (say the wake
+  // didn't get through), the screensaver comes back after a minute.
+  let saverDismissed = $state(false);
+  $effect(() => { if (!app.asleep) saverDismissed = false; });
+  $effect(() => {
+    if (!saverDismissed) return;
+    const t = setTimeout(() => (saverDismissed = false), 60_000);
+    return () => clearTimeout(t);
+  });
+  const saverUp = $derived(app.asleep && app.screensaverImage !== null && !saverDismissed);
+
+  function dismissSaver() {
+    saverDismissed = true;
+    void app.wake().catch(() => {});
+  }
+
   const STATE_LABELS: Record<string, string> = {
     idle: 'Ready', sleeping: 'Asleep', heating: 'Heating', preheating: 'Heating', booting: 'Starting up',
     espresso: 'Pulling', steam: 'Steaming', hotWater: 'Hot water', flush: 'Flushing',
@@ -40,14 +60,14 @@
 
 <div class="shell">
   <header>
-    <nav aria-label="Sections">
+    <nav class="glass" aria-label="Sections">
       {#each tabs as t (t.id)}
         <button class="tab" class:active={app.tab === t.id} aria-current={app.tab === t.id ? 'page' : undefined} onclick={() => (app.tab = t.id)}>
           {t.label}
         </button>
       {/each}
     </nav>
-    <div class="status {status.tone}" role="status">
+    <div class="status glass {status.tone}" role="status">
       <span class="dot" aria-hidden="true"></span>
       {status.text}
       {#if app.machine.groupTemperature !== undefined}
@@ -61,7 +81,7 @@
       <div class="problem">
         <p>{app.error}</p>
         <p class="hint">Check that Decaid is running and on the same Wi-Fi. During development, open this page with <code>?gateway=&lt;tablet IP&gt;</code> or <code>?mock=1</code>.</p>
-        <button class="retry" onclick={() => app.reload()}>Try again</button>
+        <button class="retry glass solid" onclick={() => app.reload()}>Try again</button>
       </div>
     {:else if app.tab === 'home'}
       <Home />
@@ -83,8 +103,22 @@
   <SteamModal onClose={() => (steamOpen = false)} />
 {/if}
 
+{#if app.guiding && app.guide}
+  <Guide onclose={() => (app.guiding = false)} />
+{/if}
+
+{#if app.editing !== undefined}
+  <ProfileEditor record={app.editing} onclose={() => (app.editing = undefined)} />
+{/if}
+
 {#if shotOpen}
   <ShotView onClose={() => (shotOpen = false)} />
+{/if}
+
+{#if app.screensaverPreview}
+  <Screensaver image={app.screensaverImage} preview onDismiss={() => (app.screensaverPreview = false)} />
+{:else if saverUp}
+  <Screensaver image={app.screensaverImage} onDismiss={dismissSaver} />
 {/if}
 
 <style>
@@ -99,38 +133,50 @@
     align-items: center;
     justify-content: space-between;
     gap: var(--gutter);
-    padding: 14px var(--gutter);
-    border-bottom: 1px solid var(--line);
+    padding: 14px var(--gutter) 10px;
+    position: relative;
+    z-index: 5;
   }
 
-  nav { display: flex; gap: 6px; }
+  /* Floating glass tab bar; the active tab is a lens of brighter glass. */
+  nav {
+    display: flex;
+    gap: 4px;
+    padding: 6px;
+    border-radius: var(--radius-pill);
+  }
 
   .tab {
     min-height: 56px;
-    padding: 0 22px;
+    padding: 0 24px;
     border-radius: var(--radius-pill);
     font-size: var(--t-md);
     font-weight: 500;
     color: var(--paper-dim);
+    transition: background 180ms ease, color 180ms ease, box-shadow 180ms ease;
   }
   .tab.active {
-    background: var(--paper);
+    background: linear-gradient(170deg, rgb(255 255 255 / 0.95), rgb(226 236 232 / 0.86));
     color: var(--ink);
     font-weight: 650;
+    box-shadow: 0 6px 16px -6px rgb(0 0 0 / 0.5), inset 0 1px 0 #fff;
   }
 
   .status {
     display: flex;
     align-items: center;
     gap: 10px;
+    min-height: 56px;
+    padding: 0 20px;
+    border-radius: var(--radius-pill);
     font-size: var(--t-sm);
     color: var(--paper-dim);
     white-space: nowrap;
   }
-  .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--go); }
-  .status.warm .dot { background: var(--warn); }
-  .status.bad .dot { background: var(--stop); }
-  .status.demo .dot { background: var(--cat-3); }
+  .dot { width: 12px; height: 12px; border-radius: 50%; color: var(--go); background: currentColor; box-shadow: 0 0 10px currentColor; }
+  .status.warm .dot { color: var(--warn); }
+  .status.bad .dot { color: var(--stop); }
+  .status.demo .dot { color: var(--cat-3); }
   .temp { color: var(--paper); font-weight: 600; }
 
   main {
@@ -154,8 +200,6 @@
     min-height: var(--touch);
     padding: 0 28px;
     border-radius: var(--radius-control);
-    background: var(--paper);
-    color: var(--ink);
     font-weight: 650;
   }
 

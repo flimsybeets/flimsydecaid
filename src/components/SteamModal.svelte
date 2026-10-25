@@ -31,7 +31,7 @@
 </script>
 
 <Modal title="Steam" {onClose}>
-  <button class="heater" class:on role="switch" aria-checked={on} onclick={() => (on = !on)}>
+  <button class="heater glass" class:lit={on} class:on role="switch" aria-checked={on} onclick={() => (on = !on)}>
     <span>Steam heater</span>
     <span class="state">{on ? 'On' : 'Off'}</span>
   </button>
@@ -44,7 +44,7 @@
       <Stepper label="Temperature" bind:value={temperature} min={STEAM_MIN_C} max={STEAM_MAX_C} unit="°C" disabled={!on} />
       <div class="presets">
         {#each presets as p (p)}
-          <button class:active={temperature === p} disabled={!on} onclick={() => (temperature = p)}>{p}°</button>
+          <button class="glass" class:solid={temperature === p} class:active={temperature === p} disabled={!on} onclick={() => (temperature = p)}>{p}°</button>
         {/each}
       </div>
     </div>
@@ -54,8 +54,8 @@
   {#if error}<p class="error" role="alert">{error}</p>{/if}
 
   {#snippet actions()}
-    <button class="secondary" onclick={onClose}>Cancel</button>
-    <button class="primary" onclick={save} disabled={saving || (!app.mock && !app.gatewayOnline)}>
+    <button class="secondary glass" onclick={onClose}>Cancel</button>
+    <button class="primary glass solid" onclick={save} disabled={saving || (!app.mock && !app.gatewayOnline)}>
       {saving ? 'Saving…' : 'Save steam settings'}
     </button>
   {/snippet}
@@ -67,9 +67,8 @@
     justify-content: space-between;
     align-items: center;
     min-height: 84px;
-    padding: 0 24px;
-    border-radius: var(--radius-control);
-    background: var(--ink-sunk);
+    padding: 0 16px 0 24px;
+    border-radius: 24px;
     font-size: var(--t-md);
     font-weight: 600;
   }
@@ -78,10 +77,12 @@
     padding: 10px 0;
     text-align: center;
     border-radius: var(--radius-pill);
-    background: var(--line);
+    background: var(--well);
+    box-shadow: var(--well-shadow);
     color: var(--paper-dim);
+    transition: background 180ms ease, color 180ms ease;
   }
-  .heater.on .state { background: var(--paper); color: var(--ink); }
+  .heater.on .state { background: var(--go); color: var(--cat-ink); box-shadow: 0 0 18px rgb(143 211 192 / 0.55), inset 0 1px 0 rgb(255 255 255 / 0.6); }
   .live { color: var(--paper-dim); margin-top: -10px; }
 
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
@@ -91,10 +92,9 @@
     flex: 1;
     min-height: 48px;
     border-radius: var(--radius-pill);
-    border: 1px solid var(--line);
     color: var(--paper-dim);
   }
-  .presets button.active { background: var(--paper); color: var(--ink); border-color: var(--paper); }
+  .presets button.active { color: var(--ink); font-weight: 650; }
   .presets button:disabled { opacity: 0.4; }
 
   .error { color: var(--stop); }
@@ -105,7 +105,6 @@
     border-radius: var(--radius-control);
     font-weight: 650;
   }
-  .primary { background: var(--paper); color: var(--ink); }
   .primary:disabled { opacity: 0.5; }
   .secondary { color: var(--paper-dim); }
 

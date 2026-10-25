@@ -31,6 +31,15 @@ export interface MachineSnapshot {
   profileFrame?: number;
 }
 
+/** GET /api/v1/machine/info */
+export interface MachineInfo {
+  version?: string;
+  model?: string;
+  serialNumber?: string;
+  /** A Group Head Controller is fitted: shots are started at the group head, not from the app. */
+  GHC?: boolean;
+}
+
 /** ws/v1/scale/snapshot sends two kinds of frame on one socket. */
 export interface ScaleStatusFrame { status: 'connected' | 'disconnected' }
 export interface ScaleWeightFrame {
@@ -61,6 +70,17 @@ export interface DevicesState {
   connectionStatus?: { phase?: 'idle' | 'scanning' | 'connectingMachine' | 'connectingScale' | 'ready' };
 }
 
+export interface StepExit {
+  type: 'pressure' | 'flow';
+  condition: 'over' | 'under';
+  value: number;
+}
+
+export interface StepLimiter {
+  value: number;
+  range: number;
+}
+
 export interface ProfileStep {
   name: string;
   pump: 'pressure' | 'flow';
@@ -73,8 +93,10 @@ export interface ProfileStep {
   sensor: 'coffee' | 'water';
   pressure?: number;
   flow?: number;
-  exit?: unknown;
-  limiter?: unknown;
+  /** Leave the step early when pressure or flow goes over/under a value. */
+  exit?: StepExit | null;
+  /** Caps the quantity the pump isn't controlling (flow on pressure steps, pressure on flow steps). value 0 = off. */
+  limiter?: StepLimiter | null;
   [key: string]: unknown;
 }
 
@@ -198,4 +220,67 @@ export interface Grinder {
   settingSmallStep?: number | null;
   settingBigStep?: number | null;
   archived: boolean;
+}
+
+/** Post-shot notes and measurements. Enjoyment is Decaid's 0–10 scale. */
+export interface ShotAnnotations {
+  actualDoseWeight?: number | null;
+  actualYield?: number | null;
+  drinkTds?: number | null;
+  drinkEy?: number | null;
+  enjoyment?: number | null;
+  espressoNotes?: string | null;
+  extras?: Record<string, unknown> | null;
+}
+
+/** GET /api/v1/shots item: a shot without its measurements. */
+export interface ShotSummary {
+  id: string;
+  timestamp: string;
+  createdAt?: string;
+  updatedAt?: string;
+  /** The workflow as it was when the shot was pulled. Context fields can be null. */
+  workflow?: Workflow;
+  annotations?: ShotAnnotations | null;
+  /** Open set: targetWeight, targetVolume, apiStop, appStop, machineEnded, error, … */
+  stopReason?: string | null;
+}
+
+/** One recorded sample: the machine frame plus the scale reading at that moment. */
+export interface ShotMeasurement {
+  machine: MachineSnapshot;
+  scale?: ScaleWeightFrame | null;
+  volume?: number | null;
+}
+
+/** GET /api/v1/shots/{id} */
+export interface ShotRecord extends ShotSummary {
+  measurements: ShotMeasurement[];
+}
+
+export interface ShotPage {
+  items: ShotSummary[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+/** Query for GET /api/v1/shots. Newest first. limit is 1–100. */
+export interface ShotQuery {
+  limit?: number;
+  offset?: number;
+  beanBatchId?: string;
+  beanId?: string;
+  profileTitle?: string;
+}
+
+/** GET /api/v1/display */
+export interface DisplayState {
+  /** Applied brightness 0–100 (may be capped on low battery). */
+  brightness: number;
+  /** What a skin last asked for. 100 = OS-managed. */
+  requestedBrightness: number;
+  wakeLockEnabled?: boolean;
+  wakeLockOverride?: boolean;
+  platformSupported?: { brightness?: boolean; wakeLock?: boolean };
 }

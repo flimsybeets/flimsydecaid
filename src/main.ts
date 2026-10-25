@@ -1,4 +1,4 @@
-import '@fontsource-variable/bricolage-grotesque/opsz.css';
+import '@fontsource-variable/sen/wght.css';
 import './styles.css';
 import { mount } from 'svelte';
 import App from './App.svelte';

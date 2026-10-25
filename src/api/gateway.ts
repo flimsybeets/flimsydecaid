@@ -5,8 +5,8 @@
 import type { GatewayConfig } from './config';
 import { openSocket, type ManagedSocket, type SocketStatus } from './socket';
 import type {
-  Bean, BeanBatch, DevicesState, MachineSnapshot, MachineState, ProfileRecord,
-  ScaleFrame, Workflow, WorkflowPatch,
+  Bean, BeanBatch, DevicesState, DisplayState, MachineInfo, MachineSnapshot, MachineState, Profile, ProfileRecord,
+  ScaleFrame, ShotPage, ShotQuery, ShotRecord, Workflow, WorkflowPatch,
 } from './types';
 
 /** Our namespace in Decaid's shared key-value store. Not scoped per owner, so keep it unique. */
@@ -26,10 +26,26 @@ export interface Gateway {
   /** Ask Decaid to scan for (and auto-connect) devices. */
   scanDevices(): void;
 
+  getMachineInfo(): Promise<MachineInfo>;
   requestState(state: MachineState): Promise<void>;
   tareScale(): Promise<void>;
+  /**
+   * Keep the tablet screen on even while the machine sleeps (Decaid normally
+   * lets it turn off then). false hands control back to Decaid.
+   */
+  keepScreenOn(on: boolean): Promise<void>;
+  getDisplay(): Promise<DisplayState>;
+  /** 0–100; 100 hands brightness back to the OS. */
+  setBrightness(brightness: number): Promise<void>;
 
   getProfiles(): Promise<ProfileRecord[]>;
+  /**
+   * POST /profiles. Ids hash the steps and targets only; creating one that
+   * already exists returns the existing record unchanged.
+   */
+  createProfile(profile: Profile, parentId: string | null): Promise<ProfileRecord>;
+  /** PUT /profiles/{id}: used for title/author/notes only (refused on Decaid's defaults). */
+  updateProfile(id: string, profile: Profile): Promise<ProfileRecord>;
   getWorkflow(): Promise<Workflow>;
   /** Deep-merge update; returns the workflow as Decaid stored it. */
   updateWorkflow(patch: WorkflowPatch): Promise<Workflow>;
@@ -40,6 +56,11 @@ export interface Gateway {
   getBatches(): Promise<BeanBatch[]>;
   createBatch(beanId: string, batch: Partial<BeanBatch>): Promise<BeanBatch>;
   updateBatch(id: string, patch: Partial<BeanBatch>): Promise<BeanBatch>;
+
+  /** Newest first, without measurements. */
+  getShots(query?: ShotQuery): Promise<ShotPage>;
+  /** One shot with its measurements. */
+  getShot(id: string): Promise<ShotRecord>;
 
   storeGet<T>(key: string): Promise<T | null>;
   storeSet(key: string, value: unknown): Promise<void>;
@@ -101,19 +122,36 @@ export function createHttpGateway(config: GatewayConfig): Gateway {
       }
     },
 
+    getMachineInfo: () => call('GET', '/machine/info'),
     requestState: (state) => call('PUT', `/machine/state/${state}`),
     tareScale: () => call('PUT', '/scale/tare'),
+    keepScreenOn: (on) => call(on ? 'POST' : 'DELETE', '/display/wakelock'),
+    getDisplay: () => call('GET', '/display'),
+    setBrightness: (brightness) => call('PUT', '/display/brightness', { brightness: Math.round(brightness) }),
 
     getProfiles: () => call('GET', '/profiles?visibility=visible'),
+    createProfile: (profile, parentId) => call('POST', '/profiles', parentId ? { profile, parentId } : { profile }),
+    updateProfile: (id, profile) => call('PUT', `/profiles/${encodeURIComponent(id)}`, { profile }),
     getWorkflow: () => call('GET', '/workflow'),
     updateWorkflow: (patch) => call('PUT', '/workflow', patch),
 
-    getBeans: () => call('GET', '/beans'),
+    // Include archived (finished) beans and bags: dial-in carries over from
+    // a finished bag, Beans can show them, and old shots still name them.
+    // Decaid leaves them out by default.
+    getBeans: () => call('GET', '/beans?includeArchived=true'),
     createBean: (bean) => call('POST', '/beans', bean),
     updateBean: (id, patch) => call('PUT', `/beans/${encodeURIComponent(id)}`, patch),
-    getBatches: () => call('GET', '/bean-batches'),
+    getBatches: () => call('GET', '/bean-batches?includeArchived=true'),
     createBatch: (beanId, batch) => call('POST', `/beans/${encodeURIComponent(beanId)}/batches`, batch),
     updateBatch: (id, patch) => call('PUT', `/bean-batches/${encodeURIComponent(id)}`, patch),
+
+    getShots(query = {}) {
+      const params = new URLSearchParams();
+      for (const [k, v] of Object.entries(query)) if (v !== undefined && v !== '') params.set(k, String(v));
+      const qs = params.toString();
+      return call('GET', `/shots${qs ? `?${qs}` : ''}`);
+    },
+    getShot: (id) => call('GET', `/shots/${encodeURIComponent(id)}`),
 
     async storeGet<T>(key: string) {
       try {

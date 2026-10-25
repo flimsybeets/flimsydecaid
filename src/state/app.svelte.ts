@@ -7,11 +7,15 @@ import { createHttpGateway, type Gateway } from '../api/gateway';
 import { createMockGateway } from '../api/mock';
 import type { SocketStatus } from '../api/socket';
 import type {
-  Bean, BeanBatch, DeviceInfo, MachineSnapshot, ProfileRecord, ScaleFrame, SteamSettings, Workflow,
+  Bean, BeanBatch, DeviceInfo, MachineSnapshot, Profile, ProfileRecord, ScaleFrame, ShotPage, ShotQuery, ShotRecord,
+  SteamSettings, Workflow,
 } from '../api/types';
 import { CATEGORIES_KEY, parseCategories, type CategoryDoc } from '../lib/categories';
 import { withDialIn, type DialIn } from '../lib/dialIn';
-import { photoKey } from '../lib/photo';
+import { photoKey, toJpegDataUrl } from '../lib/photo';
+import { fitDataUrl, SCREENSAVER_BRIGHTNESS, SCREENSAVER_KEY } from '../lib/screensaver';
+import { saveProfile, type SaveResult } from '../lib/profileEdit';
+import { GUIDE_KEY, parseGuideSetup, type GuideSetup } from '../lib/guide';
 import { indexProfiles, latestPerLineage, lineageRoot, shiftTemperature } from '../lib/profiles';
 import { ShotRecorder, type ShotSample } from '../lib/shot';
 import { clampSteamFlow, clampSteamTemp, LAST_STEAM_TEMP_KEY, STEAM_DEFAULT_C } from '../lib/steam';
@@ -32,9 +36,13 @@ class AppState {
   scanning = $state(false);
   scaleConnected = $state(false);
   weight = $state<number | null>(null);
+  /** Flow into the cup in g/s, from the scale. */
+  weightFlow = $state<number | null>(null);
   scaleBattery = $state<number | null>(null);
   shot = $state<ShotSample[]>([]);
   shotActive = $state(false);
+  /** Bumped when a pull ends, so History knows to refetch. */
+  shotsFinished = $state(0);
 
   // Library
   profiles = $state<ProfileRecord[]>([]);
@@ -54,6 +62,21 @@ class AppState {
   /** Lineage root → newest visible version. One entry per profile you'd recognise. */
   profileLineages = $derived(latestPerLineage(this.profiles));
   steam = $derived<SteamSettings | undefined>(this.workflow.steamSettings);
+  asleep = $derived(this.machine.state?.state === 'sleeping');
+  /** Group Head Controller fitted: start shots at the group head, so the skin hides Start. */
+  ghc = $state(false);
+
+  /** Screensaver photo (JPEG data URL), or null when none is chosen. */
+  screensaverImage = $state<string | null>(null);
+  /** Profile editor: the record being edited, `null` for a new profile, undefined when closed. */
+  editing = $state<ProfileRecord | null | undefined>(undefined);
+
+  /** "Guide me": the profile + coffee it's set to (null until set up), and whether it's running. */
+  guide = $state<GuideSetup | null>(null);
+  guiding = $state(false);
+
+  /** Settings' "Preview" shows the screensaver without the machine asleep. */
+  screensaverPreview = $state(false);
 
   private recorder = new ShotRecorder();
   private unsubscribe: (() => void) | null = null;
@@ -65,7 +88,13 @@ class AppState {
     this.unsubscribe = gateway.subscribe({
       onMachine: (f) => this.onMachine(f),
       onScale: (f) => this.onScale(f),
-      onDevices: (d) => { this.devices = d.devices; this.scanning = d.scanning; },
+      onDevices: (d) => {
+        const wasConnected = this.machineConnected;
+        this.devices = d.devices;
+        this.scanning = d.scanning;
+        // Machine info (GHC) is read once at connect, so ask each time the machine connects.
+        if (!wasConnected && this.machineConnected) void this.loadMachineInfo();
+      },
       onSocketStatus: (ch, s) => { this.sockets[ch] = s; },
     });
     void this.reload();
@@ -73,13 +102,15 @@ class AppState {
 
   async reload(): Promise<void> {
     try {
-      const [profiles, workflow, categories, beans, batches] = await Promise.all([
+      const [profiles, workflow, categories, beans, batches, guide] = await Promise.all([
         gateway.getProfiles(),
         gateway.getWorkflow(),
         gateway.storeGet(CATEGORIES_KEY),
         gateway.getBeans(),
         gateway.getBatches(),
+        gateway.storeGet(GUIDE_KEY).catch(() => null),
       ]);
+      this.guide = parseGuideSetup(guide);
       this.profiles = profiles;
       this.workflow = workflow;
       this.categories = parseCategories(categories);
@@ -87,6 +118,8 @@ class AppState {
       this.batches = batches;
       this.error = null;
       this.loaded = true;
+      // Big, and only needed once the machine sleeps, so it loads after everything else.
+      void this.loadScreensaver();
     } catch (e) {
       this.error = `Couldn't reach Decaid: ${(e as Error).message}`;
     }
@@ -99,6 +132,7 @@ class AppState {
       this.shot = this.recorder.samples.slice();
     }
     this.shotActive = this.recorder.active;
+    if (wasActive && !this.recorder.active) this.shotsFinished++;
     if (!wasActive && this.recorder.active && this.scaleConnected) {
       // Tare once as the pull begins, in case the cup wasn't zeroed.
       void gateway.tareScale().catch(() => {});
@@ -109,11 +143,12 @@ class AppState {
     if ('status' in f) {
       // A status frame is not a reading: don't show 0 g on connect.
       this.scaleConnected = f.status === 'connected';
-      if (!this.scaleConnected) this.weight = null;
+      if (!this.scaleConnected) { this.weight = null; this.weightFlow = null; }
       return;
     }
     this.scaleConnected = true;
     this.weight = f.weight;
+    this.weightFlow = f.weightFlow ?? null;
     this.scaleBattery = f.battery ?? null;
     this.recorder.onScale(f);
   }
@@ -202,6 +237,91 @@ class AppState {
     const updated = await gateway.updateBatch(batchId, { archived: true, weightRemaining: 0 });
     this.batches = this.batches.map((b) => (b.id === updated.id ? updated : b));
   }
+
+  // Shot history is read straight from Decaid; nothing to keep in memory.
+  getShots(query: ShotQuery): Promise<ShotPage> { return gateway.getShots(query); }
+  getShot(id: string): Promise<ShotRecord> { return gateway.getShot(id); }
+
+  async saveGuide(setup: GuideSetup): Promise<void> {
+    await gateway.storeSet(GUIDE_KEY, setup);
+    this.guide = setup;
+  }
+
+  async loadMachineInfo(): Promise<void> {
+    const info = await gateway.getMachineInfo().catch(() => null);
+    if (info) this.ghc = info.GHC === true;
+  }
+
+  async loadScreensaver(): Promise<void> {
+    const url = await gateway.storeGet<string>(SCREENSAVER_KEY).catch(() => null);
+    this.screensaverImage = typeof url === 'string' && url.startsWith('data:image/') ? url : null;
+  }
+
+  /** Shrink a picked photo to fit the store, save it, and use it. */
+  async setScreensaver(file: Blob): Promise<void> {
+    const url = await fitDataUrl((edge, quality) => toJpegDataUrl(file, edge, quality));
+    await gateway.storeSet(SCREENSAVER_KEY, url);
+    this.screensaverImage = url;
+  }
+
+  async removeScreensaver(): Promise<void> {
+    await gateway.storeDelete(SCREENSAVER_KEY);
+    this.screensaverImage = null;
+  }
+
+  async keepScreenOn(on: boolean): Promise<void> {
+    await gateway.keepScreenOn(on).catch(() => {});
+  }
+
+  /** Brightness to go back to after the screensaver; null while not dimmed. */
+  private brightnessBeforeDim: number | null = null;
+
+  private dimQueue: Promise<void> = Promise.resolve();
+
+  /**
+   * Dim the screen for the screensaver, and put it back exactly as it was
+   * afterwards. Calls run one after another, so a quick close can't restore
+   * before the dim lands and leave the screen dark.
+   */
+  dimScreen(on: boolean): Promise<void> {
+    this.dimQueue = this.dimQueue.then(() => this.applyDim(on));
+    return this.dimQueue;
+  }
+
+  private async applyDim(on: boolean): Promise<void> {
+    try {
+      if (on) {
+        if (this.brightnessBeforeDim !== null) return;
+        const display = await gateway.getDisplay();
+        if (display.platformSupported?.brightness === false) return;
+        this.brightnessBeforeDim = display.requestedBrightness ?? 100;
+        await gateway.setBrightness(SCREENSAVER_BRIGHTNESS);
+      } else if (this.brightnessBeforeDim !== null) {
+        const back = this.brightnessBeforeDim;
+        this.brightnessBeforeDim = null;
+        await gateway.setBrightness(back);
+      }
+    } catch { /* brightness is a nicety; never block the screensaver on it */ }
+  }
+
+  /** Save an edited or new profile, then refresh the list. See lib/profileEdit saveProfile. */
+  async saveProfile(draft: Profile, original: ProfileRecord | null, asCopy = false): Promise<SaveResult> {
+    const result = await saveProfile(
+      { create: (p, parentId) => gateway.createProfile(p, parentId), update: (id, p) => gateway.updateProfile(id, p) },
+      draft, original, asCopy,
+    );
+    this.profiles = await gateway.getProfiles();
+    return result;
+  }
+
+  /** The most recent shot pulled with a profile of this title, with measurements. */
+  async lastShotFor(title: string): Promise<ShotRecord | null> {
+    const page = await gateway.getShots({ profileTitle: title, limit: 1 }).catch(() => null);
+    const id = page?.items[0]?.id;
+    return id ? gateway.getShot(id).catch(() => null) : null;
+  }
+
+  async wake(): Promise<void> { await gateway.requestState('idle'); }
 
   async startEspresso(): Promise<void> { await gateway.requestState('espresso'); }
   async stop(): Promise<void> { await gateway.requestState('idle'); }

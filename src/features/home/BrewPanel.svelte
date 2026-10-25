@@ -93,12 +93,14 @@
   }
 </script>
 
-<aside class="panel" aria-label="Brew settings">
+<aside class="panel glass thick" aria-label="Brew settings">
   <div class="head">
     <h2>{record?.profile.title ?? 'Profile'}</h2>
-    <button class="close" onclick={onClose} aria-label="Close brew settings">✕</button>
+    {#if record}<button class="edit glass" onclick={() => (app.editing = record)}>Edit</button>{/if}
+    <button class="close glass" onclick={onClose} aria-label="Close brew settings">✕</button>
   </div>
 
+  <div class="body">
   <section class="bags" aria-label="Bag">
     <h3>Bag</h3>
     {#if bags.length === 0}
@@ -106,7 +108,7 @@
     {:else}
       <div class="bag-list" role="radiogroup" aria-label="Bag">
         {#each bags as { batch: b, bean } (b.id)}
-          <button class="bag" class:selected={b.id === batchId} role="radio" aria-checked={b.id === batchId} onclick={() => (batchId = b.id)}>
+          <button class="bag glass" class:lit={b.id === batchId} class:selected={b.id === batchId} role="radio" aria-checked={b.id === batchId} onclick={() => (batchId = b.id)}>
             {#if app.photos[b.id]}
               <img src={app.photos[b.id]} alt="" />
             {:else}
@@ -136,51 +138,59 @@
     {/if}
   </section>
 
+  </div>
+
   <div class="go">
     {#if message}<p class="msg" class:bad={message.bad} role="status">{message.text}</p>{/if}
-    <button class="load" disabled={busy !== null} onclick={() => apply(false)}>{busy === 'load' ? 'Loading…' : 'Load'}</button>
-    <button class="start" disabled={busy !== null || app.machine.state?.state === 'espresso'} onclick={() => apply(true)}>
-      {busy === 'start' ? 'Starting…' : 'Start shot'}
-    </button>
+    <button class="load glass" disabled={busy !== null} onclick={() => apply(false)}>{busy === 'load' ? 'Loading…' : 'Load'}</button>
+    {#if app.ghc}
+      <p class="ghc">Then start the shot on the group head.</p>
+    {:else}
+      <button class="start glass" disabled={busy !== null || app.machine.state?.state === 'espresso'} onclick={() => apply(true)}>
+        {busy === 'start' ? 'Starting…' : 'Start shot'}
+      </button>
+    {/if}
   </div>
 </aside>
 
 <style>
+  /* Title and Load / Start stay put; only the middle scrolls. (A glass
+     element must not scroll itself: its rim would scroll away too.) */
   .panel {
     display: grid;
-    grid-template-rows: auto auto 1fr auto;
+    grid-template-rows: auto minmax(0, 1fr) auto;
     gap: 18px;
     min-height: 0;
-    overflow-y: auto;
+    overflow: hidden;
+    margin: 4px var(--gutter) 4px 0;
     padding: var(--gutter);
-    background: var(--ink-raised);
-    border-left: 6px solid var(--tile);
+    border-radius: 36px;
     animation: slide 200ms cubic-bezier(.2,.8,.2,1);
   }
   @keyframes slide { from { transform: translateX(30px); opacity: 0; } }
 
+  .body { display: grid; gap: 18px; align-content: start; min-height: 0; overflow-y: auto; margin: 0 -8px; padding: 4px 8px; }
   .head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
   h2 { font-size: var(--t-lg); font-weight: 700; line-height: 1.1; letter-spacing: -0.01em; }
   h3 { font-size: var(--t-sm); font-weight: 500; color: var(--paper-dim); margin-bottom: 8px; }
+  .edit { flex: none; height: 56px; padding: 0 18px; margin-left: auto; border-radius: var(--radius-pill); color: var(--paper); font-size: var(--t-xs); font-weight: 650; }
   .close { width: 56px; height: 56px; flex: none; border-radius: 50%; color: var(--paper-dim); font-size: var(--t-md); }
-  .close:active { background: var(--line); }
 
-  .bag-list { display: grid; gap: 8px; max-height: 260px; overflow-y: auto; }
+  .bag-list { display: grid; gap: 8px; max-height: 268px; overflow-y: auto; padding: 4px; margin: -4px; }
   .bag {
     display: flex;
     align-items: center;
     gap: 14px;
     padding: 10px;
-    border-radius: var(--radius-control);
-    background: var(--ink-sunk);
-    border: 3px solid transparent;
+    border-radius: 22px;
     text-align: left;
   }
-  .bag.selected { border-color: var(--tile); }
+  .bag.selected { box-shadow: 0 0 0 3px var(--tile), var(--glass-sheen); }
   .bag img, .swatch {
     width: 58px; height: 58px; flex: none;
-    border-radius: 12px;
+    border-radius: 14px;
     object-fit: cover;
+    box-shadow: 0 4px 12px rgb(0 0 0 / 0.3);
   }
   .swatch {
     display: grid; place-items: center;
@@ -199,7 +209,8 @@
   .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
   .offset { color: var(--paper-dim); font-size: var(--t-xs); }
 
-  .go { display: grid; grid-template-columns: 1fr 1.6fr; gap: 12px; }
+  .go { display: grid; grid-template-columns: 1fr 1.6fr; gap: 12px; align-items: center; }
+  .ghc { color: var(--paper-dim); font-size: var(--t-sm); }
   .msg { grid-column: 1 / -1; color: var(--go); font-size: var(--t-sm); }
   .msg.bad { color: var(--stop); }
   .load, .start {
@@ -208,7 +219,14 @@
     font-size: var(--t-md);
     font-weight: 700;
   }
-  .load { background: var(--ink-sunk); color: var(--paper); }
-  .start { background: var(--tile); color: var(--cat-ink); }
+  .load { color: var(--paper); }
+  .start {
+    color: var(--cat-ink);
+    background: var(--tile);
+    background:
+      radial-gradient(120% 80% at 20% 0%, rgb(255 255 255 / 0.5), transparent 60%),
+      linear-gradient(165deg, var(--tile), color-mix(in srgb, var(--tile) 78%, black));
+    box-shadow: 0 16px 34px -12px color-mix(in srgb, var(--tile) 70%, transparent), inset 0 1px 0 rgb(255 255 255 / 0.7);
+  }
   .load:disabled, .start:disabled { opacity: 0.5; }
 </style>

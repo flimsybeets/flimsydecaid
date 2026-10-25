@@ -26,10 +26,14 @@ Run `npm run check && npm test` before committing.
 - Top tabs: Home, Profiles, History, Beans, Settings.
 - **Home is a wizard**: big category tiles → profiles in that category → side panel to pick a bag and set grind, dose, yield, temperature → Load / Start shot.
 - **Categories are for organising only.** They never affect settings.
+- **Guide me** (last tile on Home): set to one profile + one coffee (Change on the tile). Uses the coffee's newest open bag and its dial-in, loads it onto the machine on open, then walks through weigh (live scale, green within ±0.1 g, add/take-out amounts) → spray → grinder setting → grind → funnel → settle and tamp → paper → pull (Start shot, or wait for the group head on GHC) → shot view → knock out → rinse group and portafilter (you press the machine's flush button and hold the portafilter under it; the guide follows the machine into `flush` and back out) → summary. Animated SVG scene per step (`features/guide/GuideArt.svelte`); pure parts in `lib/guide.ts`. In mock mode `__flimsyMock.setWeight(g)` drives the scale and `__flimsyMock.pressFlush()` stands in for the flush button.
 - **Dial-in is per bag + profile.** Each bag remembers grind, dose, yield and temp offset for every profile used with it.
 - **Bottom bar** (always visible): scale name, weight, connection (tap to tare, or to scan when disconnected); water and puck temps; steam heater on/off with live steam temp. Tapping steam opens the steam modal (heater toggle, temperature, flow).
-- **Shot view** takes over while pulling and stays until "Done". Temperatures get their own panel under pressure/flow/weight.
+- **Shot view** takes over while pulling and stays until "Done". While pouring, four car-style dials sit above the graph: flow in (machine, ml/s, with target), flow out (scale `weightFlow`, g/s), pressure (with target, red zone from 10 bar), and water + puck on one dial (thin coral and thick gold needles, both targets). Dials hide when the shot ends so the graph gets the room. The target yield is a bold dashed line on the graph with its value in a pill. Temperatures get their own panel under pressure/flow/weight.
+- **History**: shot list grouped by day (filter chips per open bag) beside the selected shot's numbers and graph. Refetches after a pull ends.
+- **Profile editor** (Profiles tab: New profile / Edit, or Edit in BrewPanel): full screen. Planned-shape chart (pressure/flow targets with smooth ramps, exits, limiters, temperatures in their own lane, last real shot faint behind), step strip, every step setting visible, profile panel (stop at weight/volume, count-from step, tank preheat, type, author, notes, categories, checks). Undo/redo (Ctrl+Z / Ctrl+Shift+Z, held steppers coalesce), tap a number to type it, DE1-limit warnings that don't block, discard confirmation. Pure logic in `lib/profileEdit.ts`.
 - **Bag photos** from the tablet camera when adding a bag.
+- **Screensaver** (Settings): a photo picked from the tablet's files, shown while the machine sleeps, with a 50% white clock drifting over it, screen dimmed to 12% (restored after). Off until a photo is chosen. Tap wakes the machine; if it stays asleep, the screensaver returns after a minute.
 
 ## Architecture
 
@@ -46,11 +50,16 @@ src/
     dialIn.ts     per bag + profile dial-in storage and lookup
     categories.ts category document in the KV store
     steam.ts      steam heater rules and ranges
-    shot.ts       ShotRecorder: samples for the live graph
+    shot.ts       ShotRecorder (live graph) + samplesFromMeasurements (saved shots)
+    history.ts    day grouping, ratio, stop-reason wording, shot stats
+    screensaver.ts  clock text, fitting the photo under the store limit
+    profileEdit.ts  step ops, planned curve, validation, undo history, save rules
+    guide.ts      Guide me: setup, bag pick, brew plan, weigh state, step order
+    gauge.ts      dial geometry (240° sweep), ticks, temperature dial range
     photo.ts      camera + JPEG downscale
   state/app.svelte.ts  single app state (Svelte 5 runes class) + actions
-  components/  BottomBar, SteamModal, ShotView, ShotChart, Stepper, Modal, NameDialog
-  features/    home (wizard + BrewPanel), profiles, beans (+ AddBag), history, settings
+  components/  BottomBar, SteamModal, ShotView, ShotChart, Gauge, Screensaver, Stepper (typeable), Segmented, Modal, NameDialog
+  features/    home (wizard + BrewPanel), profiles (+ ProfileEditor, ProfileCurve, StepInspector), guide (Guide, GuideArt, GuideSetup), beans (+ AddBag), history, settings
   styles.css   design tokens
 ```
 
@@ -69,6 +78,8 @@ Rules:
 | Dial-in | `BeanBatch.extras.flimsydecaid.dialIn[<profileRootId>]` = `{grind, dose, yield, tempOffset, updatedAt}` | Always preserve other keys in `extras` |
 | Bag photo | KV `flimsydecaid/photo:<batchId>` (JPEG data URL, ~900px) | Not in `extras`, so listing beans stays light |
 | Last steam temp | KV `flimsydecaid/lastSteamTemp` | Restored when the heater is switched back on |
+| Guide me setup | KV `flimsydecaid/guide` = `{profileRoot, beanId}` | A coffee, not a bag, so it survives finishing bags |
+| Screensaver photo | KV `flimsydecaid/screensaver` (JPEG data URL, up to 1920px) | Shrunk until under 950k chars: the KV body limit is 1 MiB |
 | Shot ↔ bag link | `PUT /api/v1/workflow` `context.beanBatchId`, `coffeeName`, `coffeeRoaster`, `grinderSetting`, `targetDoseWeight`, `targetYield` | Decaid stores this on every shot |
 
 Dial-in lookup order: this bag + profile → most recent other bag of the same bean + profile → profile defaults.
@@ -78,6 +89,7 @@ Dial-in lookup order: this bag + profile → most recent other bag of the same b
 Source of truth: `assets/api/rest_v1.yml`, `assets/api/websocket_v1.yml` and `doc/Skins.md` in https://github.com/decentespresso/decaid. Clone it and grep rather than guessing payloads.
 
 - **Profile ids are content hashes.** Editing a profile creates a new id with `parentId` → old id. Key anything long-lived by `lineageRoot()`. Show `latestPerLineage()` in lists.
+- **Saving profiles** (`saveProfile` in `lib/profileEdit.ts`): the id hashes only execution fields (version, beverage_type, steps, tank_temperature, target_weight/volume, count start), not title/author/notes. `POST /profiles {profile, parentId}` makes a version; if the hash exists Decaid returns the existing record unchanged, so a title/notes-only edit is then `PUT /profiles/{id}` (refused for Decaid's defaults). Never `PUT` an execution change: it replaces the record under a new id and orphans the lineage. Never hide old versions: `lineageRoot` walks visible profiles only.
 - **Brew temperature lives in profile steps**, not the workflow. Apply a bag's offset with `shiftTemperature()` and send the shifted profile inline in `PUT /workflow`. Never save it as a new profile.
 - **`PUT /workflow` deep-merges.** `targetYield` and every `steamSettings` field must never be `null` (400). Other context fields accept `null`, which clears them. `targetYield` 0 = stop-at-weight off.
 - **Steam heater = temperature.** `steamSettings.targetTemperature` 0 = off; DE1 range 135–160 °C (Bengle 165). `duration` is max run time only. Live boiler temp is `steamTemperature` on the machine snapshot. Steam flow range in `lib/steam.ts` (0.4–2.5) is a guess; verify on the machine.
@@ -87,24 +99,30 @@ Source of truth: `assets/api/rest_v1.yml`, `assets/api/websocket_v1.yml` and `do
 - **Don't hammer the API.** Decaid doesn't debounce and drops requests that queue too long. Edits are drafts until Save/Load.
 - **Camera** (`doc/Skins.md` § Live Camera Access): `getUserMedia({video:true,audio:false})` works only from the *installed* skin's `http://localhost:<port>` origin with per-skin consent; never from the dev server or live-edit. `AddBag` falls back to `<input type="file" accept="image/*" capture="environment">`.
 - **Background reloads**: Decaid unloads the WebView after ~10 min in the background and reloads the skin. Keep anything important in Decaid (KV store, beans, workflow), not in memory. `sessionStorage` doesn't survive.
+- **Shots**: `GET /shots` is paginated (`limit` ≤ 100, `offset`, newest first) and has no measurements; `GET /shots/{id}` has `measurements: [{machine, scale, volume}]` covering the whole espresso state, so trim to preinfusion/pouring like the live graph (`samplesFromMeasurements`). `annotations.actualYield` is often null; use the last scale weight. `stopReason` is an open set. `enjoyment` is 0–10.
+- **Screen while asleep**: Decaid's wake-lock is auto-managed (screen allowed off while the machine sleeps). The screensaver holds `POST /api/v1/display/wakelock` while showing and `DELETE`s it on close, and dims via `PUT /display/brightness`, restoring the previous `requestedBrightness` (calls are queued so a quick close can't leave it dark). Request bodies are capped (1 MiB for the KV store, `bounded_request_body.dart`).
 - **Settings**: Decaid's bundled settings plugin lives at `/api/v1/plugins/settings.reaplugin/ui?backName=FlimsyDecaid`.
-- **GHC machines**: the Group Head Controller owns shot start. The Start button isn't hidden yet; detect GHC and hide it (see how Streamline.js does it).
+- **GHC machines**: the Group Head Controller owns shot start. `GET /api/v1/machine/info` → `GHC: true`; read each time the machine connects. BrewPanel then shows "Then start the shot on the group head" instead of Start shot. `?mock=1&ghc=1` fakes it.
+- **Archived beans and bags are hidden by default**: `GET /beans` and `GET /bean-batches` need `?includeArchived=true` (dial-in carry-over from a finished bag, "Show finished bags", old shots' bag names all depend on it). Filter `archived` in the UI instead.
+- **Batch PUT merges top-level fields only**: `extras` is replaced whole, hence `withDialIn` copies other keys. Missing KV keys answer 200 `null`, not 404.
+- **Layers**: profile editor 25, guide 27, shot view 30, modals 60/61, screensaver 100. Full-screen views with oversized decoration use `overflow: clip` (not hidden), so focus/scrollIntoView can't shift them.
+- **Glass + scrolling**: a `.glass` element must not be the scroll container (its `::before` rim scrolls away). Scroll an inner element instead, as BrewPanel and Modal do.
 - **Manifest**: `public/skin-manifest.json`. Keep `id` = `flimsydecaid` forever (it's the install folder and update identity). Version is numeric dot-segments only; `npm run package` stamps it from `package.json` or the `v*` tag.
 
 ## Design
 
 Tablet next to the machine, read at arm's length, wet hands.
-- Base: deep ink-teal (`--ink`), cream text (`--paper`). One loud element: the category tiles in riso-label colours (`--cat-1…8`). Keep everything else quiet.
-- Font: Bricolage Grotesque (bundled via @fontsource, works offline). Tabular figures everywhere.
+- Base: deep ink-teal (`--ink`), cream text (`--paper`), over a fixed backdrop of soft colour pools (in `styles.css` on `body`) for the glass to refract. One loud element: the category tiles in riso-label colours (`--cat-1…8`), as tinted glass. Keep everything else quiet.
+- **Glass (Apple-style materials), global classes in `styles.css`:** `.glass` (blurred translucent fill, rim light via `::before`, sheen, soft shadow), `.glass.thick` (sheets: modal, brew panel, graphs), `.glass.solid` (bright prominent action, dark text), `.glass.lit` / `aria-pressed|checked="true"` (selected), `.well` (recessed: steppers, inputs). A component's scoped `background`/`color` beats these, so drop them from elements that use the classes. `.glass` needs its `::before` free. Blur cost is unknown on the tablet; `--glass-blur` is the one knob to turn down.
+- Font: Sen (bundled via @fontsource-variable/sen, weights 400–800, works offline; don't load it from Google Fonts). No italic, so don't use `font-style: italic` (it would be faked). Tabular figures everywhere.
 - Touch targets ≥ 64px (`--touch`). Primary actions 84px+.
 - Graph colours are fixed across every graph: pressure green, flow blue, weight brown, water coral (thin), puck gold (thick). Targets dashed.
 - Copy: plain, sentence case, says what happens ("Load", "Start shot", "Save steam settings").
 
 ## Next up
 
-1. History tab: `GET /api/v1/shots` (+ `?beanBatchId=`), reuse `ShotChart`.
-2. Hide Start on GHC machines.
-3. Grind stepper should use the grinder's `settingSmallStep` / preset values (`/api/v1/grinders`).
-4. Reorder and rename categories; pick tile colour and icon.
-5. Decrement `weightRemaining` after each shot (or check whether Decaid already does).
-6. Test camera capture on the installed skin.
+1. Grind stepper should use the grinder's `settingSmallStep` / preset values (`/api/v1/grinders`).
+2. Reorder and rename categories; pick tile colour and icon.
+3. Decrement `weightRemaining` after each shot (or check whether Decaid already does).
+4. Test camera capture on the installed skin.
+5. History extras: rate a shot / add notes (`PUT /shots/{id}` `annotations`), "Brew this again" (load its profile, bag and dial-in), a "Shots" link from each bag on the Beans tab.

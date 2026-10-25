@@ -1,4 +1,4 @@
-import type { MachineSnapshot, ScaleWeightFrame } from '../api/types';
+import type { MachineSnapshot, ScaleWeightFrame, ShotMeasurement } from '../api/types';
 
 /** One point on the shot graph. Seconds since the shot started. */
 export interface ShotSample {
@@ -18,7 +18,7 @@ export interface ShotSample {
   frame?: number;
 }
 
-const RECORDING = new Set(['preinfusion', 'pouring']);
+const RECORDING = new Set<string>(['preinfusion', 'pouring']);
 const MAX_SAMPLES = 2400; // 4 minutes at 10 Hz
 
 /**
@@ -58,22 +58,47 @@ export class ShotRecorder {
     }
     if (this.samples.length >= MAX_SAMPLES) return false;
 
-    const disconnectedTarget = (pump: number | undefined) => (pump === 0 ? undefined : pump);
-    this.samples.push({
-      t: (nowMs - this.startMs) / 1000,
-      pressure: frame.pressure,
-      flow: frame.flow,
-      // The machine zeroes the inactive pump target; break the line instead of drawing 0.
-      targetPressure: disconnectedTarget(frame.targetPressure),
-      targetFlow: disconnectedTarget(frame.targetFlow),
-      waterTemp: frame.mixTemperature,
-      puckTemp: frame.groupTemperature,
-      targetWaterTemp: frame.targetMixTemperature,
-      targetPuckTemp: frame.targetGroupTemperature,
-      weight: this.lastWeight?.weight,
-      weightFlow: this.lastWeight?.weightFlow,
-      frame: frame.profileFrame,
-    });
+    this.samples.push(toSample(frame, this.lastWeight, (nowMs - this.startMs) / 1000));
     return true;
   }
+}
+
+// The machine zeroes the inactive pump target; break the line instead of drawing 0.
+const activeTarget = (pump: number | undefined) => (pump === 0 ? undefined : pump);
+
+function toSample(frame: MachineSnapshot, scale: ScaleWeightFrame | null | undefined, t: number): ShotSample {
+  return {
+    t,
+    pressure: frame.pressure,
+    flow: frame.flow,
+    targetPressure: activeTarget(frame.targetPressure),
+    targetFlow: activeTarget(frame.targetFlow),
+    waterTemp: frame.mixTemperature,
+    puckTemp: frame.groupTemperature,
+    targetWaterTemp: frame.targetMixTemperature,
+    targetPuckTemp: frame.targetGroupTemperature,
+    weight: scale?.weight,
+    weightFlow: scale?.weightFlow,
+    frame: frame.profileFrame,
+  };
+}
+
+/**
+ * Turn a saved shot's measurements into graph samples, trimmed the same way
+ * as the live graph: preinfusion and pouring only, time zero at the first of
+ * those. Recordings without substates are kept whole. Time comes from the
+ * machine timestamps, falling back to 10 Hz when they're missing or bad.
+ */
+export function samplesFromMeasurements(measurements: readonly ShotMeasurement[]): ShotSample[] {
+  const hasSubstates = measurements.some((m) => m.machine?.state?.substate !== undefined);
+  const kept = measurements.filter((m) => {
+    if (!m.machine) return false;
+    return !hasSubstates || RECORDING.has(m.machine.state?.substate ?? '');
+  });
+  const stamps = kept.map((m) => (m.machine.timestamp ? Date.parse(m.machine.timestamp) : NaN));
+  const useStamps = stamps.length > 0 && stamps.every(Number.isFinite);
+  const t0 = useStamps ? stamps[0]! : 0;
+  return kept.slice(0, MAX_SAMPLES).map((m, i) =>
+    toSample(m.machine, m.scale, useStamps ? (stamps[i]! - t0) / 1000 : i / 10),
+  );
 }
