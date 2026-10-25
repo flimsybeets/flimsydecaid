@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { BeanBatch, ProfileRecord } from '../src/api/types';
-import { canGoBack, parseGuideSetup, pickBag, planBrew, rinseProgress, weighState } from '../src/lib/guide';
+import { canGoBack, doseCheck, parseGuideSetup, pickBag, planBrew, rinseProgress, weighState } from '../src/lib/guide';
 
 const bag = (id: string, beanId: string, roastDate: string, archived = false, extras?: BeanBatch['extras']): BeanBatch => ({
   id, beanId, roastDate, archived, frozen: false, createdAt: roastDate, updatedAt: roastDate, extras,
@@ -73,5 +73,21 @@ describe('guide flow', () => {
     expect(rinseProgress(false, 'idle')).toBe('waiting');
     expect(rinseProgress(false, 'flush')).toBe('rinsing');
     expect(rinseProgress(true, 'idle')).toBe('finished');
+  });
+});
+
+describe('dose check in the brew panel', () => {
+  it('compares a plausible reading with the dose', () => {
+    expect(doseCheck(18.0, 18)).toEqual({ state: 'ok', delta: 0 });
+    expect(doseCheck(16.5, 18)).toEqual({ state: 'under', delta: 1.5 });
+    expect(doseCheck(18.6, 18)).toEqual({ state: 'over', delta: -0.6 });
+  });
+
+  it('stays quiet for an empty scale, a cup, or no dose', () => {
+    expect(doseCheck(0, 18)).toBeNull();
+    expect(doseCheck(0.1, 18)).toBeNull();
+    expect(doseCheck(198, 18)).toBeNull();
+    expect(doseCheck(18, undefined)).toBeNull();
+    expect(doseCheck(null, 18)).toBeNull();
   });
 });

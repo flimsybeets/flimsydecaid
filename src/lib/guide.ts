@@ -95,3 +95,15 @@ export function rinseProgress(seenFlush: boolean, state: string | undefined): 'w
   if (state === 'flush') return 'rinsing';
   return seenFlush ? 'finished' : 'waiting';
 }
+
+/**
+ * Weighing beans against the dose outside the guide (the brew panel), from
+ * whatever is on the scale. null when the reading doesn't look like a dose
+ * being weighed: nothing on it, or something much heavier, like a cup, so
+ * it never says "take out 180 g".
+ */
+export function doseCheck(weight: number | null | undefined, dose: number | null | undefined): { state: Exclude<WeighState, 'empty'>; delta: number } | null {
+  if (!dose || dose <= 0 || weight == null || !Number.isFinite(weight) || weight > dose * 1.5) return null;
+  const r = weighState(weight, dose);
+  return r.state === 'empty' ? null : { state: r.state, delta: r.delta };
+}
