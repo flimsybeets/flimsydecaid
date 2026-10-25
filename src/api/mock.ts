@@ -294,6 +294,7 @@ export function createMockGateway(): Gateway {
       substate = next === 'espresso' ? 'preparingForShot' : 'idle';
     },
     async tareScale() { await delay(); weight = 0; },
+    async keepScreenOn() { await delay(20); },
 
     async getProfiles() { await delay(); return clone(profiles); },
     async getWorkflow() { await delay(); return clone(workflow); },

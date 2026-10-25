@@ -31,6 +31,7 @@ Run `npm run check && npm test` before committing.
 - **Shot view** takes over while pulling and stays until "Done". While pouring, four car-style dials sit above the graph: flow in (machine, ml/s, with target), flow out (scale `weightFlow`, g/s), pressure (with target, red zone from 10 bar), and water + puck on one dial (thin coral and thick gold needles, both targets). Dials hide when the shot ends so the graph gets the room. Temperatures get their own panel under pressure/flow/weight.
 - **History**: shot list grouped by day (filter chips per open bag) beside the selected shot's numbers and graph. Refetches after a pull ends.
 - **Bag photos** from the tablet camera when adding a bag.
+- **Screensaver** (Settings): a photo picked from the tablet's files, shown while the machine sleeps, with a 50% white clock drifting over it. Off until a photo is chosen. Tap wakes the machine; if it stays asleep, the screensaver returns after a minute.
 
 ## Architecture
 
@@ -49,10 +50,11 @@ src/
     steam.ts      steam heater rules and ranges
     shot.ts       ShotRecorder (live graph) + samplesFromMeasurements (saved shots)
     history.ts    day grouping, ratio, stop-reason wording, shot stats
+    screensaver.ts  clock text, fitting the photo under the store limit
     gauge.ts      dial geometry (240° sweep), ticks, temperature dial range
     photo.ts      camera + JPEG downscale
   state/app.svelte.ts  single app state (Svelte 5 runes class) + actions
-  components/  BottomBar, SteamModal, ShotView, ShotChart, Gauge, Stepper, Modal, NameDialog
+  components/  BottomBar, SteamModal, ShotView, ShotChart, Gauge, Screensaver, Stepper, Modal, NameDialog
   features/    home (wizard + BrewPanel), profiles, beans (+ AddBag), history, settings
   styles.css   design tokens
 ```
@@ -72,6 +74,7 @@ Rules:
 | Dial-in | `BeanBatch.extras.flimsydecaid.dialIn[<profileRootId>]` = `{grind, dose, yield, tempOffset, updatedAt}` | Always preserve other keys in `extras` |
 | Bag photo | KV `flimsydecaid/photo:<batchId>` (JPEG data URL, ~900px) | Not in `extras`, so listing beans stays light |
 | Last steam temp | KV `flimsydecaid/lastSteamTemp` | Restored when the heater is switched back on |
+| Screensaver photo | KV `flimsydecaid/screensaver` (JPEG data URL, up to 1920px) | Shrunk until under 950k chars: the KV body limit is 1 MiB |
 | Shot ↔ bag link | `PUT /api/v1/workflow` `context.beanBatchId`, `coffeeName`, `coffeeRoaster`, `grinderSetting`, `targetDoseWeight`, `targetYield` | Decaid stores this on every shot |
 
 Dial-in lookup order: this bag + profile → most recent other bag of the same bean + profile → profile defaults.
@@ -91,6 +94,7 @@ Source of truth: `assets/api/rest_v1.yml`, `assets/api/websocket_v1.yml` and `do
 - **Camera** (`doc/Skins.md` § Live Camera Access): `getUserMedia({video:true,audio:false})` works only from the *installed* skin's `http://localhost:<port>` origin with per-skin consent; never from the dev server or live-edit. `AddBag` falls back to `<input type="file" accept="image/*" capture="environment">`.
 - **Background reloads**: Decaid unloads the WebView after ~10 min in the background and reloads the skin. Keep anything important in Decaid (KV store, beans, workflow), not in memory. `sessionStorage` doesn't survive.
 - **Shots**: `GET /shots` is paginated (`limit` ≤ 100, `offset`, newest first) and has no measurements; `GET /shots/{id}` has `measurements: [{machine, scale, volume}]` covering the whole espresso state, so trim to preinfusion/pouring like the live graph (`samplesFromMeasurements`). `annotations.actualYield` is often null; use the last scale weight. `stopReason` is an open set. `enjoyment` is 0–10.
+- **Screen while asleep**: Decaid's wake-lock is auto-managed (screen allowed off while the machine sleeps). The screensaver holds `POST /api/v1/display/wakelock` while showing and `DELETE`s it on close. Request bodies are capped (1 MiB for the KV store, `bounded_request_body.dart`).
 - **Settings**: Decaid's bundled settings plugin lives at `/api/v1/plugins/settings.reaplugin/ui?backName=FlimsyDecaid`.
 - **GHC machines**: the Group Head Controller owns shot start. The Start button isn't hidden yet; detect GHC and hide it (see how Streamline.js does it).
 - **Manifest**: `public/skin-manifest.json`. Keep `id` = `flimsydecaid` forever (it's the install folder and update identity). Version is numeric dot-segments only; `npm run package` stamps it from `package.json` or the `v*` tag.

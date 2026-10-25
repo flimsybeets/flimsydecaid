@@ -3,6 +3,7 @@
   import BottomBar from './components/BottomBar.svelte';
   import SteamModal from './components/SteamModal.svelte';
   import ShotView from './components/ShotView.svelte';
+  import Screensaver from './components/Screensaver.svelte';
   import Home from './features/home/Home.svelte';
   import Profiles from './features/profiles/Profiles.svelte';
   import History from './features/history/History.svelte';
@@ -22,6 +23,23 @@
   // so you can read the finished graph.
   let shotOpen = $state(false);
   $effect(() => { if (app.shotActive) shotOpen = true; });
+
+  // Screensaver: up while the machine sleeps, once a photo is chosen.
+  // Tapping asks the machine to wake. If it stays asleep (say the wake
+  // didn't get through), the screensaver comes back after a minute.
+  let saverDismissed = $state(false);
+  $effect(() => { if (!app.asleep) saverDismissed = false; });
+  $effect(() => {
+    if (!saverDismissed) return;
+    const t = setTimeout(() => (saverDismissed = false), 60_000);
+    return () => clearTimeout(t);
+  });
+  const saverUp = $derived(app.asleep && app.screensaverImage !== null && !saverDismissed);
+
+  function dismissSaver() {
+    saverDismissed = true;
+    void app.wake().catch(() => {});
+  }
 
   const STATE_LABELS: Record<string, string> = {
     idle: 'Ready', sleeping: 'Asleep', heating: 'Heating', preheating: 'Heating', booting: 'Starting up',
@@ -85,6 +103,12 @@
 
 {#if shotOpen}
   <ShotView onClose={() => (shotOpen = false)} />
+{/if}
+
+{#if app.screensaverPreview}
+  <Screensaver image={app.screensaverImage} preview onDismiss={() => (app.screensaverPreview = false)} />
+{:else if saverUp}
+  <Screensaver image={app.screensaverImage} onDismiss={dismissSaver} />
 {/if}
 
 <style>

@@ -12,7 +12,8 @@ import type {
 } from '../api/types';
 import { CATEGORIES_KEY, parseCategories, type CategoryDoc } from '../lib/categories';
 import { withDialIn, type DialIn } from '../lib/dialIn';
-import { photoKey } from '../lib/photo';
+import { photoKey, toJpegDataUrl } from '../lib/photo';
+import { fitDataUrl, SCREENSAVER_KEY } from '../lib/screensaver';
 import { indexProfiles, latestPerLineage, lineageRoot, shiftTemperature } from '../lib/profiles';
 import { ShotRecorder, type ShotSample } from '../lib/shot';
 import { clampSteamFlow, clampSteamTemp, LAST_STEAM_TEMP_KEY, STEAM_DEFAULT_C } from '../lib/steam';
@@ -59,6 +60,12 @@ class AppState {
   /** Lineage root → newest visible version. One entry per profile you'd recognise. */
   profileLineages = $derived(latestPerLineage(this.profiles));
   steam = $derived<SteamSettings | undefined>(this.workflow.steamSettings);
+  asleep = $derived(this.machine.state?.state === 'sleeping');
+
+  /** Screensaver photo (JPEG data URL), or null when none is chosen. */
+  screensaverImage = $state<string | null>(null);
+  /** Settings' "Preview" shows the screensaver without the machine asleep. */
+  screensaverPreview = $state(false);
 
   private recorder = new ShotRecorder();
   private unsubscribe: (() => void) | null = null;
@@ -92,6 +99,8 @@ class AppState {
       this.batches = batches;
       this.error = null;
       this.loaded = true;
+      // Big, and only needed once the machine sleeps, so it loads after everything else.
+      void this.loadScreensaver();
     } catch (e) {
       this.error = `Couldn't reach Decaid: ${(e as Error).message}`;
     }
@@ -213,6 +222,29 @@ class AppState {
   // Shot history is read straight from Decaid; nothing to keep in memory.
   getShots(query: ShotQuery): Promise<ShotPage> { return gateway.getShots(query); }
   getShot(id: string): Promise<ShotRecord> { return gateway.getShot(id); }
+
+  async loadScreensaver(): Promise<void> {
+    const url = await gateway.storeGet<string>(SCREENSAVER_KEY).catch(() => null);
+    this.screensaverImage = typeof url === 'string' && url.startsWith('data:image/') ? url : null;
+  }
+
+  /** Shrink a picked photo to fit the store, save it, and use it. */
+  async setScreensaver(file: Blob): Promise<void> {
+    const url = await fitDataUrl((edge, quality) => toJpegDataUrl(file, edge, quality));
+    await gateway.storeSet(SCREENSAVER_KEY, url);
+    this.screensaverImage = url;
+  }
+
+  async removeScreensaver(): Promise<void> {
+    await gateway.storeDelete(SCREENSAVER_KEY);
+    this.screensaverImage = null;
+  }
+
+  async keepScreenOn(on: boolean): Promise<void> {
+    await gateway.keepScreenOn(on).catch(() => {});
+  }
+
+  async wake(): Promise<void> { await gateway.requestState('idle'); }
 
   async startEspresso(): Promise<void> { await gateway.requestState('espresso'); }
   async stop(): Promise<void> { await gateway.requestState('idle'); }

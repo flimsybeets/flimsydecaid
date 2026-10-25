@@ -28,6 +28,11 @@ export interface Gateway {
 
   requestState(state: MachineState): Promise<void>;
   tareScale(): Promise<void>;
+  /**
+   * Keep the tablet screen on even while the machine sleeps (Decaid normally
+   * lets it turn off then). false hands control back to Decaid.
+   */
+  keepScreenOn(on: boolean): Promise<void>;
 
   getProfiles(): Promise<ProfileRecord[]>;
   getWorkflow(): Promise<Workflow>;
@@ -108,6 +113,7 @@ export function createHttpGateway(config: GatewayConfig): Gateway {
 
     requestState: (state) => call('PUT', `/machine/state/${state}`),
     tareScale: () => call('PUT', '/scale/tare'),
+    keepScreenOn: (on) => call(on ? 'POST' : 'DELETE', '/display/wakelock'),
 
     getProfiles: () => call('GET', '/profiles?visibility=visible'),
     getWorkflow: () => call('GET', '/workflow'),
