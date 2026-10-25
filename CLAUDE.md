@@ -1,0 +1,110 @@
+# FlimsyDecaid
+
+A Decaid skin for a Decent DE1, built for someone with a lot of profiles.
+Svelte 5 + TypeScript + Vite. Static build; Decaid serves it and the skin
+talks to Decaid over REST and WebSockets on port 8080.
+
+## Commands
+
+```bash
+npm run dev                 # dev server (mock data unless a gateway is set)
+npm run check               # svelte-check type check
+npm test                    # vitest unit tests (pure logic in src/lib)
+npm run package             # build + release/flimsydecaid-<version>.zip
+npm run install:tablet -- <tablet IP>   # package + install on the tablet over Wi-Fi
+```
+
+Dev URLs (`src/api/config.ts`):
+- `http://localhost:5173/?mock=1` simulated machine, scale, profiles, beans
+- `http://localhost:5173/?gateway=<tablet IP>` real Decaid on the tablet (remembered)
+- `?gateway=` clears the remembered gateway. Open `http://<laptop IP>:5173` on the tablet itself to test touch.
+
+Run `npm run check && npm test` before committing.
+
+## What the skin does
+
+- Top tabs: Home, Profiles, History, Beans, Settings.
+- **Home is a wizard**: big category tiles → profiles in that category → side panel to pick a bag and set grind, dose, yield, temperature → Load / Start shot.
+- **Categories are for organising only.** They never affect settings.
+- **Dial-in is per bag + profile.** Each bag remembers grind, dose, yield and temp offset for every profile used with it.
+- **Bottom bar** (always visible): scale name, weight, connection (tap to tare, or to scan when disconnected); water and puck temps; steam heater on/off with live steam temp. Tapping steam opens the steam modal (heater toggle, temperature, flow).
+- **Shot view** takes over while pulling and stays until "Done". Temperatures get their own panel under pressure/flow/weight.
+- **Bag photos** from the tablet camera when adding a bag.
+
+## Architecture
+
+```
+src/
+  api/        the ONLY code that touches the network
+    config.ts   gateway resolution (?gateway, ?mock, localStorage, VITE_GATEWAY)
+    gateway.ts  Gateway interface + HTTP/WebSocket implementation
+    mock.ts     in-memory Gateway with simulated telemetry (same interface)
+    socket.ts   one WebSocket reconnect policy: exponential backoff + jitter
+    types.ts    Decaid API types used by the skin
+  lib/        pure logic, unit tested in test/ (no DOM, no Svelte)
+    profiles.ts   lineage roots, newest-per-lineage, temperature shift
+    dialIn.ts     per bag + profile dial-in storage and lookup
+    categories.ts category document in the KV store
+    steam.ts      steam heater rules and ranges
+    shot.ts       ShotRecorder: samples for the live graph
+    photo.ts      camera + JPEG downscale
+  state/app.svelte.ts  single app state (Svelte 5 runes class) + actions
+  components/  BottomBar, SteamModal, ShotView, ShotChart, Stepper, Modal, NameDialog
+  features/    home (wizard + BrewPanel), profiles, beans (+ AddBag), history, settings
+  styles.css   design tokens
+```
+
+Rules:
+- UI never calls `fetch`/`WebSocket`; add methods to `Gateway` and implement them in **both** `gateway.ts` and `mock.ts`.
+- Logic that can be pure goes in `src/lib` with a test.
+- Never `structuredClone` Svelte state (proxies throw). Use JSON round-trips or `$state.snapshot`.
+
+## Where data lives (decided)
+
+| Thing | Storage | Notes |
+|---|---|---|
+| Categories | KV `/api/v1/store/flimsydecaid/categories` | Decaid has no profile tags. Profiles referenced by **lineage root id** |
+| Beans | `/api/v1/beans` | Official Decaid model, shared with other skins |
+| Bags | `/api/v1/beans/{beanId}/batches`, `/api/v1/bean-batches/{id}` | "Finished" = `archived: true` |
+| Dial-in | `BeanBatch.extras.flimsydecaid.dialIn[<profileRootId>]` = `{grind, dose, yield, tempOffset, updatedAt}` | Always preserve other keys in `extras` |
+| Bag photo | KV `flimsydecaid/photo:<batchId>` (JPEG data URL, ~900px) | Not in `extras`, so listing beans stays light |
+| Last steam temp | KV `flimsydecaid/lastSteamTemp` | Restored when the heater is switched back on |
+| Shot ↔ bag link | `PUT /api/v1/workflow` `context.beanBatchId`, `coffeeName`, `coffeeRoaster`, `grinderSetting`, `targetDoseWeight`, `targetYield` | Decaid stores this on every shot |
+
+Dial-in lookup order: this bag + profile → most recent other bag of the same bean + profile → profile defaults.
+
+## Decaid facts that matter here
+
+Source of truth: `assets/api/rest_v1.yml`, `assets/api/websocket_v1.yml` and `doc/Skins.md` in https://github.com/decentespresso/decaid. Clone it and grep rather than guessing payloads.
+
+- **Profile ids are content hashes.** Editing a profile creates a new id with `parentId` → old id. Key anything long-lived by `lineageRoot()`. Show `latestPerLineage()` in lists.
+- **Brew temperature lives in profile steps**, not the workflow. Apply a bag's offset with `shiftTemperature()` and send the shifted profile inline in `PUT /workflow`. Never save it as a new profile.
+- **`PUT /workflow` deep-merges.** `targetYield` and every `steamSettings` field must never be `null` (400). Other context fields accept `null`, which clears them. `targetYield` 0 = stop-at-weight off.
+- **Steam heater = temperature.** `steamSettings.targetTemperature` 0 = off; DE1 range 135–160 °C (Bengle 165). `duration` is max run time only. Live boiler temp is `steamTemperature` on the machine snapshot. Steam flow range in `lib/steam.ts` (0.4–2.5) is a guess; verify on the machine.
+- **Temperatures**: `mixTemperature` = water entering the group ("Water", thin coral line); `groupTemperature` = group head sensor, closest to the puck ("Puck", thick gold line). Always °C. During hot water on a classic DE1, `mixTemperature` is not the outlet temperature.
+- **Sockets**: `ws/v1/machine/snapshot` (~10 Hz) stays open while no machine is attached and re-binds across a machine power-cycle. `ws/v1/scale/snapshot` sends `{status}` frames on open/connection change and weight frames while connected; a status frame is not a 0 g reading. Use `ws/v1/devices` for connected/disconnected. Reconnect only on socket close. Decaid rate-limits upgrades per client (429), hence backoff with jitter.
+- **The machine zeroes the inactive pump target** (targetPressure is 0 on flow steps); `ShotRecorder` drops those so dashed targets break instead of diving to 0.
+- **Don't hammer the API.** Decaid doesn't debounce and drops requests that queue too long. Edits are drafts until Save/Load.
+- **Camera** (`doc/Skins.md` § Live Camera Access): `getUserMedia({video:true,audio:false})` works only from the *installed* skin's `http://localhost:<port>` origin with per-skin consent; never from the dev server or live-edit. `AddBag` falls back to `<input type="file" accept="image/*" capture="environment">`.
+- **Background reloads**: Decaid unloads the WebView after ~10 min in the background and reloads the skin. Keep anything important in Decaid (KV store, beans, workflow), not in memory. `sessionStorage` doesn't survive.
+- **Settings**: Decaid's bundled settings plugin lives at `/api/v1/plugins/settings.reaplugin/ui?backName=FlimsyDecaid`.
+- **GHC machines**: the Group Head Controller owns shot start. The Start button isn't hidden yet; detect GHC and hide it (see how Streamline.js does it).
+- **Manifest**: `public/skin-manifest.json`. Keep `id` = `flimsydecaid` forever (it's the install folder and update identity). Version is numeric dot-segments only; `npm run package` stamps it from `package.json` or the `v*` tag.
+
+## Design
+
+Tablet next to the machine, read at arm's length, wet hands.
+- Base: deep ink-teal (`--ink`), cream text (`--paper`). One loud element: the category tiles in riso-label colours (`--cat-1…8`). Keep everything else quiet.
+- Font: Bricolage Grotesque (bundled via @fontsource, works offline). Tabular figures everywhere.
+- Touch targets ≥ 64px (`--touch`). Primary actions 84px+.
+- Graph colours are fixed across every graph: pressure green, flow blue, weight brown, water coral (thin), puck gold (thick). Targets dashed.
+- Copy: plain, sentence case, says what happens ("Load", "Start shot", "Save steam settings").
+
+## Next up
+
+1. History tab: `GET /api/v1/shots` (+ `?beanBatchId=`), reuse `ShotChart`.
+2. Hide Start on GHC machines.
+3. Grind stepper should use the grinder's `settingSmallStep` / preset values (`/api/v1/grinders`).
+4. Reorder and rename categories; pick tile colour and icon.
+5. Decrement `weightRemaining` after each shot (or check whether Decaid already does).
+6. Test camera capture on the installed skin.

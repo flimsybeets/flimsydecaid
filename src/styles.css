@@ -1,0 +1,114 @@
+/*
+  FlimsyDecaid design tokens.
+
+  The skin lives on a tablet next to the espresso machine, read at arm's
+  length, often with wet hands. Big targets, high contrast, one memorable
+  element: the category tiles, coloured like riso-printed coffee bag labels.
+  Everything around them stays quiet.
+*/
+
+:root {
+  /* Base: deep ink-teal, like a dark roast bag in low kitchen light */
+  --ink: #102227;
+  --ink-raised: #17313a;
+  --ink-sunk: #0b191d;
+  --line: #2a4852;
+  --paper: #eef3ef;       /* primary text */
+  --paper-dim: #a9bcb9;   /* secondary text */
+  --paper-faint: #6f8a88;
+
+  /* Category tile inks (riso-label colours). Index matches Category.colour. */
+  --cat-1: #f2b33d; /* marigold */
+  --cat-2: #8fd3c0; /* sea glass */
+  --cat-3: #c99ad8; /* lilac */
+  --cat-4: #86a6ee; /* cornflower */
+  --cat-5: #c4d26e; /* moss */
+  --cat-6: #f39a8e; /* salmon */
+  --cat-7: #e7d9b8; /* kraft */
+  --cat-8: #9fc6e8; /* sky */
+  --cat-ink: #13262b; /* text on a tile */
+
+  /* Actions */
+  --go: #8fd3c0;
+  --stop: #ff6b5e;
+  --warn: #f2b33d;
+
+  /* Shot graph. Pressure green, flow blue, weight brown everywhere.
+     Water temp and puck temp must never be confused:
+     water = coral red, thin; puck = gold, thick. Targets are dashed. */
+  --g-pressure: #6fd38a;
+  --g-flow: #63aef5;
+  --g-weight: #c99467;
+  --g-water: #ff6f61;
+  --g-puck: #ffc845;
+  --g-grid: #24414a;
+
+  --radius-tile: 28px;
+  --radius-control: 16px;
+  --radius-pill: 999px;
+
+  --font: 'Bricolage Grotesque Variable', system-ui, sans-serif;
+
+  /* Type scale (perfect fourth), tuned for arm's-length reading */
+  --t-xs: 15px;
+  --t-sm: 18px;
+  --t-md: 22px;
+  --t-lg: 30px;
+  --t-xl: 40px;
+  --t-xxl: 54px;
+
+  --touch: 64px; /* minimum target height */
+  --gutter: 24px;
+
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font);
+  font-size: var(--t-sm);
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+  user-select: none;
+}
+
+#app { height: 100%; }
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
+  outline: 3px solid var(--paper);
+  outline-offset: 3px;
+}
+
+input {
+  font: inherit;
+  color: inherit;
+}
+
+h1, h2, h3, p { margin: 0; }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
