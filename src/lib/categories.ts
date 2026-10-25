@@ -50,3 +50,37 @@ export function toggleProfile(doc: CategoryDoc, categoryId: string, profileRoot:
 export function categoriesFor(doc: CategoryDoc, profileRoot: string): Category[] {
   return doc.categories.filter((c) => c.profiles.includes(profileRoot));
 }
+
+/** Rename, recolour or change the icon. The name is trimmed; an empty name is refused. */
+export function updateCategory(doc: CategoryDoc, categoryId: string, patch: Partial<Pick<Category, 'name' | 'icon' | 'colour'>>): CategoryDoc {
+  if (patch.name !== undefined && !patch.name.trim()) throw new Error('A category needs a name');
+  return {
+    ...doc,
+    categories: doc.categories.map((c) => {
+      if (c.id !== categoryId) return c;
+      const next: Category = { ...c, ...patch, ...(patch.name !== undefined ? { name: patch.name.trim() } : {}) };
+      if (patch.icon !== undefined && !patch.icon.trim()) delete next.icon;
+      return next;
+    }),
+  };
+}
+
+/** Delete a category. Its profiles are untouched; they just stop appearing under it. */
+export function removeCategory(doc: CategoryDoc, categoryId: string): CategoryDoc {
+  return { ...doc, categories: doc.categories.filter((c) => c.id !== categoryId) };
+}
+
+/** Move a category to position `to` (clamped), keeping the others in order. */
+export function moveCategory(doc: CategoryDoc, categoryId: string, to: number): CategoryDoc {
+  const from = doc.categories.findIndex((c) => c.id === categoryId);
+  if (from < 0) return doc;
+  const list = [...doc.categories];
+  const [c] = list.splice(from, 1);
+  list.splice(Math.max(0, Math.min(to, list.length)), 0, c!);
+  return { ...doc, categories: list };
+}
+
+/** Take a profile out of every category, e.g. when the profile is deleted. */
+export function removeProfileEverywhere(doc: CategoryDoc, profileRoot: string): CategoryDoc {
+  return { ...doc, categories: doc.categories.map((c) => (c.profiles.includes(profileRoot) ? { ...c, profiles: c.profiles.filter((p) => p !== profileRoot) } : c)) };
+}

@@ -7,16 +7,16 @@ import { createHttpGateway, type Gateway } from '../api/gateway';
 import { createMockGateway } from '../api/mock';
 import type { SocketStatus } from '../api/socket';
 import type {
-  Bean, BeanBatch, DeviceInfo, MachineSnapshot, Profile, ProfileRecord, ScaleFrame, ShotPage, ShotQuery, ShotRecord,
+  Bean, BeanBatch, DeviceInfo, MachineSnapshot, Profile, ProfileRecord, ScaleFrame, ShotAnnotations, ShotPage, ShotQuery, ShotRecord, ShotSummary,
   SteamSettings, Workflow,
 } from '../api/types';
-import { CATEGORIES_KEY, parseCategories, type CategoryDoc } from '../lib/categories';
+import { CATEGORIES_KEY, parseCategories, removeProfileEverywhere, type CategoryDoc } from '../lib/categories';
 import { withDialIn, type DialIn } from '../lib/dialIn';
 import { photoKey, toJpegDataUrl } from '../lib/photo';
 import { fitDataUrl, SCREENSAVER_BRIGHTNESS, SCREENSAVER_KEY } from '../lib/screensaver';
 import { saveProfile, type SaveResult } from '../lib/profileEdit';
 import { GUIDE_KEY, parseGuideSetup, type GuideSetup } from '../lib/guide';
-import { indexProfiles, latestPerLineage, lineageRoot, shiftTemperature } from '../lib/profiles';
+import { hideOrder, indexProfiles, latestPerLineage, lineageRoot, shiftTemperature } from '../lib/profiles';
 import { ShotRecorder, type ShotSample } from '../lib/shot';
 import { clampSteamFlow, clampSteamTemp, LAST_STEAM_TEMP_KEY, STEAM_DEFAULT_C } from '../lib/steam';
 
@@ -234,9 +234,80 @@ class AppState {
 
   /** Mark a bag as used up. It stays in Decaid (and in shot history), just hidden. */
   async finishBag(batchId: string): Promise<void> {
-    const updated = await gateway.updateBatch(batchId, { archived: true, weightRemaining: 0 });
+    await this.updateBag(batchId, { archived: true, weightRemaining: 0 });
+  }
+
+  async reopenBag(batchId: string): Promise<void> {
+    await this.updateBag(batchId, { archived: false });
+  }
+
+  async updateBag(batchId: string, patch: Partial<BeanBatch>): Promise<void> {
+    const updated = await gateway.updateBatch(batchId, patch);
     this.batches = this.batches.map((b) => (b.id === updated.id ? updated : b));
   }
+
+  /** Gone for good, photo too. Shots keep the coffee's name but lose the link to the bag. */
+  async deleteBag(batchId: string): Promise<void> {
+    await gateway.deleteBatch(batchId);
+    this.batches = this.batches.filter((b) => b.id !== batchId);
+    void gateway.storeDelete(photoKey(batchId)).catch(() => {});
+    delete this.photos[batchId];
+  }
+
+  async updateBean(beanId: string, patch: Partial<Bean>): Promise<void> {
+    const updated = await gateway.updateBean(beanId, patch);
+    this.beans = this.beans.map((b) => (b.id === updated.id ? updated : b));
+  }
+
+  /**
+   * Remove a coffee from the skin: it and its bags are archived, not deleted,
+   * so shot history and other skins keep their records.
+   */
+  async removeCoffee(beanId: string): Promise<void> {
+    try {
+      for (const b of this.batches.filter((x) => x.beanId === beanId && !x.archived)) {
+        await this.updateBag(b.id, { archived: true });
+      }
+      await this.updateBean(beanId, { archived: true });
+    } catch (e) {
+      // Show what Decaid actually has; trying again finishes the job.
+      await this.refreshBeans();
+      throw e;
+    }
+    if (this.guide?.beanId === beanId) await this.removeGuide();
+  }
+
+  private async refreshBeans(): Promise<void> {
+    try {
+      const [beans, batches] = await Promise.all([gateway.getBeans(), gateway.getBatches()]);
+      this.beans = beans;
+      this.batches = batches;
+    } catch { /* keep what we have; the caller reports the original error */ }
+  }
+
+  /**
+   * Delete a profile: every version of it is hidden in Decaid (reversible
+   * there; Decaid refuses to delete its own defaults), and it leaves its
+   * categories and the guide. One request at a time, so Decaid isn't flooded.
+   */
+  async deleteProfile(profileRoot: string): Promise<void> {
+    const versions = this.profiles.filter((r) => this.rootOf(r.id) === profileRoot);
+    try {
+      // Newest first: if this stops partway, the rest still hang off the same root.
+      for (const r of hideOrder(versions, this.profilesById)) await gateway.setProfileVisibility(r.id, 'hidden');
+    } catch (e) {
+      this.profiles = await gateway.getProfiles().catch(() => this.profiles);
+      throw e;
+    }
+    if (this.categories.categories.some((c) => c.profiles.includes(profileRoot))) {
+      await this.saveCategories(removeProfileEverywhere(this.categories, profileRoot));
+    }
+    if (this.guide?.profileRoot === profileRoot) await this.removeGuide();
+    this.profiles = await gateway.getProfiles();
+  }
+
+  annotateShot(id: string, annotations: Partial<ShotAnnotations>): Promise<ShotSummary> { return gateway.updateShot(id, annotations); }
+  deleteShot(id: string): Promise<void> { return gateway.deleteShot(id); }
 
   // Shot history is read straight from Decaid; nothing to keep in memory.
   getShots(query: ShotQuery): Promise<ShotPage> { return gateway.getShots(query); }
@@ -245,6 +316,11 @@ class AppState {
   async saveGuide(setup: GuideSetup): Promise<void> {
     await gateway.storeSet(GUIDE_KEY, setup);
     this.guide = setup;
+  }
+
+  async removeGuide(): Promise<void> {
+    await gateway.storeDelete(GUIDE_KEY);
+    this.guide = null;
   }
 
   async loadMachineInfo(): Promise<void> {

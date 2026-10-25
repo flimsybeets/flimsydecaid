@@ -22,7 +22,7 @@
 
   let width = $state(900);
   let height = $state(300);
-  const PAD = { l: 44, r: 16, t: 34, b: 30 };
+  const PAD = { l: 36, r: 12, t: 28, b: 24 };
 
   const curve = $derived(profileCurve(steps));
   const shotEnd = $derived(overlay.at(-1)?.t ?? 0);
@@ -38,7 +38,7 @@
 
   const plotW = $derived(Math.max(10, width - PAD.l - PAD.r));
   const plotH = $derived(Math.max(10, height - PAD.t - PAD.b));
-  const LANE_GAP = 22;
+  const LANE_GAP = 18;
   const tempH = $derived(Math.max(28, plotH * 0.24));
   const mainH = $derived(plotH - tempH - LANE_GAP);
   const tempTop = $derived(PAD.t + mainH + LANE_GAP);
@@ -151,15 +151,15 @@
   .band.odd { fill: rgb(255 255 255 / 0.025); }
   .col.sel .band { fill: rgb(255 255 255 / 0.09); }
   .sel-bar { fill: var(--paper); }
-  .name { fill: var(--paper-faint); font-family: var(--font); font-size: 13px; font-weight: 600; pointer-events: none; }
+  .name { fill: var(--paper-faint); font-family: var(--font); font-size: 11px; font-weight: 600; pointer-events: none; }
   .col.sel .name { fill: var(--paper); }
   .grid { stroke: var(--g-grid); stroke-width: 1; }
-  .axis { fill: var(--paper-faint); font-family: var(--font); font-size: 13px; }
+  .axis { fill: var(--paper-faint); font-family: var(--font); font-size: 11px; }
   .target { fill: none; stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; pointer-events: none; }
   .ghost { fill: none; stroke-width: 2; opacity: 0.35; pointer-events: none; }
   .temp { stroke: var(--g-puck); stroke-width: 4; stroke-linecap: round; opacity: 0.85; pointer-events: none; }
   .temp.water { stroke: var(--g-water); stroke-width: 2; }
   .limit { stroke-width: 2; stroke-dasharray: 2 5; opacity: 0.8; pointer-events: none; }
   .exit line { stroke-width: 1.5; stroke-dasharray: 6 5; pointer-events: none; }
-  .exit text { font-family: var(--font); font-size: 12px; font-weight: 700; pointer-events: none; }
+  .exit text { font-family: var(--font); font-size: 11px; font-weight: 700; pointer-events: none; }
 </style>

@@ -1,8 +1,13 @@
 <script lang="ts">
   import { app } from '../../state/app.svelte';
   import AddBag from './AddBag.svelte';
+  import CoffeeDialog from './CoffeeDialog.svelte';
+  import BagDialog from './BagDialog.svelte';
+  import type { Bean, BeanBatch } from '../../api/types';
 
   let adding = $state(false);
+  let editingBean = $state<Bean | null>(null);
+  let editingBag = $state<BeanBatch | null>(null);
   let showFinished = $state(false);
 
   const beans = $derived(
@@ -40,6 +45,7 @@
     {#each beans as { bean, bags } (bean.id)}
       <li class="bean glass">
         <div class="bean-head">
+          <button class="edit glass" onclick={() => (editingBean = bean)}>Edit</button>
           <h2>{bean.name}</h2>
           <p>{bean.roaster}{bean.country ? `, ${bean.country}` : ''}{bean.processing ? `, ${bean.processing}` : ''}</p>
           {#if bean.notes}<p class="notes">{bean.notes}</p>{/if}
@@ -53,6 +59,7 @@
                 {#if b.weightRemaining != null}<span class="sub">{Math.round(b.weightRemaining)} of {Math.round(b.weight ?? b.weightRemaining)} g left</span>{/if}
                 {#if b.frozen}<span class="sub">Frozen</span>{/if}
               </div>
+              <button class="finish glass" onclick={() => (editingBag = b)}>Edit</button>
               {#if !b.archived}
                 <button class="finish glass" onclick={() => app.finishBag(b.id)}>Finished</button>
               {/if}
@@ -67,28 +74,36 @@
 {#if adding}
   <AddBag onClose={() => (adding = false)} />
 {/if}
+{#if editingBean}
+  <CoffeeDialog bean={editingBean} onClose={() => (editingBean = null)} />
+{/if}
+{#if editingBag}
+  <BagDialog bag={editingBag} onClose={() => (editingBag = null)} />
+{/if}
 
 <style>
   .page { height: 100%; overflow-y: auto; padding: var(--gutter); }
-  .bar { display: flex; align-items: center; gap: 20px; margin-bottom: 20px; }
-  .add { min-height: var(--touch); padding: 0 28px; border-radius: var(--radius-pill); font-weight: 650; font-size: var(--t-md); }
-  .toggle { display: flex; align-items: center; gap: 10px; color: var(--paper-dim); min-height: var(--touch); padding: 0 22px; border-radius: var(--radius-pill); }
-  .toggle input { width: 26px; height: 26px; accent-color: var(--paper); }
+  .bar { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; }
+  .add { min-height: var(--touch); padding: 0 21px; border-radius: var(--radius-pill); font-weight: 650; font-size: var(--t-md); }
+  .toggle { display: flex; align-items: center; gap: 8px; color: var(--paper-dim); min-height: var(--touch); padding: 0 16px; border-radius: var(--radius-pill); }
+  .toggle input { width: 20px; height: 20px; accent-color: var(--paper); }
 
-  .empty { max-width: 60ch; display: grid; gap: 8px; color: var(--paper-dim); }
+  .empty { max-width: 60ch; display: grid; gap: 6px; color: var(--paper-dim); }
   .empty .big { color: var(--paper); font-size: var(--t-lg); font-weight: 650; }
 
   ul { list-style: none; margin: 0; padding: 0; }
-  .beans { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 16px; }
-  .bean { border-radius: 32px; padding: 22px 24px; display: grid; gap: 14px; align-content: start; }
+  .beans { display: grid; grid-template-columns: repeat(auto-fill, minmax(315px, 1fr)); gap: 12px; }
+  .bean { border-radius: 24px; padding: 16px 18px; display: grid; gap: 10px; align-content: start; }
+  .bean-head { position: relative; }
+  .edit { float: right; min-height: 40px; padding: 0 14px; border-radius: var(--radius-pill); color: var(--paper); font-size: var(--t-xs); font-weight: 650; }
   .bean-head h2 { font-size: var(--t-lg); font-weight: 700; letter-spacing: -0.01em; }
   .bean-head p { color: var(--paper-dim); }
-  .notes { font-size: var(--t-xs); margin-top: 4px; }
-  .bags { display: grid; gap: 8px; }
-  .bag { display: flex; align-items: center; gap: 14px; padding: 10px; border-radius: 22px; }
+  .notes { font-size: var(--t-xs); margin-top: 3px; }
+  .bags { display: grid; gap: 6px; }
+  .bag { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 16px; }
   .bag.finished { opacity: 0.55; }
-  .bag img { width: 64px; height: 64px; border-radius: 14px; object-fit: cover; box-shadow: 0 4px 12px rgb(0 0 0 / 0.3); }
+  .bag img { width: 48px; height: 48px; border-radius: 10px; object-fit: cover; box-shadow: 0 3px 9px rgb(0 0 0 / 0.3); }
   .bag-info { flex: 1; display: grid; }
   .sub { color: var(--paper-dim); font-size: var(--t-xs); }
-  .finish { min-height: 52px; padding: 0 18px; border-radius: var(--radius-pill); color: var(--paper-dim); font-size: var(--t-xs); }
+  .finish { min-height: 40px; padding: 0 14px; border-radius: var(--radius-pill); color: var(--paper-dim); font-size: var(--t-xs); }
 </style>

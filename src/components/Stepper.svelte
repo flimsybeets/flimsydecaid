@@ -111,14 +111,14 @@
 </div>
 
 <style>
-  .stepper { display: grid; gap: 6px; }
+  .stepper { display: grid; gap: 4px; }
   .stepper.disabled { opacity: 0.45; }
   .label { color: var(--paper-dim); font-size: var(--t-sm); }
   .row {
     display: grid;
     grid-template-columns: var(--touch) minmax(0, 1fr) var(--touch);
     align-items: center;
-    border-radius: 20px;
+    border-radius: 15px;
   }
   button {
     height: var(--touch);
@@ -134,27 +134,27 @@
     font-size: var(--t-lg);
     font-weight: 650;
   }
-  .compact .row { grid-template-columns: 52px minmax(0, 1fr) 52px; }
+  .compact .row { grid-template-columns: 39px minmax(0, 1fr) 39px; }
   .compact output { font-size: var(--t-md); }
   .compact button { font-size: var(--t-md); }
   output, .out { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .out { text-align: center; font-size: var(--t-lg); font-weight: 650; height: var(--touch); border-radius: 12px; }
+  .out { text-align: center; font-size: var(--t-lg); font-weight: 650; height: var(--touch); border-radius: 9px; }
   .compact .out { font-size: var(--t-md); }
   .out:active:not(:disabled) { background: rgb(255 255 255 / 0.08); }
   .type {
     width: 100%;
     min-width: 0;
-    height: calc(var(--touch) - 14px);
+    height: calc(var(--touch) - 10px);
     text-align: center;
     font-size: var(--t-md);
     font-weight: 650;
     border: 1px solid rgb(255 255 255 / 0.45);
-    border-radius: 12px;
+    border-radius: 9px;
     background: rgb(0 0 0 / 0.3);
     color: var(--paper);
     user-select: text;
     outline: none;
   }
-  .label em { font-style: normal; color: var(--paper-faint); font-size: var(--t-xs); margin-left: 8px; }
+  .label em { font-style: normal; color: var(--paper-faint); font-size: var(--t-xs); margin-left: 6px; }
   small { font-size: var(--t-sm); font-weight: 500; color: var(--paper-dim); margin-left: 3px; }
 </style>

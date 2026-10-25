@@ -2,6 +2,8 @@
   import { app } from '../../state/app.svelte';
   import type { ShotRecord, ShotSummary } from '../../api/types';
   import ShotChart from '../../components/ShotChart.svelte';
+  import ConfirmDialog from '../../components/ConfirmDialog.svelte';
+  import ShotNotesDialog from './ShotNotesDialog.svelte';
   import { groupByDay, ratioText, shotStats, stopReasonText } from '../../lib/history';
   import { samplesFromMeasurements } from '../../lib/shot';
 
@@ -19,6 +21,21 @@
   let selectedId = $state<string | null>(null);
   let detail = $state<ShotRecord | null>(null);
   let detailError = $state<string | null>(null);
+  let annotating = $state(false);
+  let confirmDelete = $state(false);
+
+  function onAnnotated(updated: ShotSummary) {
+    shots = shots.map((s) => (s.id === updated.id ? { ...s, annotations: updated.annotations } : s));
+  }
+  async function deleteSelected() {
+    const id = selectedId;
+    if (!id) return;
+    await app.deleteShot(id);
+    const i = shots.findIndex((s) => s.id === id);
+    shots = shots.filter((s) => s.id !== id);
+    total = Math.max(0, total - 1);
+    selectedId = shots[Math.min(i, shots.length - 1)]?.id ?? null;
+  }
 
   // Bags worth filtering by: open ones, newest roast first.
   const openBags = $derived(
@@ -160,6 +177,10 @@
           </p>
           <p class="when">{new Date(selected.timestamp).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}{stopReasonText(selected.stopReason) ? ` · ${stopReasonText(selected.stopReason)}` : ''}</p>
         </div>
+        <div class="shot-actions">
+          <button class="glass" onclick={() => (annotating = true)}>{selected.annotations?.enjoyment != null || selected.annotations?.espressoNotes ? 'Edit notes' : 'Rate and add notes'}</button>
+          <button class="glass danger" aria-label="Delete this shot" onclick={() => (confirmDelete = true)}>Delete</button>
+        </div>
       </header>
 
       <dl class="stats">
@@ -188,42 +209,55 @@
   </section>
 </div>
 
+{#if annotating && selected}
+  <ShotNotesDialog shot={selected} onClose={() => (annotating = false)} onSaved={onAnnotated} />
+{/if}
+{#if confirmDelete && selected}
+  <ConfirmDialog
+    title="Delete this shot?"
+    message="It's removed from Decaid's shot history for good, with its graph and notes."
+    action="Delete shot"
+    onConfirm={deleteSelected}
+    onClose={() => (confirmDelete = false)}
+  />
+{/if}
+
 <style>
   .page {
     height: 100%;
     display: grid;
-    grid-template-columns: minmax(360px, 440px) 1fr;
-    gap: 6px;
+    grid-template-columns: minmax(270px, 330px) 1fr;
+    gap: 4px;
     min-height: 0;
-    padding: 4px 0 4px var(--gutter);
+    padding: 3px 0 3px var(--gutter);
   }
 
-  .list { display: grid; grid-template-rows: auto 1fr; min-height: 0; border-radius: 34px; overflow: hidden; }
-  .filters { display: flex; gap: 8px; overflow-x: auto; padding: 14px 16px 10px; }
+  .list { display: grid; grid-template-rows: auto 1fr; min-height: 0; border-radius: 26px; overflow: hidden; }
+  .filters { display: flex; gap: 6px; overflow-x: auto; padding: 10px 12px 8px; }
   .chip {
     flex: none;
-    min-height: 56px;
-    padding: 0 20px;
+    min-height: 42px;
+    padding: 0 15px;
     border-radius: var(--radius-pill);
     color: var(--paper-dim);
     white-space: nowrap;
   }
-  .chip small { margin-left: 8px; font-size: var(--t-xs); color: var(--paper-faint); }
+  .chip small { margin-left: 6px; font-size: var(--t-xs); color: var(--paper-faint); }
   .chip.on { color: var(--ink); font-weight: 650; }
   .chip.on small { color: var(--ink); opacity: 0.7; }
 
-  .scroll { overflow-y: auto; padding: 0 16px 16px; min-height: 0; }
-  ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-  .day { font-size: var(--t-xs); font-weight: 600; color: var(--paper-faint); text-transform: uppercase; letter-spacing: 0.06em; margin: 18px 0 8px; }
+  .scroll { overflow-y: auto; padding: 0 12px 12px; min-height: 0; }
+  ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+  .day { font-size: var(--t-xs); font-weight: 600; color: var(--paper-faint); text-transform: uppercase; letter-spacing: 0.06em; margin: 14px 0 6px; }
 
   .row {
     width: 100%;
-    min-height: 76px;
+    min-height: 56px;
     display: flex;
     align-items: center;
-    gap: 14px;
-    padding: 10px 16px;
-    border-radius: 22px;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 16px;
     text-align: left;
   }
   .row.selected .sub { color: var(--ink); opacity: 0.7; }
@@ -245,40 +279,45 @@
   .more {
     width: 100%;
     min-height: var(--touch);
-    margin-top: 14px;
+    margin-top: 10px;
     border-radius: var(--radius-pill);
     color: var(--paper-dim);
   }
 
-  .note { color: var(--paper-dim); display: grid; gap: 8px; padding-top: 16px; }
+  .note { color: var(--paper-dim); display: grid; gap: 6px; padding-top: 12px; }
   .note .big { color: var(--paper); font-size: var(--t-lg); font-weight: 650; }
 
   .detail {
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    padding: 18px var(--gutter) var(--gutter);
+    gap: 10px;
+    padding: 14px var(--gutter) var(--gutter);
     min-height: 0;
     min-width: 0;
   }
+  .detail header { display: flex; align-items: flex-start; gap: 12px; }
+  .detail header > div:first-child { flex: 1; min-width: 0; }
+  .shot-actions { display: flex; gap: 6px; flex: none; }
+  .shot-actions button { min-height: 40px; padding: 0 12px; border-radius: var(--radius-pill); color: var(--paper); font-size: var(--t-xs); font-weight: 650; }
+  .shot-actions .danger { color: #ffb3ab; }
   .detail h2 { font-size: var(--t-xl); font-weight: 700; letter-spacing: -0.01em; }
   .detail header p { color: var(--paper-dim); font-size: var(--t-md); }
   .detail .when { font-size: var(--t-sm); color: var(--paper-faint); }
 
-  .stats { display: flex; flex-wrap: wrap; gap: 10px 36px; margin: 0; }
+  .stats { display: flex; flex-wrap: wrap; gap: 8px 27px; margin: 0; }
   .stats div { display: grid; }
   dt { color: var(--paper-faint); font-size: var(--t-xs); }
   dd { margin: 0; font-size: var(--t-lg); font-weight: 650; }
   dd small { font-size: var(--t-sm); color: var(--paper-dim); margin-left: 2px; font-weight: 500; }
-  .notes { color: var(--paper-dim); max-width: 70ch; padding-left: 14px; border-left: 3px solid rgb(255 255 255 / 0.25); }
+  .notes { color: var(--paper-dim); max-width: 70ch; padding-left: 10px; border-left: 3px solid rgb(255 255 255 / 0.25); }
 
-  .graph { flex: 1; min-height: 0; display: flex; padding: 18px 20px 14px; border-radius: 32px; }
+  .graph { flex: 1; min-height: 0; display: flex; padding: 14px 15px 10px; border-radius: 24px; }
   .graph > :global(*) { flex: 1; }
 
   @media (max-width: 1100px) {
-    .page { grid-template-columns: 360px 1fr; }
+    .page { grid-template-columns: 270px 1fr; }
     .detail h2 { font-size: var(--t-lg); }
-    .stats { gap: 6px 24px; }
+    .stats { gap: 4px 18px; }
     dd { font-size: var(--t-md); }
   }
 </style>

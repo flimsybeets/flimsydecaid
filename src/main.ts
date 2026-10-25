@@ -3,7 +3,9 @@ import './styles.css';
 import { mount } from 'svelte';
 import App from './App.svelte';
 import { app } from './state/app.svelte';
+import { watchKeyboard } from './keyboard';
 
 app.start();
+watchKeyboard();
 
 export default mount(App, { target: document.getElementById('app')! });

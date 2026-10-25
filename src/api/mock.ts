@@ -324,7 +324,7 @@ export function createMockGateway(): Gateway {
     async getDisplay() { await delay(20); return { brightness, requestedBrightness: brightness, platformSupported: { brightness: true, wakeLock: true } }; },
     async setBrightness(b) { await delay(20); brightness = Math.round(b); },
 
-    async getProfiles() { await delay(); return clone(profiles); },
+    async getProfiles() { await delay(); return clone(profiles.filter((r) => r.visibility === 'visible')); },
     // Like Decaid: the id hashes what the machine runs (not title/author/notes),
     // and creating an existing id returns that record unchanged.
     async createProfile(profile, parentId) {
@@ -375,6 +375,11 @@ export function createMockGateway(): Gateway {
       batches.push(batch);
       return clone(batch);
     },
+    async deleteBatch(id) {
+      await delay();
+      const i = batches.findIndex((b) => b.id === id);
+      if (i >= 0) batches.splice(i, 1);
+    },
     async updateBatch(id, patch) {
       await delay();
       const i = batches.findIndex((b) => b.id === id);
@@ -402,6 +407,29 @@ export function createMockGateway(): Gateway {
       const shot = shots.find((x) => x.id === id);
       if (!shot) throw new Error('Shot not found');
       return clone(shot);
+    },
+    async updateShot(id, annotations) {
+      await delay();
+      const shot = shots.find((x) => x.id === id);
+      if (!shot) throw new Error('404 Shot not found');
+      if (annotations.enjoyment != null && (annotations.enjoyment < 0 || annotations.enjoyment > 10)) throw new Error('400 enjoyment must be 0-10');
+      shot.annotations = { ...(shot.annotations ?? {}), ...clone(annotations) };
+      shot.updatedAt = now();
+      const { measurements: _, ...summary } = shot;
+      return clone(summary);
+    },
+    async deleteShot(id) {
+      await delay();
+      const i = shots.findIndex((x) => x.id === id);
+      if (i >= 0) shots.splice(i, 1);
+    },
+    async setProfileVisibility(id, visibility) {
+      await delay();
+      const r = profiles.find((x) => x.id === id);
+      if (!r) throw new Error(`404 Profile not found: ${id}`);
+      if (r.isDefault && visibility === 'deleted') throw new Error('400 Cannot delete default profiles, only hide them');
+      r.visibility = visibility;
+      return clone(r);
     },
 
     async storeGet<T>(key: string) { await delay(40); return (store.has(key) ? clone(store.get(key)) : null) as T | null; },

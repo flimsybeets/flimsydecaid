@@ -3,6 +3,7 @@
   import type { Profile, ProfileRecord, ProfileStep } from '../../api/types';
   import Stepper from '../../components/Stepper.svelte';
   import Modal from '../../components/Modal.svelte';
+  import ConfirmDialog from '../../components/ConfirmDialog.svelte';
   import ProfileCurve from './ProfileCurve.svelte';
   import StepInspector from './StepInspector.svelte';
   import { toggleProfile } from '../../lib/categories';
@@ -127,6 +128,8 @@
   }
 
   let confirmClose = $state(false);
+  let confirmDelete = $state(false);
+  const versionCount = $derived(root ? app.profiles.filter((r) => app.rootOf(r.id) === root).length : 0);
   function close() {
     if (dirty) confirmClose = true;
     else onclose();
@@ -245,10 +248,23 @@
             {/each}
           </ul>
         {/if}
+        {#if original}
+          <button class="delete" onclick={() => (confirmDelete = true)}>Delete profile</button>
+        {/if}
       </div>
     </aside>
   </div>
 </section>
+
+{#if confirmDelete && root}
+  <ConfirmDialog
+    title="Delete “{draft.title}”?"
+    message="{versionCount > 1 ? `All ${versionCount} versions are` : 'It is'} hidden in Decaid and taken out of its categories{app.guide?.profileRoot === root ? ' and Guide me' : ''}. Shots pulled with it stay in History, and Decaid can unhide it from its own profile settings."
+    action="Delete profile"
+    onConfirm={async () => { await app.deleteProfile(root!); onclose(); }}
+    onClose={() => (confirmDelete = false)}
+  />
+{/if}
 
 {#if confirmClose}
   <Modal title="Discard your changes?" onClose={() => (confirmClose = false)}>
@@ -267,8 +283,8 @@
     z-index: 25;
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 14px var(--gutter) 16px;
+    gap: 9px;
+    padding: 14px var(--gutter) calc(16px + var(--kb));
     background:
       radial-gradient(60vmax 48vmax at 4% -6%, rgb(64 170 160 / 0.45), transparent 62%),
       radial-gradient(52vmax 46vmax at 34% 112%, rgb(201 154 216 / 0.28), transparent 62%),
@@ -276,10 +292,10 @@
       linear-gradient(165deg, #12313a, #0a181c 70%);
     animation: appear 200ms ease;
   }
-  @keyframes appear { from { opacity: 0; transform: translateY(8px); } }
+  @keyframes appear { from { opacity: 0; transform: translateY(6px); } }
 
-  .top { flex: none; display: flex; align-items: center; gap: 14px; }
-  .close { width: 56px; height: 56px; flex: none; border-radius: 50%; font-size: var(--t-md); color: var(--paper-dim); }
+  .top { flex: none; display: flex; align-items: center; gap: 10px; }
+  .close { width: 42px; height: 42px; flex: none; border-radius: 50%; font-size: var(--t-md); color: var(--paper-dim); }
   .title {
     flex: 1;
     min-width: 0;
@@ -289,15 +305,15 @@
     font-size: var(--t-xl);
     font-weight: 700;
     letter-spacing: -0.01em;
-    padding: 4px 2px;
+    padding: 3px 2px;
     user-select: text;
   }
   .title:focus { outline: none; border-bottom-color: rgb(255 255 255 / 0.35); }
   .meta { flex: none; color: var(--paper-faint); font-size: var(--t-sm); white-space: nowrap; }
-  .actions { flex: none; display: flex; gap: 8px; }
-  .actions button { min-height: 56px; padding: 0 20px; border-radius: 16px; font-weight: 650; color: var(--paper); }
-  .actions .icon { width: 56px; padding: 0; font-size: var(--t-lg); }
-  .actions .save { min-width: 130px; color: var(--ink); }
+  .actions { flex: none; display: flex; gap: 6px; }
+  .actions button { min-height: 42px; padding: 0 15px; border-radius: 12px; font-weight: 650; color: var(--paper); }
+  .actions .icon { width: 42px; padding: 0; font-size: var(--t-lg); }
+  .actions .save { min-width: 98px; color: var(--ink); }
   .actions button:disabled { opacity: 0.4; }
 
   .message { flex: none; margin-top: -4px; font-size: var(--t-sm); }
@@ -306,26 +322,29 @@
   .message.bad { color: var(--stop); }
 
   .chart {
-    flex: 0 0 clamp(190px, 31vh, 320px);
+    flex: 0 0 clamp(142px, 31vh, 240px);
     display: grid;
     grid-template-rows: minmax(0, 1fr) auto;
-    padding: 10px 16px 8px;
-    border-radius: 30px;
+    padding: 8px 12px 6px;
+    border-radius: 22px;
   }
-  .legend { display: flex; align-items: center; gap: 18px; padding-left: 44px; color: var(--paper-dim); font-size: var(--t-xs); }
-  .legend span { display: flex; align-items: center; gap: 7px; }
-  .legend i { width: 20px; height: 4px; border-radius: 2px; background: var(--c); }
+  .legend { display: flex; align-items: center; gap: 14px; padding-left: 33px; color: var(--paper-dim); font-size: var(--t-xs); }
+  .legend span { display: flex; align-items: center; gap: 5px; }
+  .legend i { width: 15px; height: 3px; border-radius: 2px; background: var(--c); }
   .legend .d i { height: 0; border-top: 2px dashed var(--paper-dim); background: none; }
-  .ghost-toggle { margin-left: auto; min-height: 36px; padding: 0 14px; border-radius: var(--radius-pill); background: var(--well); color: var(--paper-dim); font-size: var(--t-xs); }
+  .ghost-toggle { margin-left: auto; min-height: 27px; padding: 0 10px; border-radius: var(--radius-pill); background: var(--well); color: var(--paper-dim); font-size: var(--t-xs); }
   .ghost-toggle.on { background: rgb(255 255 255 / 0.85); color: var(--ink); font-weight: 650; }
 
-  .strip { flex: none; display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 6px; }
+  /* While typing, fold the chart and step strip away so the fields stay visible. */
+  :global(html.kb-open) .chart, :global(html.kb-open) .strip { display: none; }
+
+  .strip { flex: none; display: flex; gap: 6px; overflow-x: auto; padding: 3px 2px 4px; }
   .card {
     flex: none;
-    width: 168px;
-    min-height: 84px;
-    padding: 10px 14px;
-    border-radius: 20px;
+    width: 126px;
+    min-height: 61px;
+    padding: 8px 10px;
+    border-radius: 15px;
     display: grid;
     gap: 3px;
     text-align: left;
@@ -333,56 +352,57 @@
   }
   .card.solid { color: var(--ink); }
   .card.solid .row2, .card.solid .row3 { color: #33494d; }
-  .row1 { display: flex; gap: 8px; align-items: baseline; min-width: 0; }
+  .row1 { display: flex; gap: 6px; align-items: baseline; min-width: 0; }
   .row1 b { font-size: var(--t-xs); opacity: 0.6; }
   .nm { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .row2 { display: flex; align-items: center; gap: 7px; font-size: var(--t-sm); font-weight: 600; color: var(--paper-dim); }
-  .row2 i { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .row2 { display: flex; align-items: center; gap: 5px; font-size: var(--t-sm); font-weight: 600; color: var(--paper-dim); }
+  .row2 i { width: 7px; height: 7px; border-radius: 50%; flex: none; }
   .row3 { font-size: var(--t-xs); color: var(--paper-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .card.add { width: 120px; place-items: center; align-content: center; color: var(--paper-dim); }
+  .card.add { width: 90px; place-items: center; align-content: center; color: var(--paper-dim); }
   .plus { font-size: var(--t-lg); line-height: 1; }
 
-  .lower { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 30%); gap: 12px; }
-  .pane { min-height: 0; border-radius: 30px; overflow: hidden; display: flex; }
-  .scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 20px 20px; display: grid; gap: 12px; align-content: start; }
+  .lower { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(225px, 30%); gap: 9px; }
+  .pane { min-height: 0; border-radius: 22px; overflow: hidden; display: flex; }
+  .scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 15px 15px; display: grid; gap: 9px; align-content: start; }
   /* The step inspector's sticky header supplies its own top padding. */
   .scroll.flush { padding-top: 0; }
 
-  .side h3 { font-size: var(--t-xs); font-weight: 650; text-transform: uppercase; letter-spacing: 0.06em; color: var(--paper-faint); margin-top: 4px; }
-  .two { display: grid; gap: 10px; }
-  .field { display: grid; gap: 6px; color: var(--paper-dim); font-size: var(--t-sm); }
+  .side h3 { font-size: var(--t-xs); font-weight: 650; text-transform: uppercase; letter-spacing: 0.06em; color: var(--paper-faint); margin-top: 3px; }
+  .two { display: grid; gap: 8px; }
+  .field { display: grid; gap: 4px; color: var(--paper-dim); font-size: var(--t-sm); }
   .field input, .field select, .field textarea {
-    min-height: 52px;
-    padding: 0 14px;
-    border-radius: 14px;
+    min-height: 40px;
+    padding: 0 10px;
+    border-radius: 10px;
     border: 1px solid rgb(255 255 255 / 0.08);
     color: var(--paper);
     font-size: var(--t-sm);
     font-family: inherit;
     user-select: text;
   }
-  .field textarea { padding: 12px 14px; resize: vertical; line-height: 1.4; }
+  .field textarea { padding: 9px 10px; resize: vertical; line-height: 1.4; }
   .field :focus { outline: none; border-color: rgb(255 255 255 / 0.45); }
   .hint { color: var(--paper-faint); font-size: var(--t-xs); }
-  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
-  .chip { min-height: 44px; padding: 0 16px; border-radius: var(--radius-pill); background: var(--well); box-shadow: var(--well-shadow); color: var(--paper-dim); font-size: var(--t-xs); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { min-height: 40px; padding: 0 12px; border-radius: var(--radius-pill); background: var(--well); box-shadow: var(--well-shadow); color: var(--paper-dim); font-size: var(--t-xs); }
   .chip.on { background: var(--tile); color: var(--cat-ink); font-weight: 650; }
   .chip:disabled { opacity: 0.5; }
-  .issues { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: var(--t-xs); }
-  .issues li { padding-left: 14px; position: relative; }
-  .issues li::before { content: ''; position: absolute; left: 0; top: 0.5em; width: 7px; height: 7px; border-radius: 50%; }
+  .issues { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: var(--t-xs); }
+  .issues li { padding-left: 10px; position: relative; }
+  .issues li::before { content: ''; position: absolute; left: 0; top: 0.5em; width: 5px; height: 5px; border-radius: 50%; }
   .issues .warn { color: #f6d58f; }
   .issues .warn::before { background: var(--warn); }
   .issues .error { color: #ffb3ab; }
   .issues .error::before { background: var(--stop); }
   .issues button { text-align: left; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgb(255 255 255 / 0.25); }
 
+  .delete { justify-self: start; margin-top: 6px; min-height: 40px; padding: 0 14px; border-radius: var(--radius-pill); background: var(--well); color: #ffb3ab; font-size: var(--t-xs); font-weight: 650; }
   .confirm { color: var(--paper-dim); }
-  .confirm-btn { min-height: var(--touch); padding: 0 24px; border-radius: var(--radius-control); font-weight: 650; color: var(--paper); }
+  .confirm-btn { min-height: var(--touch); padding: 0 18px; border-radius: var(--radius-control); font-weight: 650; color: var(--paper); }
   .confirm-btn.solid { color: var(--ink); }
 
   @media (max-width: 1100px) {
-    .lower { grid-template-columns: minmax(0, 1fr) 280px; }
+    .lower { grid-template-columns: minmax(0, 1fr) 210px; }
     .meta { display: none; }
   }
 </style>

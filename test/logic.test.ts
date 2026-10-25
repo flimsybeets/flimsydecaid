@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { BeanBatch, Profile, ProfileRecord } from '../src/api/types';
-import { latestPerLineage, lineageRoot, indexProfiles, shiftTemperature } from '../src/lib/profiles';
+import { hideOrder, latestPerLineage, lineageRoot, indexProfiles, shiftTemperature } from '../src/lib/profiles';
 import { readDialIn, resolveDialIn, withDialIn } from '../src/lib/dialIn';
 import { parseCategories, toggleProfile } from '../src/lib/categories';
 import { backoffDelay } from '../src/api/socket';
@@ -136,5 +136,16 @@ describe('steam heater', () => {
     expect(heaterOn({ targetTemperature: 0, duration: 60, flow: 1 })).toBe(false);
     expect(heaterOn({ targetTemperature: 150, duration: 60, flow: 1 })).toBe(true);
     expect(heaterOn(undefined)).toBe(false);
+  });
+});
+
+describe('hiding a profile lineage', () => {
+  it('hides newest versions first so a partial failure keeps the root', () => {
+    const records = [rec('a', null, '1'), rec('c', 'b', '3'), rec('b', 'a', '2')];
+    const order = hideOrder(records, indexProfiles(records)).map((r) => r.id);
+    expect(order).toEqual(['c', 'b', 'a']);
+    // Stop after the first: the remaining versions still resolve to root 'a'.
+    const left = indexProfiles(records.filter((r) => r.id !== order[0]));
+    expect(lineageRoot('b', left)).toBe('a');
   });
 });

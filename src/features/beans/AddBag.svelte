@@ -128,26 +128,26 @@
 </Modal>
 
 <style>
-  .photo { display: grid; gap: 10px; justify-items: start; }
+  .photo { display: grid; gap: 8px; justify-items: start; }
   .camera {
-    display: flex; align-items: center; gap: 16px;
+    display: flex; align-items: center; gap: 12px;
     width: 100%;
-    min-height: 120px;
-    padding: 0 24px;
-    border-radius: 24px;
+    min-height: 82px;
+    padding: 0 18px;
+    border-radius: 18px;
     color: var(--paper-dim);
     font-size: var(--t-md);
   }
-  .lens { width: 44px; height: 34px; border: 3px solid currentColor; border-radius: 9px; position: relative; }
-  .lens::after { content: ''; position: absolute; inset: 7px 12px; border: 3px solid currentColor; border-radius: 50%; }
-  video, img { width: 100%; max-height: 320px; object-fit: cover; border-radius: 22px; background: var(--well); box-shadow: var(--glass-shadow); }
-  .snap, .retake { min-height: var(--touch); padding: 0 26px; border-radius: var(--radius-pill); font-weight: 650; }
+  .lens { width: 40px; height: 26px; border: 3px solid currentColor; border-radius: 7px; position: relative; }
+  .lens::after { content: ''; position: absolute; inset: 5px 9px; border: 3px solid currentColor; border-radius: 50%; }
+  video, img { width: 100%; max-height: 240px; object-fit: cover; border-radius: 16px; background: var(--well); box-shadow: var(--glass-shadow); }
+  .snap, .retake { min-height: var(--touch); padding: 0 20px; border-radius: var(--radius-pill); font-weight: 650; }
   .note { color: var(--warn); font-size: var(--t-xs); }
 
-  label { display: grid; gap: 6px; color: var(--paper-dim); font-size: var(--t-sm); }
+  label { display: grid; gap: 4px; color: var(--paper-dim); font-size: var(--t-sm); }
   input, select {
     min-height: var(--touch);
-    padding: 0 16px;
+    padding: 0 12px;
     border-radius: var(--radius-control);
     border: 1px solid rgb(255 255 255 / 0.08);
     background: var(--well);
@@ -157,10 +157,10 @@
     user-select: text;
   }
   input:focus, select:focus { border-color: var(--paper); outline: none; }
-  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: end; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: end; }
 
   .error { color: var(--stop); }
-  .primary, .secondary { min-height: var(--touch); padding: 0 28px; border-radius: var(--radius-control); font-weight: 650; }
+  .primary, .secondary { min-height: var(--touch); padding: 0 21px; border-radius: var(--radius-control); font-weight: 650; }
   .primary:disabled { opacity: 0.4; }
   .secondary { color: var(--paper-dim); }
   select { font-family: inherit; }

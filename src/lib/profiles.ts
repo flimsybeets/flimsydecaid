@@ -60,3 +60,24 @@ export function baseTemperature(profile: Profile): number | null {
 function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }
+
+/**
+ * The order to hide a lineage's versions in: newest edits first, the root
+ * last. Lineage roots are found by walking visible parents, so if hiding
+ * stops partway, what's still visible is an unbroken chain from the root
+ * and keeps the same root id (categories and dial-ins stay attached).
+ */
+export function hideOrder(versions: readonly ProfileRecord[], byId: ReadonlyMap<string, ProfileRecord>): ProfileRecord[] {
+  const depth = (r: ProfileRecord) => {
+    let d = 0;
+    let cur: ProfileRecord | undefined = r;
+    const seen = new Set<string>();
+    while (cur?.parentId && byId.has(cur.parentId) && !seen.has(cur.id)) {
+      seen.add(cur.id);
+      cur = byId.get(cur.parentId);
+      d++;
+    }
+    return d;
+  };
+  return [...versions].sort((a, b) => depth(b) - depth(a));
+}

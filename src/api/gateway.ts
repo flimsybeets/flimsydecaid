@@ -6,7 +6,7 @@ import type { GatewayConfig } from './config';
 import { openSocket, type ManagedSocket, type SocketStatus } from './socket';
 import type {
   Bean, BeanBatch, DevicesState, DisplayState, MachineInfo, MachineSnapshot, MachineState, Profile, ProfileRecord,
-  ScaleFrame, ShotPage, ShotQuery, ShotRecord, Workflow, WorkflowPatch,
+  ScaleFrame, ShotAnnotations, ShotPage, ShotQuery, ShotRecord, ShotSummary, Workflow, WorkflowPatch,
 } from './types';
 
 /** Our namespace in Decaid's shared key-value store. Not scoped per owner, so keep it unique. */
@@ -56,11 +56,18 @@ export interface Gateway {
   getBatches(): Promise<BeanBatch[]>;
   createBatch(beanId: string, batch: Partial<BeanBatch>): Promise<BeanBatch>;
   updateBatch(id: string, patch: Partial<BeanBatch>): Promise<BeanBatch>;
+  /** Permanent. Shots keep their coffee name text but lose the link to the bag. */
+  deleteBatch(id: string): Promise<void>;
 
   /** Newest first, without measurements. */
   getShots(query?: ShotQuery): Promise<ShotPage>;
   /** One shot with its measurements. */
   getShot(id: string): Promise<ShotRecord>;
+  /** Deep-merged; only the annotation fields sent change. */
+  updateShot(id: string, annotations: Partial<ShotAnnotations>): Promise<ShotSummary>;
+  deleteShot(id: string): Promise<void>;
+  /** hidden: out of lists, reversible in Decaid. (deleted is refused for Decaid's defaults.) */
+  setProfileVisibility(id: string, visibility: ProfileRecord['visibility']): Promise<ProfileRecord>;
 
   storeGet<T>(key: string): Promise<T | null>;
   storeSet(key: string, value: unknown): Promise<void>;
@@ -144,6 +151,7 @@ export function createHttpGateway(config: GatewayConfig): Gateway {
     getBatches: () => call('GET', '/bean-batches?includeArchived=true'),
     createBatch: (beanId, batch) => call('POST', `/beans/${encodeURIComponent(beanId)}/batches`, batch),
     updateBatch: (id, patch) => call('PUT', `/bean-batches/${encodeURIComponent(id)}`, patch),
+    deleteBatch: (id) => call('DELETE', `/bean-batches/${encodeURIComponent(id)}`),
 
     getShots(query = {}) {
       const params = new URLSearchParams();
@@ -152,6 +160,9 @@ export function createHttpGateway(config: GatewayConfig): Gateway {
       return call('GET', `/shots${qs ? `?${qs}` : ''}`);
     },
     getShot: (id) => call('GET', `/shots/${encodeURIComponent(id)}`),
+    updateShot: (id, annotations) => call('PUT', `/shots/${encodeURIComponent(id)}`, { annotations }),
+    deleteShot: (id) => call('DELETE', `/shots/${encodeURIComponent(id)}`),
+    setProfileVisibility: (id, visibility) => call('PUT', `/profiles/${encodeURIComponent(id)}/visibility`, { visibility }),
 
     async storeGet<T>(key: string) {
       try {
