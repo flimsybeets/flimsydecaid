@@ -4,7 +4,8 @@
   import Modal from '../../components/Modal.svelte';
   import Stepper from '../../components/Stepper.svelte';
   import ConfirmDialog from '../../components/ConfirmDialog.svelte';
-  import { toJpegDataUrl } from '../../lib/photo';
+  import PhotoCrop from '../../components/PhotoCrop.svelte';
+  import { dataUrlBlob } from '../../lib/photo';
 
   // Edit a bag: roast date, weight and what's left, frozen, photo. Finished
   // bags can be reopened. Delete is permanent (photo too); shots keep the
@@ -31,6 +32,7 @@
   let saving = $state(false);
   let error = $state<string | null>(null);
   let confirming = $state(false);
+  let cropping = $state<Blob | null>(null);
 
   const bean = $derived(app.beans.find((b) => b.id === bag.beanId));
   const shownPhoto = $derived(photo === undefined ? app.photos[bag.id] : photo);
@@ -38,7 +40,15 @@
   async function onFile(e: Event) {
     const file = (e.currentTarget as HTMLInputElement).files?.[0];
     if (!file) return;
-    try { photo = await toJpegDataUrl(file); } catch { error = "That photo couldn't be read. Try another."; }
+    (e.currentTarget as HTMLInputElement).value = '';
+    if (!file.type.startsWith('image/')) { error = "That photo couldn't be read. Try another."; return; }
+    cropping = file;
+  }
+
+  /** Crop the photo already on the bag. */
+  async function cropExisting() {
+    if (!shownPhoto) return;
+    try { cropping = await dataUrlBlob(shownPhoto); } catch { error = "That photo couldn't be read."; }
   }
 
   // Finishing a bag set what's left to 0; reopening shouldn't leave it looking empty.
@@ -77,6 +87,7 @@
   <div class="photo">
     {#if shownPhoto}<img src={shownPhoto} alt="The bag" />{/if}
     <button class="small glass" onclick={() => fileInput.click()}>{shownPhoto ? 'Change photo' : 'Add a photo'}</button>
+    {#if shownPhoto}<button class="small glass" onclick={cropExisting}>Crop photo</button>{/if}
     <input bind:this={fileInput} class="sr-only" type="file" accept="image/*" onchange={onFile} tabindex="-1" aria-hidden="true" />
   </div>
 
@@ -103,6 +114,10 @@
   {/snippet}
 </Modal>
 
+{#if cropping}
+  <PhotoCrop source={cropping} onDone={(url) => { photo = url; cropping = null; }} onCancel={() => { cropping = null; }} />
+{/if}
+
 {#if confirming}
   <ConfirmDialog
     title="Delete this bag?"
@@ -119,7 +134,7 @@
   .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: end; }
   .check { display: flex; align-items: center; gap: 8px; min-height: var(--touch); }
   .check input { width: 20px; height: 20px; accent-color: var(--paper); }
-  .photo { display: flex; align-items: center; gap: 10px; }
+  .photo { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
   .photo img { width: 72px; height: 72px; object-fit: cover; border-radius: 12px; }
   .row { display: flex; flex-wrap: wrap; gap: 6px; }
   .small { min-height: 40px; padding: 0 14px; border-radius: var(--radius-pill); color: var(--paper); font-size: var(--t-xs); font-weight: 650; }

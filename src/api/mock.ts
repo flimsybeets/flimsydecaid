@@ -403,6 +403,12 @@ export function createMockGateway(): Gateway {
       return clone(beans[i]!);
     },
     async getBatches() { await delay(); return clone(batches); },
+    async getBatch(id) {
+      await delay();
+      const b = batches.find((x) => x.id === id);
+      if (!b) throw new Error('404 Batch not found');
+      return clone(b);
+    },
     async createBatch(beanId, b) {
       await delay();
       const batch: BeanBatch = { frozen: false, archived: false, ...b, weightRemaining: b.weightRemaining ?? b.weight ?? null, beanId, id: `batch-${crypto.randomUUID()}`, createdAt: now(), updatedAt: now() };

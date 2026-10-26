@@ -58,6 +58,8 @@ export interface Gateway {
   createBean(bean: Partial<Bean> & Pick<Bean, 'roaster' | 'name'>): Promise<Bean>;
   updateBean(id: string, patch: Partial<Bean>): Promise<Bean>;
   getBatches(): Promise<BeanBatch[]>;
+  /** One bag, fresh from Decaid (used before read-modify-write of its weight). */
+  getBatch(id: string): Promise<BeanBatch>;
   createBatch(beanId: string, batch: Partial<BeanBatch>): Promise<BeanBatch>;
   updateBatch(id: string, patch: Partial<BeanBatch>): Promise<BeanBatch>;
   /** Permanent. Shots keep their coffee name text but lose the link to the bag. */
@@ -171,6 +173,7 @@ export function createHttpGateway(config: GatewayConfig): Gateway {
     createBean: (bean) => call('POST', '/beans', bean),
     updateBean: (id, patch) => call('PUT', `/beans/${encodeURIComponent(id)}`, patch),
     getBatches: () => call('GET', '/bean-batches?includeArchived=true'),
+    getBatch: (id) => call('GET', `/bean-batches/${encodeURIComponent(id)}`),
     createBatch: (beanId, batch) => call('POST', `/beans/${encodeURIComponent(beanId)}/batches`, batch),
     updateBatch: (id, patch) => call('PUT', `/bean-batches/${encodeURIComponent(id)}`, patch),
     deleteBatch: (id) => call('DELETE', `/bean-batches/${encodeURIComponent(id)}`),

@@ -2,10 +2,16 @@
 // and saved as a data URL in the key-value store under photo:<batchId>.
 // Kept out of BeanBatch.extras so listing beans stays light.
 
+import type { Rect } from './crop';
+
 export const photoKey = (batchId: string) => `photo:${batchId}`;
 
-/** Downscale an image file or camera frame to a JPEG data URL (~50–120 KB). */
-export async function toJpegDataUrl(source: Blob | HTMLVideoElement, maxEdge = 900, quality = 0.78): Promise<string> {
+/**
+ * Downscale an image file or camera frame to a JPEG data URL (~50–120 KB).
+ * With `crop` (pixels of the source image), only that part is kept, drawn
+ * straight to the final size so it is resampled once.
+ */
+export async function toJpegDataUrl(source: Blob | HTMLVideoElement, maxEdge = 900, quality = 0.78, crop?: Rect): Promise<string> {
   let width: number;
   let height: number;
   let drawable: CanvasImageSource;
@@ -22,13 +28,14 @@ export async function toJpegDataUrl(source: Blob | HTMLVideoElement, maxEdge = 9
     height = source.videoHeight;
   }
 
-  const scale = Math.min(1, maxEdge / Math.max(width, height));
+  const part = crop ?? { x: 0, y: 0, w: width, h: height };
+  const scale = Math.min(1, maxEdge / Math.max(part.w, part.h));
   const canvas = document.createElement('canvas');
-  canvas.width = Math.round(width * scale);
-  canvas.height = Math.round(height * scale);
+  canvas.width = Math.max(1, Math.round(part.w * scale));
+  canvas.height = Math.max(1, Math.round(part.h * scale));
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas unavailable');
-  ctx.drawImage(drawable, 0, 0, canvas.width, canvas.height);
+  ctx.drawImage(drawable, part.x, part.y, part.w, part.h, 0, 0, canvas.width, canvas.height);
   bitmap?.close();
   return canvas.toDataURL('image/jpeg', quality);
 }
@@ -54,4 +61,20 @@ export async function openFrontCamera(): Promise<MediaStream | null> {
 
 export function stopStream(stream: MediaStream | null): void {
   stream?.getTracks().forEach((t) => t.stop());
+}
+
+/** A camera frame at full resolution as a JPEG blob, so it can be cropped before it is downscaled. */
+export function frameBlob(video: HTMLVideoElement): Promise<Blob> {
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return Promise.reject(new Error('Canvas unavailable'));
+  ctx.drawImage(video, 0, 0);
+  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('No frame'))), 'image/jpeg', 0.92));
+}
+
+/** A saved photo (data URL) back as a blob, for cropping again. */
+export async function dataUrlBlob(dataUrl: string): Promise<Blob> {
+  return (await fetch(dataUrl)).blob();
 }

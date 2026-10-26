@@ -1,13 +1,14 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { app } from '../../state/app.svelte';
+  import type { BrewStart } from '../../lib/brewAgain';
   import { resolveDialIn, type DialIn, type DialInSource } from '../../lib/dialIn';
   import { baseTemperature } from '../../lib/profiles';
   import { doseCheck } from '../../lib/guide';
   import Stepper from '../../components/Stepper.svelte';
   import type { BeanBatch } from '../../api/types';
 
-  let { profileRoot, onClose }: { profileRoot: string; onClose: () => void } = $props();
+    let { profileRoot, onClose, initial }: { profileRoot: string; onClose: () => void; initial?: BrewStart } = $props();
 
   const record = $derived(app.profileLineages.get(profileRoot));
   const base = $derived(record ? baseTemperature(record.profile) : null);
@@ -24,7 +25,7 @@
   let batchId = $state<string | null>(null);
   $effect.pre(() => {
     if (batchId === null) {
-      const current = app.workflow.context?.beanBatchId;
+      const current = initial?.batchId ?? app.workflow.context?.beanBatchId;
       batchId = bags.some((b) => b.batch.id === current) ? current! : (bags[0]?.batch.id ?? null);
     }
   });
@@ -34,7 +35,10 @@
   let dose = $state<number | undefined>();
   let yieldG = $state<number | undefined>();
   let temp = $state<number | undefined>();
-  let source = $state<DialInSource>('profile-default');
+  let source = $state<DialInSource | 'shot'>('profile-default');
+  // The first load takes the shot's numbers (once); changing bag afterwards goes back to what each bag remembers.
+  // svelte-ignore state_referenced_locally
+  let pendingInitial: DialIn | undefined = initial?.dialIn;
   let starting = $state(false);
   let startError = $state<string | null>(null);
 
@@ -53,15 +57,17 @@
   function loadDialIn(id: string | null) {
     const b = app.batches.find((x) => x.id === id) ?? null;
     const resolved = b ? resolveDialIn(b, profileRoot, app.batches) : { dialIn: {}, source: 'profile-default' as const };
-    const d = resolved.dialIn;
-    source = resolved.source;
+    const fromShot = pendingInitial;
+    pendingInitial = undefined;
+    const d = fromShot ? { ...resolved.dialIn, ...fromShot } : resolved.dialIn;
+    source = fromShot ? 'shot' : resolved.source;
     const g = d.grind !== undefined ? Number.parseFloat(d.grind) : NaN;
     grind = Number.isFinite(g) ? g : undefined;
     dose = d.dose ?? app.workflow.context?.targetDoseWeight ?? 18;
     yieldG = d.yield ?? record?.profile.target_weight ?? undefined;
     temp = base !== null ? base + (d.tempOffset ?? 0) : undefined;
     loadedKey = JSON.stringify(currentDialIn());
-    savedOnBag = resolved.source === 'this-bag';
+    savedOnBag = !fromShot && resolved.source === 'this-bag';
   }
 
   function currentDialIn(): DialIn {
@@ -201,7 +207,8 @@
   </section>
 
   <section class="dial" aria-label="Dial-in">
-    <p class="source">{SOURCE_TEXT[source]}</p>
+    <p class="source">{source === 'shot' ? 'From the shot you picked' : SOURCE_TEXT[source]}</p>
+    {#if source === 'shot' && initial?.note}<p class="source note">{initial.note}</p>{/if}
     <div class="grid">
       <Stepper compact label="Grind" bind:value={grind} min={0} max={100} step={0.5} decimals={1} placeholder="Not set" />
       <Stepper compact label="Temperature" bind:value={temp} min={(base ?? 90) - 10} max={(base ?? 90) + 10} step={0.5} decimals={1} unit="°C" disabled={base === null} />
@@ -307,6 +314,7 @@
 
   .dial { display: grid; gap: 10px; align-content: start; }
   .source { color: var(--paper-dim); font-size: var(--t-xs); }
+  .source.note { color: var(--warn); margin-top: -6px; }
   .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px 10px; }
   /* Beans on the scale vs the dose: amber under, green spot on, coral over. */
   .weigh { --c: 242 179 61; display: grid; gap: 6px; }

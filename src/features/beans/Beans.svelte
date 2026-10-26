@@ -24,6 +24,25 @@
 
   $effect(() => { for (const { bags } of beans) for (const b of bags) void app.loadPhoto(b.id); });
 
+  // Shots per bag, asked one bag at a time (Decaid doesn't like a burst) and again after each pull.
+  let shotCounts = $state<Record<string, number>>({});
+  $effect(() => {
+    void app.shotsFinished;
+    const ids = beans.flatMap(({ bags }) => bags.map((b) => b.id));
+    let stop = false;
+    void (async () => {
+      for (const id of ids) {
+        if (stop) return;
+        try { shotCounts[id] = (await app.getShots({ beanBatchId: id, limit: 1 })).total; } catch { /* the button just shows no count */ }
+      }
+    })();
+    return () => { stop = true; };
+  });
+  function showShots(id: string) {
+    app.historyBag = id;
+    app.tab = 'history';
+  }
+
   const fmtDate = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : null);
 
 </script>
@@ -59,6 +78,7 @@
                 {#if b.weightRemaining != null}<span class="sub">{Math.round(b.weightRemaining)} of {Math.round(b.weight ?? b.weightRemaining)} g left</span>{/if}
                 {#if b.frozen}<span class="sub">Frozen</span>{/if}
               </div>
+              <button class="finish glass" aria-label="Shots from this bag" onclick={() => showShots(b.id)}>Shots{shotCounts[b.id] !== undefined ? ` (${shotCounts[b.id]})` : ''}</button>
               <button class="finish glass" onclick={() => (editingBag = b)}>Edit</button>
               {#if !b.archived}
                 <button class="finish glass" onclick={() => app.finishBag(b.id)}>Finished</button>

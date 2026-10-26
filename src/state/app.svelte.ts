@@ -11,7 +11,9 @@ import type {
   SteamSettings, WaterLevels, Workflow,
 } from '../api/types';
 import { CATEGORIES_KEY, parseCategories, removeProfileEverywhere, type CategoryDoc } from '../lib/categories';
+import { applyDecrement, applyGiveback, doseOf, shouldDecrement } from '../lib/bagWeight';
 import { withDialIn, type DialIn } from '../lib/dialIn';
+import { shotStats } from '../lib/history';
 import { photoKey, toJpegDataUrl } from '../lib/photo';
 import { clampDim, dimTarget, fitDataUrl, parseDim, SCREENSAVER_BRIGHTNESS, SCREENSAVER_DIM_KEY, SCREENSAVER_KEY } from '../lib/screensaver';
 import { clampRefill, waterState } from '../lib/water';
@@ -19,7 +21,7 @@ import { parseSettings, pluginState, VISUALIZER_ID, type PluginState, type Visua
 import { saveProfile, type SaveResult } from '../lib/profileEdit';
 import { GUIDE_KEY, parseGuideSetup, type GuideSetup } from '../lib/guide';
 import { hideOrder, indexProfiles, latestPerLineage, lineageRoot, shiftTemperature } from '../lib/profiles';
-import { ShotRecorder, type ShotSample } from '../lib/shot';
+import { ShotRecorder, samplesFromMeasurements, type ShotSample } from '../lib/shot';
 import { clampSteamFlow, clampSteamTemp, LAST_STEAM_TEMP_KEY, STEAM_DEFAULT_C } from '../lib/steam';
 
 const config = resolveGateway();
@@ -30,6 +32,8 @@ export type Tab = 'home' | 'profiles' | 'history' | 'beans' | 'settings';
 class AppState {
   // Navigation
   tab = $state<Tab>('home');
+  /** Beans → Shots: the bag History should open filtered to (read once, then cleared). */
+  historyBag = $state<string | null>(null);
 
   // Live
   // Replaced whole with every frame (about 10 Hz), never mutated: $state.raw skips the deep proxy.
@@ -90,6 +94,8 @@ class AppState {
 
   private recorder = new ShotRecorder();
   private unsubscribe: (() => void) | null = null;
+  private shotStartedAt = 0;
+  private settleChain: Promise<void> = Promise.resolve();
 
   get mock(): boolean { return gateway.mock; }
 
@@ -147,7 +153,11 @@ class AppState {
       this.shot = this.recorder.samples.slice();
     }
     this.shotActive = this.recorder.active;
-    if (wasActive && !this.recorder.active) this.shotsFinished++;
+    if (wasActive && !this.recorder.active) {
+      this.shotsFinished++;
+      void this.settleShot(this.shotStartedAt);
+    }
+    if (!wasActive && this.recorder.active) this.shotStartedAt = Date.now();
     if (!wasActive && this.recorder.active && this.scaleConnected) {
       // Tare once as the pull begins, in case the cup wasn't zeroed.
       void gateway.tareScale().catch(() => {});
@@ -323,7 +333,59 @@ class AppState {
   }
 
   annotateShot(id: string, annotations: Partial<ShotAnnotations>): Promise<ShotSummary> { return gateway.updateShot(id, annotations); }
-  deleteShot(id: string): Promise<void> { return gateway.deleteShot(id); }
+
+  /**
+   * Delete a shot. With `giveBack`, the dose that was taken off its bag goes
+   * back (only if the bag's ledger says it was taken; see lib/bagWeight).
+   */
+  async deleteShot(id: string, giveBack = false, batchId?: string | null): Promise<void> {
+    await gateway.deleteShot(id);
+    if (giveBack && batchId) await this.giveBackToBag(batchId, id).catch(() => {});
+  }
+
+  private async giveBackToBag(batchId: string, shotId: string): Promise<void> {
+    const fresh = await gateway.getBatch(batchId);
+    const update = applyGiveback(fresh, shotId);
+    if (update) this.replaceBatch(await gateway.updateBatch(batchId, update));
+  }
+
+  private replaceBatch(updated: BeanBatch): void {
+    this.batches = this.batches.map((b) => (b.id === updated.id ? updated : b));
+  }
+
+  /**
+   * A pull just ended: once Decaid has stored the shot, take its dose off the
+   * bag (lib/bagWeight; the bag's own ledger stops a shot counting twice, even
+   * across reloads and other tablets). Only shots from this pull are looked at,
+   * so a reload never re-counts old ones. Runs one at a time.
+   */
+  private settleShot(since: number): Promise<void> {
+    this.settleChain = this.settleChain.then(async () => {
+      try {
+        for (let attempt = 0; attempt < 3; attempt++) {
+          await new Promise((r) => setTimeout(r, attempt === 0 ? 1800 : 2500));
+          const page = await gateway.getShots({ limit: 5 });
+          const fresh = page.items.filter((s) => Date.parse(s.timestamp) >= since - 30_000);
+          if (fresh.length === 0) continue;
+          for (const summary of fresh) await this.takeShotOffBag(summary.id);
+          return;
+        }
+      } catch { /* weight upkeep is best effort; the shot itself is safe in Decaid */ }
+    });
+    return this.settleChain;
+  }
+
+  private async takeShotOffBag(shotId: string): Promise<void> {
+    const shot = await gateway.getShot(shotId);
+    const batchId = shot.workflow?.context?.beanBatchId;
+    const dose = doseOf(shot);
+    if (!batchId || dose === null) return;
+    const stats = shotStats(samplesFromMeasurements(shot.measurements ?? []));
+    // Read the bag fresh: another tablet may have counted this shot already.
+    const batch = await gateway.getBatch(batchId).catch(() => undefined);
+    if (!shouldDecrement(shot, stats, batch)) return;
+    this.replaceBatch(await gateway.updateBatch(batchId, applyDecrement(batch!, shotId, dose)));
+  }
 
   // Shot history is read straight from Decaid; nothing to keep in memory.
   getShots(query: ShotQuery): Promise<ShotPage> { return gateway.getShots(query); }
