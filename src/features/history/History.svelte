@@ -6,6 +6,7 @@
   import ShotNotesDialog from './ShotNotesDialog.svelte';
   import { groupByDay, ratioText, shotStats, stopReasonText } from '../../lib/history';
   import { samplesFromMeasurements } from '../../lib/shot';
+  import { visualizerIdOf, visualizerUrl } from '../../lib/visualizer';
 
   // Shots come from Decaid, newest first, a page at a time. The list carries
   // no measurements; the selected shot is fetched whole for its graph.
@@ -23,6 +24,27 @@
   let detailError = $state<string | null>(null);
   let annotating = $state(false);
   let confirmDelete = $state(false);
+
+  // Visualizer: the plugin stamps annotations.extras.visualizerId on shots it uploaded.
+  let vizBusy = $state(false);
+  let vizError = $state<string | null>(null);
+  $effect(() => { void app.loadVisualizer(); });
+  $effect(() => { void selectedId; vizError = null; });
+
+  async function uploadSelected() {
+    const id = selectedId;
+    if (!id) return;
+    vizBusy = true;
+    vizError = null;
+    try {
+      const vid = await app.uploadToVisualizer(id);
+      shots = shots.map((s) => (s.id === id ? { ...s, annotations: { ...(s.annotations ?? {}), extras: { ...(s.annotations?.extras ?? {}), visualizerId: vid } } } : s));
+    } catch (e) {
+      vizError = `Couldn't upload: ${(e as Error).message}`;
+    } finally {
+      vizBusy = false;
+    }
+  }
 
   function onAnnotated(updated: ShotSummary) {
     shots = shots.map((s) => (s.id === updated.id ? { ...s, annotations: updated.annotations } : s));
@@ -152,6 +174,7 @@
                   {#if ratioText(ctx?.targetDoseWeight, out)}<span>{ratioText(ctx?.targetDoseWeight, out)}</span>{/if}
                   {#if ctx?.grinderSetting}<span class="sub">Grind {ctx.grinderSetting}</span>{/if}
                 </span>
+                {#if visualizerIdOf(s)}<span class="viz" title="On Visualizer" aria-label="Uploaded to Visualizer">↑V</span>{/if}
                 {#if s.annotations?.enjoyment != null}<span class="score" aria-label="Rated {s.annotations.enjoyment} out of 10">{s.annotations.enjoyment}</span>{/if}
               </button>
             </li>
@@ -178,10 +201,17 @@
           <p class="when">{new Date(selected.timestamp).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}{stopReasonText(selected.stopReason) ? ` · ${stopReasonText(selected.stopReason)}` : ''}</p>
         </div>
         <div class="shot-actions">
+          {#if visualizerIdOf(selected)}
+            <a class="glass" href={visualizerUrl(visualizerIdOf(selected)!)} target="_blank" rel="noreferrer">On Visualizer ↗</a>
+          {:else if app.visualizer === 'on'}
+            <button class="glass" disabled={vizBusy} onclick={uploadSelected}>{vizBusy ? 'Uploading…' : 'Upload to Visualizer'}</button>
+          {/if}
           <button class="glass" onclick={() => (annotating = true)}>{selected.annotations?.enjoyment != null || selected.annotations?.espressoNotes ? 'Edit notes' : 'Rate and add notes'}</button>
           <button class="glass danger" aria-label="Delete this shot" onclick={() => (confirmDelete = true)}>Delete</button>
         </div>
       </header>
+
+      {#if vizError}<p class="viz-error" role="alert">{vizError}</p>{/if}
 
       <dl class="stats">
         <div><dt>Time</dt><dd>{detail ? stats.seconds.toFixed(1) : '–'}<small>s</small></dd></div>
@@ -298,6 +328,11 @@
   .detail header { display: flex; align-items: flex-start; gap: 12px; }
   .detail header > div:first-child { flex: 1; min-width: 0; }
   .shot-actions { display: flex; gap: 6px; flex: none; }
+  .shot-actions a { display: inline-flex; align-items: center; min-height: 40px; padding: 0 12px; border-radius: var(--radius-pill); color: var(--go); font-size: var(--t-xs); font-weight: 650; text-decoration: none; }
+  .shot-actions button:disabled { opacity: 0.5; }
+  .viz { flex: none; color: var(--go); font-size: var(--t-xs); font-weight: 700; }
+  .row.selected .viz { color: var(--ink); }
+  .viz-error { color: var(--stop); font-size: var(--t-sm); }
   .shot-actions button { min-height: 40px; padding: 0 12px; border-radius: var(--radius-pill); color: var(--paper); font-size: var(--t-xs); font-weight: 650; }
   .shot-actions .danger { color: #ffb3ab; }
   .detail h2 { font-size: var(--t-xl); font-weight: 700; letter-spacing: -0.01em; }

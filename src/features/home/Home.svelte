@@ -80,6 +80,7 @@
   </div>
 {:else}
   <div class="chosen" class:with-panel={profileRoot !== null} style="--tile: var(--cat-{category.colour ?? 1})">
+    {#if !profileRoot}
     <div class="list">
       <div class="crumb">
         <button class="back glass" onclick={back}>‹ Categories</button>
@@ -111,8 +112,7 @@
         </ul>
       {/if}
     </div>
-
-    {#if profileRoot}
+    {:else}
       {#key profileRoot}
         <BrewPanel {profileRoot} onClose={() => (profileRoot = null)} />
       {/key}
@@ -247,7 +247,8 @@
     padding: 0;
     overflow: hidden;
   }
-  .chosen.with-panel { grid-template-columns: minmax(0, 1fr) clamp(300px, 38vw, 390px); }
+  /* With a profile chosen, the brew panel takes the whole area. */
+  .chosen.with-panel { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
   .list { overflow-y: auto; padding: var(--gutter); }
 
   .crumb {
@@ -295,8 +296,4 @@
   .title { font-size: var(--t-md); font-weight: 650; line-height: 1.15; }
   .meta { display: flex; flex-wrap: wrap; gap: 4px 10px; color: var(--paper-dim); font-size: var(--t-xs); }
 
-  @media (max-width: 960px) {
-    .chosen.with-panel { grid-template-columns: 1fr; }
-    .chosen.with-panel .list { display: none; }
-  }
 </style>

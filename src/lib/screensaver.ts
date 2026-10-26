@@ -4,8 +4,25 @@
 
 export const SCREENSAVER_KEY = 'screensaver';
 
-/** Screen brightness (0–100) while the screensaver shows: dim, but the clock still reads across the room. */
+/** Default screen brightness (0–100) while the screensaver shows: dim, but the clock still reads across the room. */
 export const SCREENSAVER_BRIGHTNESS = 12;
+
+/** KV key for the chosen brightness (a number 0–100). */
+export const SCREENSAVER_DIM_KEY = 'screensaverDim';
+
+export function clampDim(n: number): number {
+  return Math.min(100, Math.max(0, Math.round(n)));
+}
+
+/** A stored value → brightness; a missing or odd value means the default. */
+export function parseDim(raw: unknown): number {
+  return typeof raw === 'number' && Number.isFinite(raw) ? clampDim(raw) : SCREENSAVER_BRIGHTNESS;
+}
+
+/** The brightness to ask Decaid for. 100 means "don't dim": the level from before stays. */
+export function dimTarget(dim: number, before: number): number {
+  return dim >= 100 ? before : dim;
+}
 
 /**
  * Decaid caps a key-value store request body at 1 MiB, and the photo goes
