@@ -609,6 +609,11 @@ function dialFace(S, cam, gx, y, gz, R0, cls = '', big = false) {
   const z0 = (a(10) + 90) * Math.PI / 180, z1 = (a(20) + 90) * Math.PI / 180, rz = R0 - 9.5;
   S.raw(`<path d="M${f(Math.cos(z0) * rz)} ${f(Math.sin(z0) * rz)}A${rz} ${rz} 0 0 1 ${f(Math.cos(z1) * rz)} ${f(Math.sin(z1) * rz)}" fill="none" stroke="var(--acc)" stroke-opacity=".8" stroke-width="${big ? 2.6 : 1.6}" vector-effect="non-scaling-stroke"/>`);
   if (big) {
+    // setting arc: the whole 0-90 sweep with pathLength 90, so GuideArt can draw
+    // the first `grind` units at runtime (stroke-dasharray). Same constants as lib/dialArc.ts.
+    const ra = R0 - 1.6, s0 = (a(0) + 90) * Math.PI / 180, s1 = (a(90) + 90) * Math.PI / 180;
+    const arc = `M${f(Math.cos(s0) * ra)} ${f(Math.sin(s0) * ra)}A${f(ra)} ${f(ra)} 0 1 1 ${f(Math.cos(s1) * ra)} ${f(Math.sin(s1) * ra)}`;
+    S.raw(`<path class="dial-arc glow" pathLength="90" d="${arc}"/><path class="dial-arc" pathLength="90" d="${arc}"/>`);
     for (let v = 0; v <= 90; v += 10) S.raw(`<text transform="rotate(${f(a(v))}) translate(0 ${f(R0 - 13.5)})" text-anchor="middle" dominant-baseline="central" font-size="5.6" font-weight="700" fill="rgb(${PAPER} / .85)">${v}</text>`);
     S.raw(`<text transform="rotate(${f(a(-6))}) translate(0 ${f(R0 - 13.5)}) rotate(90)" text-anchor="middle" dominant-baseline="central" font-size="3.4" font-weight="700" letter-spacing=".4" fill="rgb(${PAPER} / .55)">FINE</text>`);
     S.raw(`<text transform="rotate(${f(a(97))}) translate(0 ${f(R0 - 13.5)}) rotate(-90)" text-anchor="middle" dominant-baseline="central" font-size="3.4" font-weight="700" letter-spacing=".4" fill="rgb(${PAPER} / .55)">COARSE</text>`);

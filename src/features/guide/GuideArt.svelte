@@ -12,6 +12,7 @@
 
 <script lang="ts">
   import type { GuideStepId, WeighState } from '../../lib/guide';
+  import { dialArc, DIAL_PER, DIAL_START } from '../../lib/dialArc';
 
   // One animated "frosted glass objects" scene per guide step. The static
   // drawing is generated at build time (scripts/guide-art/build.cjs): real
@@ -66,18 +67,16 @@
   });
 
   // Grinder dial: 0 (fine) to 90 (coarse) over 300 degrees; the ring turns
-  // so the chosen number sits under the fixed pointer.
-  const DIAL_START = -150;
-  const DIAL_PER = 300 / 90;
-  const gv = $derived.by(() => {
-    const n = grind == null ? NaN : parseFloat(grind);
-    return Number.isFinite(n) && n >= 0 && n <= 90 ? n : null;
-  });
-  const dialTo = $derived(-DIAL_START - DIAL_PER * (gv ?? 14));
+  // so the chosen number sits under the fixed pointer, and the glowing arc
+  // (drawn in the ring's frame from 0, path length 90) is cut to the setting.
+  const arc = $derived(dialArc(grind));
+  const gv = $derived(arc ? arc.value : null);
+  const dialTo = $derived(arc ? arc.rotate : -DIAL_START - DIAL_PER * 14);
+  const dashFrom = $derived(arc ? Math.max(0, arc.dash - 50 / DIAL_PER) : 0);
 </script>
 
 {#if scene}
-  <svg viewBox={scene.vb} class="art {step} ws-{weighState}" class:on={active} style="--dial: {dialTo}deg" aria-hidden="true">
+  <svg viewBox={scene.vb} class="art {step} ws-{weighState}" class:on={active} style="--dial: {dialTo}deg; --arc: {arc ? arc.dash : 0}; --arc-from: {dashFrom}" class:noarc={!arc} aria-hidden="true">
     <defs>{@html loaded?.COMMON_DEFS ?? ''}</defs>
     {@html parts[0]}
     {#if step === 'weigh' && scene.lcd}
@@ -142,6 +141,11 @@
   /* dial: the ring turns until the setting sits under the pointer */
   .art :global(.k-dial) { transform: rotate(var(--dial)); animation: k-dial 6s cubic-bezier(.45, 0, .2, 1) infinite; }
   @keyframes k-dial { 0%, 8% { transform: rotate(calc(var(--dial) + 50deg)); } 45%, 100% { transform: rotate(var(--dial)); } }
+  /* the setting arc: butt ends so it stops exactly at the number; it shortens in step with the ring's turn */
+  .art :global(.dial-arc) { fill: none; stroke: var(--acc); stroke-width: 2.4; stroke-linecap: butt; stroke-dasharray: var(--arc) 200; animation: k-arc 6s cubic-bezier(.45, 0, .2, 1) infinite; }
+  .art :global(.dial-arc.glow) { stroke-width: 6; stroke-opacity: 0.22; }
+  .art.noarc :global(.dial-arc) { display: none; }
+  @keyframes k-arc { 0%, 8% { stroke-dasharray: var(--arc-from) 200; } 45%, 100% { stroke-dasharray: var(--arc) 200; } }
   .dial-num rect { fill: rgb(4 14 17 / 0.72); stroke: var(--acc); stroke-width: 1.4; }
   .dial-num text { fill: var(--acc); font-size: 17px; font-weight: 800; }
   .dial-num text.small { font-size: 11px; }
@@ -269,6 +273,7 @@
   @media (prefers-reduced-motion: reduce) {
     .art :global(*) { animation: none !important; transition: none !important; }
     .art :global(.k-dial) { transform: rotate(var(--dial)); }
+    .art :global(.dial-arc) { stroke-dasharray: var(--arc) 200; }
     .art :global(.fx) { display: none; }
   }
 </style>

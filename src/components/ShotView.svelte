@@ -4,6 +4,8 @@
   import Gauge from './Gauge.svelte';
   import { tempDialRange } from '../lib/gauge';
   import { isPreparing, preheatText } from '../lib/activity';
+  import { PumpTracker, type PumpMode } from '../lib/pumpMode';
+  import { untrack } from 'svelte';
 
   let { onClose }: { onClose: () => void } = $props();
 
@@ -35,6 +37,19 @@
   $effect(() => { if (!preparing && !app.shotActive && !sawShot) onClose(); });
 
   $effect(() => { if (!app.shotActive && !preparing) stopping = false; });
+
+  // Which pump the machine is controlling: the ring follows it. Only this
+  // value (and so one class) changes between frames; the dials render as before.
+  const tracker = new PumpTracker();
+  let pump = $state<PumpMode | null>(null);
+  $effect(() => {
+    const snap = app.machine;
+    const on = app.shotActive;
+    untrack(() => {
+      if (!on) { tracker.reset(); pump = null; return; }
+      pump = tracker.update(snap, app.workflow.profile?.steps);
+    });
+  });
 
   async function stop() {
     stopping = true;
@@ -79,12 +94,12 @@
   <div class="body">
     {#if app.shotActive}
       <div class="dials" aria-label="Live readings" bind:clientHeight={colH} style="--dial: {dial}px">
-        <Gauge side label="Flow in" unit="ml/s" min={0} max={8} major={1} minor={2}
+        <Gauge side label="Flow in" unit="ml/s" min={0} max={8} major={1} minor={2} active={pump === 'flow'} ring="var(--g-flow)"
           needles={[{ value: m.flow, colour: 'var(--g-flow)', width: 3.2 }]}
           targets={[{ value: activeTarget(m.targetFlow), colour: 'var(--g-flow)' }]} />
         <Gauge side label="Flow out" unit="g/s" min={0} max={8} major={1} minor={2}
           needles={[{ value: app.scaleConnected ? app.weightFlow : null, colour: 'var(--g-weight)', width: 3.2 }]} />
-        <Gauge side label="Pressure" unit="bar" min={0} max={12} major={2} minor={4} redline={10}
+        <Gauge side label="Pressure" unit="bar" min={0} max={12} major={2} minor={4} redline={10} active={pump === 'pressure'} ring="var(--g-pressure)"
           needles={[{ value: m.pressure, colour: 'var(--g-pressure)', width: 3.2 }]}
           targets={[{ value: activeTarget(m.targetPressure), colour: 'var(--g-pressure)' }]} />
         <Gauge side label="Water · Puck" unit="°C" min={tempRange[0]} max={tempRange[1]} major={5} minor={5}

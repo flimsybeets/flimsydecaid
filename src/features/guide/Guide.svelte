@@ -57,7 +57,7 @@
   const tone = $derived(step === 'weigh' && app.scaleConnected ? weigh.state : step === 'done' ? 'ok' : 'idle');
   const ring = $derived(plan && app.weight !== null ? Math.max(0, Math.min(1.08, app.weight / plan.dose)) : 0);
   const weighText = $derived.by(() => {
-    if (!app.scaleConnected) return 'No scale connected: weigh it by hand';
+    if (!app.scaleConnected) return app.scanning ? 'Looking for the scale…' : 'No scale connected: weigh it by hand';
     switch (weigh.state) {
       case 'empty': return 'Tare with the empty cup, then add beans';
       case 'under': return `Add ${weigh.delta.toFixed(1)} g`;
@@ -134,7 +134,9 @@
         <!-- Not drawn while the shot view covers the guide: nothing to animate or update under it. -->
         {#if !covered}
           {#key step}
-            <div class="art-in">
+            <!-- The Tap to connect button is the real control; tapping the scale in the picture does the same. -->
+            <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+            <div class="art-in" class:tappable={step === 'weigh' && !app.scaleConnected && !app.scanning} onclick={() => { if (step === 'weigh' && !app.scaleConnected && !app.scanning) app.scanForScale(); }}>
               <GuideArt {step} weight={step === 'weigh' && app.scaleConnected ? app.weight : null} weighState={step === 'weigh' ? weigh.state : 'empty'} grind={plan.grind} active={rinse === 'rinsing'} />
             </div>
           {/key}
@@ -159,7 +161,11 @@
                   <span class="status">{weighText}</span>
                 </div>
               </div>
-              {#if app.scaleConnected}<button class="tare glass" onclick={() => app.tare()}>Tare</button>{/if}
+              {#if app.scaleConnected}
+                <button class="tare glass" onclick={() => app.tare()}>Tare</button>
+              {:else}
+                <button class="tare connect glass" onclick={() => app.scanForScale()} disabled={app.scanning} aria-live="polite">{app.scanning ? 'Looking for the scale…' : 'Tap to connect'}</button>
+              {/if}
             {:else if step === 'spray'}
               <h1>Spray the beans</h1>
               <p class="body">One or two sprays from a distance to gently mist the beans.</p>
@@ -330,6 +336,9 @@
   .status { font-size: var(--t-md); font-weight: 700; color: rgb(var(--c)); }
   .weigh.ok .status::before { content: '✓ '; }
   .weigh.noscale .ring { opacity: 0.3; }
+  .connect:disabled { opacity: 0.75; animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: 0.45; } }
+  .art-in.tappable { cursor: pointer; }
   .tare { justify-self: start; min-height: var(--touch); padding: 0 22px; border-radius: var(--radius-pill); font-weight: 650; color: var(--paper); }
 
   .go-btn { justify-self: start; min-height: 68px; min-width: 196px; padding: 0 27px; border-radius: 26px; font-size: var(--t-lg); font-weight: 800; color: var(--paper); }

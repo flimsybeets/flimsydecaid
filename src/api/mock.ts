@@ -186,6 +186,7 @@ export function createMockGateway(): Gateway {
   let steam = 148;
   let weight = 0.0;
   let scaleConnected = true;
+  let scanning = false;
   let shotT = 0;
   /** Seconds of warm-up left before an espresso pours (set by pressBrew). */
   let preheat = 0;
@@ -206,7 +207,7 @@ export function createMockGateway(): Gateway {
 
   const devices = (): DevicesState => ({
     timestamp: now(),
-    scanning: false,
+    scanning,
     devices: [
       { id: 'mock-de1', name: 'MockDe1', type: 'machine', state: 'connected', available: true },
       { id: 'mock-scale', name: 'MockScale', type: 'scale', state: scaleConnected ? 'connected' : 'disconnected', available: true },
@@ -310,6 +311,8 @@ export function createMockGateway(): Gateway {
         // Steam button on the machine: runs for the steam duration (at most 20 s here).
         pressSteam: () => { void this.requestState('steam'); },
         // Group-head brew button: a few seconds of preheat before the shot pours.
+        // Scale drops off (as if switched off): the guide then offers Tap to connect.
+        disconnectScale: () => { scaleConnected = false; subs?.onScale({ status: 'disconnected' }); subs?.onDevices(devices()); },
         pressBrew: () => { preheat = 5; mix -= 3; group -= 6; void this.requestState('espresso'); },
       };
       subs = s;
@@ -324,9 +327,15 @@ export function createMockGateway(): Gateway {
     },
 
     scanDevices() {
-      scaleConnected = true;
-      subs?.onScale({ status: 'connected' });
+      // A scan takes a moment, like a real one.
+      scanning = true;
       subs?.onDevices(devices());
+      setTimeout(() => {
+        scanning = false;
+        scaleConnected = true;
+        subs?.onScale({ status: 'connected' });
+        subs?.onDevices(devices());
+      }, 1500);
     },
 
     async requestState(next) {
