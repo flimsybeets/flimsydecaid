@@ -1,7 +1,7 @@
 <script lang="ts">
   import { app } from '../state/app.svelte';
   import { clockText } from '../lib/screensaver';
-  import GhostSymbol from './GhostSymbol.svelte';
+  import { GHOSTS, ghostPose } from '../lib/ghostPath';
 
   // Full-screen photo with a big, fixed clock over it, or (Halloween theme)
   // a few ghosts drifting in and out. Tapping wakes the machine (or, in a
@@ -16,15 +16,60 @@
   });
   const time = $derived(clockText(now));
 
-  // Ghosts: size in px, start position in %, one cycle in seconds, and the
-  // wander path as four vw/vh offsets. Negative delays stagger them so one or
-  // two show at any moment (each is visible for ~40% of its cycle).
-  const ghosts = [
-    { size: 170, left: 8, top: 14, dur: 34, delay: -4, p: [0, 0, 14, -6, 22, 10, 30, 2], flip: 1, bob: 5.5 },
-    { size: 110, left: 62, top: 52, dur: 29, delay: -12, p: [0, 0, -12, 8, -24, -4, -30, 6], flip: -1, bob: 4.3 },
-    { size: 200, left: 38, top: 40, dur: 38, delay: -23, p: [0, 0, 10, 10, -8, 18, 6, 26], flip: 1, bob: 6.4 },
-    { size: 90, left: 76, top: 10, dur: 31, delay: -30, p: [0, 0, -10, 12, -22, 6, -34, 16], flip: -1, bob: 3.8 },
-  ];
+  // Ghosts: a low-poly 3D ghost pre-rendered at 24 yaw angles (ghostFrames, a
+  // lazy chunk). One rAF loop moves every ghost with a transform and opacity
+  // at about 30 updates a second, and swaps which frame its <use> shows when the heading changes; the paths,
+  // heading and turns are worked out in lib/ghostPath.
+  let defs = $state('');
+  let frames = $state(24);
+  let aspect = $state(1.7);
+  const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let boxes: HTMLElement[] = [];
+  let uses: SVGUseElement[] = [];
+
+  $effect(() => {
+    if (!app.halloween || defs) return;
+    let live = true;
+    void import('./ghostFrames').then((m) => {
+      if (!live) return;
+      frames = m.GHOST_FRAMES;
+      aspect = m.GHOST_ASPECT;
+      defs = m.GHOST_DEFS;
+    });
+    return () => (live = false);
+  });
+
+  $effect(() => {
+    if (!app.halloween || !defs || reduced) return;
+    const shown: number[] = GHOSTS.map(() => -1);
+    const t0 = performance.now();
+    let raf = 0;
+    let last = 0;
+    const tick = (now: number) => {
+      raf = requestAnimationFrame(tick);
+      // The drift is slow: 30 updates a second look the same and cost half.
+      if (now - last < 30) return;
+      last = now;
+      const t = (performance.now() - t0) / 1000;
+      const w = innerWidth / 100;
+      const h = innerHeight / 100;
+      GHOSTS.forEach((g, i) => {
+        const p = ghostPose(g, t, frames);
+        const box = boxes[i];
+        if (!box) return;
+        box.style.opacity = String(p.opacity);
+        // Skip the work while it is unseen.
+        if (p.opacity <= 0.001) return;
+        box.style.transform = `translate3d(${(p.x * w).toFixed(1)}px,${(p.y * h + p.bob * g.size * 0.03).toFixed(1)}px,0) rotate(${p.roll.toFixed(1)}deg)`;
+        if (p.frame !== shown[i]) {
+          shown[i] = p.frame;
+          uses[i]?.setAttribute('href', `#gf${p.frame}`);
+        }
+      });
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  });
 
   // Decaid lets the screen turn off while the machine sleeps; hold it on
   // while the screensaver is up and hand control back when it goes.
@@ -45,16 +90,16 @@
 <button class="saver" onclick={onDismiss} aria-label={preview ? 'Close preview' : 'Wake the machine'}>
   {#if image}<img src={image} alt="" decoding="async" />{/if}
   {#if app.halloween}
-    <GhostSymbol />
-    <span class="ghosts" aria-hidden="true">
-      {#each ghosts as g}
-        <span class="ghost" style="left:{g.left}%;top:{g.top}%;width:{g.size}px;height:{g.size * 0.9}px;animation-duration:{g.dur}s;animation-delay:{g.delay}s;--x1:{g.p[2]}vw;--y1:{g.p[3]}vh;--x2:{g.p[4]}vw;--y2:{g.p[5]}vh;--x3:{g.p[6]}vw;--y3:{g.p[7]}vh">
-          <span class="bob" style="animation-duration:{g.bob}s;animation-delay:{g.delay}s">
-            <svg viewBox="0 0 200 180" style="transform:scaleX({g.flip})"><use href="#flimsy-ghost" width="200" height="180" /></svg>
+    {#if defs}
+      <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>{@html defs}</defs></svg>
+      <span class="ghosts" aria-hidden="true">
+        {#each GHOSTS as g, i}
+          <span class="ghost" bind:this={boxes[i]} style="left:{g.left}%;top:{g.top}%;width:{g.size}px;height:{g.size / aspect}px">
+            <svg viewBox="0 0 {aspect * 100} 100"><use bind:this={uses[i]} href="#gf0" width={aspect * 100} height="100" /></svg>
           </span>
-        </span>
-      {/each}
-    </span>
+        {/each}
+      </span>
+    {/if}
   {:else}
     <span class="clock" aria-hidden="true">{time}</span>
   {/if}
@@ -96,34 +141,11 @@
     text-shadow: 0 2px 22px rgb(0 0 0 / 0.18);
   }
 
-  /* Ghosts: transform and opacity only. The outer span wanders and fades
-     (visible for the first ~40% of the cycle, then it drifts on unseen); the
-     inner span bobs. Each is a <use> of one shared symbol. */
+  /* Ghosts: the loop sets transform and opacity only; the frame is a <use> of one
+     pre-rendered symbol. */
   .ghosts { position: absolute; inset: 0; }
-  .ghost {
-    position: absolute;
-    opacity: 0;
-    will-change: transform, opacity;
-    animation: wander linear infinite, appear linear infinite;
-  }
-  .bob { display: block; width: 100%; height: 100%; animation: bob ease-in-out infinite alternate; }
+  .ghost { position: absolute; opacity: 0; will-change: transform, opacity; }
   .ghost svg { display: block; width: 100%; height: 100%; }
-  @keyframes wander {
-    0% { transform: translate(0, 0); }
-    33% { transform: translate(var(--x1), var(--y1)); }
-    66% { transform: translate(var(--x2), var(--y2)); }
-    100% { transform: translate(var(--x3), var(--y3)); }
-  }
-  @keyframes appear {
-    0% { opacity: 0; }
-    10% { opacity: 0.92; }
-    30% { opacity: 0.92; }
-    40%, 100% { opacity: 0; }
-  }
-  @keyframes bob {
-    from { transform: translateY(-5%) rotate(-3deg); }
-    to { transform: translateY(5%) rotate(3deg); }
-  }
 
   .hint {
     position: absolute;
@@ -139,9 +161,8 @@
 
   @keyframes fade { from { opacity: 0; } }
 
-  /* The global reduced-motion rule would make endless animation flicker; show still, faint ghosts instead. */
+  /* No loop under reduced motion: still, front-facing, faint ghosts at their home spots. */
   @media (prefers-reduced-motion: reduce) {
-    .ghost, .bob { animation: none !important; }
     .ghost { opacity: 0.35; }
   }
 </style>
