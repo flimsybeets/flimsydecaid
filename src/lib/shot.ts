@@ -31,16 +31,29 @@ export class ShotRecorder {
   samples: ShotSample[] = [];
   private startMs: number | null = null;
   private lastWeight: ScaleWeightFrame | null = null;
+  /** True while the latest machine frame was being graphed (not the post-shot drip). */
+  private recording = false;
 
   get active(): boolean { return this.startMs !== null; }
 
   reset(): void {
     this.samples = [];
     this.startMs = null;
+    this.recording = false;
   }
 
-  onScale(frame: ScaleWeightFrame): void {
+  /**
+   * Remembers the latest weight for the next machine sample, and while a shot
+   * is recording also moves the newest sample's weight to it, so the weight
+   * trace follows the scale without waiting for the next machine frame.
+   * Returns true when the newest sample changed (the caller republishes).
+   */
+  onScale(frame: ScaleWeightFrame): boolean {
     this.lastWeight = frame;
+    const n = this.samples.length;
+    if (!this.recording || n === 0) return false;
+    this.samples[n - 1] = { ...this.samples[n - 1]!, weight: frame.weight, weightFlow: frame.weightFlow };
+    return true;
   }
 
   /** Returns true when a sample was added. */
@@ -48,6 +61,7 @@ export class ShotRecorder {
     const state = frame.state?.state;
     const sub = frame.state?.substate;
     const recording = state === 'espresso' && (sub === undefined ? true : RECORDING.has(sub));
+    this.recording = recording;
     if (!recording) {
       if (state !== 'espresso') this.startMs = null;
       return false;

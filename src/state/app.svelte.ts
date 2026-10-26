@@ -152,7 +152,8 @@ class AppState {
     this.weight = f.weight;
     this.weightFlow = f.weightFlow ?? null;
     this.scaleBattery = f.battery ?? null;
-    this.recorder.onScale(f);
+    // The graph's weight trace follows the scale frame by frame, not just per machine frame.
+    if (this.recorder.onScale(f)) this.shot = this.recorder.samples.slice();
   }
 
   rootOf(profileId: string): string {
