@@ -1,6 +1,6 @@
 // Shared objects for the Guide me scenes, modelled in millimetres.
 const G = require('./geo.cjs');
-const { Cam, ellD, frontArcD, backArcD, rbox, rrectTop, lathe, f, pt, crD, polyD, smoothClosedD, hull, revolve, tube, circ3, add3, norm3 } = G;
+const { convexLathe, Cam, ellD, frontArcD, backArcD, rbox, rrectTop, lathe, f, pt, crD, polyD, smoothClosedD, hull, revolve, tube, circ3, add3, norm3 } = G;
 const PAPER = '238 243 239';
 const circle = (c, r) => `M${f(c[0] - r)} ${f(c[1])}a${f(r)} ${f(r)} 0 1 0 ${f(2 * r)} 0a${f(r)} ${f(r)} 0 1 0 ${f(-2 * r)} 0Z`;
 const ellipseD = (cx, cy, rx, ry) => `M${f(cx - rx)} ${f(cy)}a${f(rx)} ${f(ry)} 0 1 0 ${f(2 * rx)} 0a${f(rx)} ${f(ry)} 0 1 0 ${f(-2 * rx)} 0Z`;
@@ -37,12 +37,12 @@ function scale(S, cam, cx, cz, y0, o = {}) {
   S.raw(`<path d="M-33 -33h13v9h-5v6h-8z" fill="rgb(${PAPER} / .05)" stroke="rgb(${PAPER} / .18)" stroke-width=".7" vector-effect="non-scaling-stroke"/><path d="M-30 -30h4v3h-4zM-24 -30h2v2h-2zM-31 -25h3v2h-3z" fill="rgb(${PAPER} / .2)"/>`);
   S.raw(`<circle cx="24" cy="4" r="2.6" fill="rgb(0 0 0 / .5)" stroke="rgb(${PAPER} / .3)" stroke-width=".8" vector-effect="non-scaling-stroke"/><circle cx="24" cy="11" r="2.6" fill="rgb(0 0 0 / .5)" stroke="rgb(${PAPER} / .3)" stroke-width=".8" vector-effect="non-scaling-stroke"/>`);
   // display windows
-  S.raw(`<rect x="-34" y="23" width="25" height="11" rx="1.6" fill="rgb(0 0 0 / .62)"/><rect x="9" y="23" width="25" height="11" rx="1.6" fill="rgb(0 0 0 / .62)"/>`);
-  if (o.right !== false) S.raw(dots('0.0', 21.5, 28.5, 0.9, `rgb(${PAPER} / .55)`));
-  if (o.left) S.raw(dots(o.left, -21.5, 28.5, 0.9, 'var(--acc)'));
+  S.raw(`<rect x="-35" y="21.5" width="27" height="13" rx="1.8" fill="rgb(0 0 0 / .7)"/><rect x="8" y="21.5" width="27" height="13" rx="1.8" fill="rgb(0 0 0 / .7)"/>`);
+  if (o.right !== false) S.raw(dots('0.0', 21.5, 28.4, 1.05, `rgb(${PAPER} / .5)`));
+  if (o.left) S.raw(dots(o.left, -21.5, 28.4, 1.1, 'var(--acc)'));
   S.raw('</g>');
   S.line(panel, 's');
-  return { top, lcd: cam.top(cx, top, cz), lcdAt: [-21.5, 28.5] };
+  return { top, lcd: cam.top(cx, top, cz), lcdAt: [-21.5, 28.4] };
 }
 
 // 5x7 dot-matrix glyphs (rows top to bottom, 5 bits each)
@@ -59,7 +59,7 @@ function dots(text, cx, cy, pitch, fill) {
     cols.push([]);
   }
   cols.pop();
-  const w = (cols.length - 1) * pitch, x0 = cx - w / 2, y0 = cy - 3 * pitch, r = pitch * 0.36;
+  const w = (cols.length - 1) * pitch, x0 = cx - w / 2, y0 = cy - 3 * pitch, r = pitch * 0.4;
   let d = '';
   cols.forEach((col, i) => col.forEach(([ri]) => { const x = x0 + i * pitch, y = y0 + ri * pitch; d += `M${f(x - r)} ${f(y)}a${f(r)} ${f(r)} 0 1 0 ${f(2 * r)} 0a${f(r)} ${f(r)} 0 1 0 ${f(-2 * r)} 0`; }));
   return `<path d="${d}" style="fill:${fill}"/>`;
@@ -103,20 +103,22 @@ function dosingCup(S, x, y, k, o = {}) {
 
 // ------------------------------------------------------------------ espresso cup
 // 60 mm across, 56 mm tall, handle to the right. Foot at (cx, y0, cz).
-const CUP_H = 56;
+const CUP_H = 52;
 function espressoCup(S, cam, cx, y0, cz, o = {}) {
-  const ht = cam.plane([cx + 26, y0 + 30, cz + 6], [1, 0, -0.35], [0, -1, 0]);
+  const H = CUP_H, R0 = 29;
+  const ht = cam.plane([cx + 24.5, y0 + 28, cz + 6], [1, 0, -0.35], [0, -1, 0]);
   S.raw(`<g transform="${ht}">`);
-  S.solid('M0 -17C9 -19 17 -15 17 -7C17 1 9 6 0 6L0 1C6 1 11 -2 11 -7C11 -12 6 -13 0 -12Z', 'ceramic');
+  S.solid('M0 -16C8.5 -18 16 -14 16 -6.5C16 1 8.5 5.5 0 5.5L0 .8C5.5 .8 10.4 -2 10.4 -6.5C10.4 -11 5.5 -12 0 -11.2Z', 'ceramic');
   S.raw('</g>');
-  const cup = lathe(cam, cx, cz, [[y0 + 56, 30], [y0 + 54.4, 30.4, 1], [y0 + 44, 29.4], [y0 + 26, 25], [y0 + 10, 20.5], [y0 + 2, 17.8], [y0, 16.4]]);
+  const cup = G.stackLathe(cam, cx, cz, [[y0 + H, R0], [y0 + H - 1.4, R0 + 0.3], [y0 + 42, R0 - 0.6], [y0 + 28, R0 - 4], [y0 + 15, R0 - 8.6], [y0 + 6, R0 - 12], [y0 + 2, R0 - 13.2], [y0, R0 - 14]], 6);
   S.solid(cup.sil, 'ceramic');
-  S.face(cup.ring(y0 + 56, 30), 'top');
-  S.face(cup.ring(y0 + 55.6, 27.4), 'hole');
-  if (o.inside) { const id = S.uid('ci'); S.raw(`<clipPath id="${id}"><path d="${cup.ring(y0 + 55.6, 27.4)}"/></clipPath><g clip-path="url(#${id})">`); o.inside(cup); S.raw('</g>'); }
-  S.line(cup.ring(y0 + 56, 30), 'p');
-  S.line(cup.ring(y0 + 55.6, 27.4), 's');
-  S.hl(cup.streak(y0 + 48, y0 + 20, 26, 150), 0.5);
+  S.face(cup.ring(y0 + H, R0), 'top');
+  S.face(cup.ring(y0 + H - 0.4, R0 - 2.4), 'hole');
+  if (o.inside) { const id = S.uid('ci'); S.raw(`<clipPath id="${id}"><path d="${cup.ring(y0 + H - 0.4, R0 - 2.4)}"/></clipPath><g clip-path="url(#${id})">`); o.inside(cup); S.raw('</g>'); }
+  S.line(cup.ring(y0 + H, R0), 'p');
+  S.line(cup.ring(y0 + H - 0.4, R0 - 2.4), 's');
+  S.hl(lathe(cam, cx, cz, [[y0 + 44, R0 - 1], [y0 + 20, R0 - 7]]).streak(y0 + 44, y0 + 22, R0 - 3, 150), 0.5);
+  cup.rimR = R0 - 2.4; cup.rimY = y0 + H - 0.4;
   return cup;
 }
 
@@ -176,7 +178,7 @@ function portafilter(S, cam, cx, y0, cz, o = {}) {
   if (!toward && o.handle !== false) drawHandle();
   // naked bottom: the basket's lower wall and its domed floor show under the ring
   if (content !== 'none') {
-    const bot = lathe(cam, cx, cz, [[y0 - 12, 28.6], [y0 - 19, 27.8], [y0 - 22.5, 25.6], [y0 - 25.4, 18], [y0 - 26.8, 8], [y0 - 27.2, 0.01]]);
+    const bot = convexLathe(cam, cx, cz, [[y0 - 12, 28.6], [y0 - 19, 27.8], [y0 - 22.5, 25.6], [y0 - 25.4, 18], [y0 - 26.8, 8], [y0 - 27.2, 0.01]]);
     S.solid(bot.sil, 'metal');
     S.hl(bot.streak(y0 - 14, y0 - 21, 27.8, 140), 0.45);
     parts.bot = bot;
@@ -188,7 +190,7 @@ function portafilter(S, cam, cx, y0, cz, o = {}) {
     const ear = tube(cam, [p0, add3(p0, e, 5), add3(p0, e, 9.5)], 3.4);
     S.solid(ear.d, 'metal', { under: false });
   }
-  const holder = lathe(cam, cx, cz, [[y0 - 0.6, 36], [y0 - 1.4, 36.5, 1], [y0 - 12, 36.2], [y0 - 13.6, 34.6]]);
+  const holder = G.stackLathe(cam, cx, cz, [[y0 - 0.6, 36], [y0 - 1.4, 36.5], [y0 - 12, 36.2], [y0 - 13.6, 34.6]], 3);
   S.solid(holder.sil, 'metal');
   S.face(holder.ring(y0 - 0.6, 36), 'top');
   S.line(holder.ring(y0 - 0.6, 36), 's');
@@ -311,7 +313,7 @@ function de1(S, cam, o = {}) {
     for (const p of clipBand(F, lo, hi)) pts.push(cam.P(p[0], p[1], z));
   }
   const sil = polyD(hull(pts));
-  S.solid(sil, 'cream');
+  S.solid(sil, 'cream', { back: 1 });
   const [lo0, hi0] = band(-0.01);
   const front = clipBand(F, lo0, hi0).map((p) => cam.P(p[0], p[1], 0));
   S.face(polyD(front), 'rgb(0 0 0 / .1)');
@@ -430,28 +432,58 @@ function grinder(S, cam, gx, gz, o = {}) {
   const plat = lathe(cam, ccx, ccz, [[44, 47], [40, 47]]);
   S.solid(plat.sil, 'cream', { under: false });
   S.face(plat.ring(44, 47), 'top');
-  // body
+  // body (near opaque: the tray behind it must not show through)
   const body = lathe(cam, gx, gz, [[body1, r], [body0, r]]);
-  S.solid(body.sil, 'cream');
+  S.solid(body.sil, 'cream', { back: 1 });
   S.hl(body.streak(body1 - 10, body0 + 20, r, 150), 0.5);
   S.hl(body.streak(body1 - 30, body0 + 40, r, 128), 0.16);
   // power button with its light, on the front of the body
   const pb = cam.plane([gx + r * Math.cos(110 * Math.PI / 180), 120, gz + r * Math.sin(110 * Math.PI / 180)], [Math.cos(20 * Math.PI / 180), 0, -Math.sin(20 * Math.PI / 180)], [0, -1, 0]);
   S.raw(`<g transform="${pb}"><circle r="6" fill="rgb(0 0 0 / .45)" stroke="rgb(${PAPER} / .4)" stroke-width="1" vector-effect="non-scaling-stroke"/><circle r="3" fill="none" stroke="rgb(${PAPER} / .55)" stroke-width="1" vector-effect="non-scaling-stroke"/>${o.power ? `<g class="${o.power}"><circle r="11" fill="url(#${S.id}glow)"/><circle r="3" fill="none" stroke="#fff" stroke-width="1.4" vector-effect="non-scaling-stroke"/></g>` : ''}</g>`);
-  // catch cup on the platform, then the chute over it
+  // the chute (photo 2): a mounting plate on the body, an elbow straight out
+  // and down, and a wider collar the catch cup tucks under
+  const cy = 180, tr = 25, cT = 44 + CC.h; // cup top
+  const tang = [-cd[2], 0, cd[0]];
+  // mounting block on the body
+  const bw = 28, bt = 7, byT = cy + 30, byB = cy - 34;
+  const at = (u, w, y) => cam.P(gx + cd[0] * u + tang[0] * w, y, gz + cd[2] * u + tang[2] * w);
+  const u0 = r - 14, u1 = r + bt;
+  const faceOut = polyD([at(u1, -bw, byT), at(u1, bw, byT), at(u1, bw, byB), at(u1, -bw, byB)]);
+  const faceTop = polyD([at(u0, -bw, byT), at(u0, bw, byT), at(u1, bw, byT), at(u1, -bw, byT)]);
+  const faceSide = polyD([at(u0, bw, byT), at(u1, bw, byT), at(u1, bw, byB), at(u0, bw, byB)]);
+  S.solid(faceOut, 'cream', { back: 1, under: false, rim: 0.8 });
+  S.face(faceOut, 'rgb(0 0 0 / .1)');
+  S.solid(faceSide, 'cream', { back: 1, under: false, rim: 0.8 });
+  S.face(faceSide, 'rgb(0 0 0 / .22)');
+  S.solid(faceTop, 'cream', { back: 1, under: false, rim: 0.8 });
+  S.face(faceTop, 'rgb(255 255 255 / .1)');
   if (o.cup !== false) catchCup(S, cam, ccx, 44, ccz, { bell: false, ...(o.cupOpts || {}) });
   if (o.beforeChute) o.beforeChute({ ccx, ccz });
-  const c0 = [gx + cd[0] * (r - 12), 182, gz + cd[2] * (r - 12)];
-  const ch = tube(cam, [c0, add3(c0, cd, 18), add3(c0, cd, 34), [ccx - cd[0] * 6, 172, ccz - cd[2] * 6], [ccx, 156, ccz], [ccx, 140, ccz]], 26, 10);
-  S.solid(ch.d, 'cream');
-  const cap = ch.cap(ch.smp.length - 1, 1);
-  const chuteEnd = lathe(cam, ccx, ccz, [[150, 31], [128, 31], [126, 30]]);
-  S.solid(chuteEnd.sil, 'cream');
-  S.line(chuteEnd.front(150, 31), 's');
-  S.hl(crD(ch.L.slice(4, -8).map((p, i, a) => [p[0] + (ch.R[i + 4][0] - p[0]) * 0.22, p[1] + (ch.R[i + 4][1] - p[1]) * 0.22])), 0.45);
+  const c0 = [gx + cd[0] * u1, cy, gz + cd[2] * u1];
+  const RB = Math.min(32, GR.reach - (r + bt) - 2), bx = [ccx - cd[0] * RB, ccz - cd[2] * RB];
+  const bend = []; for (let k = 0; k <= 8; k++) { const t = k / 8 * Math.PI / 2; bend.push([bx[0] + cd[0] * RB * Math.sin(t), cy - RB + RB * Math.cos(t), bx[1] + cd[2] * RB * Math.sin(t)]); }
+  // collar first, then the elbow drops into it
+  const chuteEnd = G.stackLathe(cam, ccx, ccz, [[cT + 17, tr + 4.4], [cT + 15.5, tr + 5.3], [cT, tr + 5.5], [cT - 1.5, tr + 5], [cT - 2, tr + 4.4]], 4);
+  S.solid(chuteEnd.sil, 'cream', { back: 1, rim: 0.9 });
+  S.face(chuteEnd.ring(cT + 17, tr + 4.4), 'rgb(255 255 255 / .07)');
+  S.raw(`<path d="${chuteEnd.front(cT - 1, tr + 5.2)}" fill="none" stroke="rgb(0 0 0 / .3)" stroke-width="1"/>`);
+  S.hl(lathe(cam, ccx, ccz, [[cT + 15, tr + 5.5], [cT, tr + 5.5]]).streak(cT + 14, cT + 1, tr + 5.5, 150), 0.5);
+  const ch = tube(cam, [c0, ...bend, [ccx, cT + 17, ccz]], tr, 6);
+  // the far half of the start ring is tube wall too: fill it with the tube
+  const sc = ch.cap(0, -1), ec = ch.cap(ch.smp.length - 1, 1);
+  S.solid(polyD(sc.pts), 'cream', { back: 1, under: false, rim: 0 });
+  S.solid(polyD(ec.pts), 'cream', { back: 1, under: false, rim: 0 });
+  S.solid(ch.d, 'cream', { back: 1, rim: 0 });
+  S.raw(`<path d="${crD(ch.L)}M${pt(ch.R[0])}${crD(ch.R, false).slice(1).replace(/^/, 'L')}" fill="none" stroke="url(#${S.id}rim)" stroke-width="1"/>`);
+  const ee = ec.pts, lo = ee.reduce((m, p, i) => (p[0] < ee[m][0] ? i : m), 0), hi = ee.reduce((m, p, i) => (p[0] > ee[m][0] ? i : m), 0);
+  const half = (a, b) => { const out = []; for (let i = a; ; i = (i + 1) % ee.length) { out.push(ee[i]); if (i === b) break; } return out; };
+  const h1 = half(lo, hi), h2 = half(hi, lo), frontHalf = (h1.reduce((t, p) => t + p[1], 0) / h1.length > h2.reduce((t, p) => t + p[1], 0) / h2.length) ? h1 : h2;
+  S.raw(`<path d="${polyD(frontHalf, false)}" fill="none" stroke="rgb(0 0 0 / .3)" stroke-width="1"/>`);
+  S.hl(crD(ch.L.slice(1, -3).map((p, i) => [p[0] + (ch.R[i + 1][0] - p[0]) * 0.78, p[1] + (ch.R[i + 1][1] - p[1]) * 0.78])), 0.35);
+  const cap = sc;
   // top: dial ring, collar, bellows, lid
-  const dial = lathe(cam, gx, gz, [[dial1, r + 3], [dial1 - 1, r + 4, 1], [body1 + 1, r + 4], [body1, r + 3]]);
-  S.solid(dial.sil, 'cream');
+  const dial = G.stackLathe(cam, gx, gz, [[dial1, r + 3], [dial1 - 1, r + 4], [body1 + 1, r + 4], [body1, r + 3]], 3);
+  S.solid(dial.sil, 'cream', { back: 1 });
   S.face(dial.ring(dial1, r + 3), 'top');
   dialFace(S, cam, gx, dial1, gz, r + 3, o.ringCls);
   S.line(dial.ring(dial1, r + 3), 's');
@@ -471,17 +503,39 @@ function grinder(S, cam, gx, gz, o = {}) {
   S.close();
   return { ccx, ccz, chuteEnd, body, top: lid1, cap };
 }
-// black rubber bellows: stacked rounded convolutions, bottom to top
-function bellows(S, cam, gx, gz, y0, y1, n = 5) {
+// black rubber bellows (photos 2, 3): one continuous ribbed sleeve, folds
+// a touch wider at the bottom. One outline (envelope of the surface of
+// revolution), then each fold's upward flank catches the light and each
+// crease is a dark line, so it reads as rubber, not stacked discs.
+function bellows(S, cam, gx, gz, y0, y1, n = 4) {
   const h = (y1 - y0) / n;
-  const neck = lathe(cam, gx, gz, [[y1, 31], [y0, 31]]);
-  S.solid(neck.sil, 'dark', { under: false, rim: 0.6 });
+  const peak = (i) => 36.6 - i * 0.5, valley = (i) => 32 - i * 0.4;
+  const prof = [[0, 31.5], [h * 0.12, 32]];
   for (let i = 0; i < n; i++) {
-    const a = y0 + i * h;
-    const c = lathe(cam, gx, gz, [[a + h, 31.5], [a + h * 0.82, 35.4], [a + h * 0.5, 37], [a + h * 0.18, 35.4], [a, 31.5]]);
-    S.solid(c.sil, 'dark', { rim: 0.8 });
-    S.hl(c.front(a + h * 0.62, 36.6), 0.16);
-    S.hl(c.streak(a + h * 0.8, a + h * 0.25, 36, 150), 0.5);
+    const a = h * i;
+    prof.push([a + h * 0.3, peak(i) - 1.2], [a + h * 0.5, peak(i)], [a + h * 0.72, peak(i) - 1.4], [a + h, valley(i)]);
+  }
+  prof[prof.length - 1] = [y1 - y0, 33];
+  const rv = G.stackLathe(cam, gx, gz, prof.map(([d, r]) => [y0 + d, r]), 8);
+  S.solid(rv.sil, 'black', { under: false, rim: 0.8 });
+  const E = (y, r) => cam.ell(gx, y, gz, r);
+  const band = (ya, ra, yb, rb) => { const a = E(ya, ra), b = E(yb, rb); return `M${f(a.cx - a.rx)} ${f(a.cy)}A${f(a.rx)} ${f(a.ry)} 0 0 0 ${f(a.cx + a.rx)} ${f(a.cy)}L${f(b.cx + b.rx)} ${f(b.cy)}A${f(b.rx)} ${f(b.ry)} 0 0 1 ${f(b.cx - b.rx)} ${f(b.cy)}Z`; };
+  const gid = S.uid('bw');
+  const l = cam.P(gx - 37, 0, gz), r = cam.P(gx + 37, 0, gz);
+  S.raw(`<linearGradient id="${gid}" gradientUnits="userSpaceOnUse" x1="${f(l[0])}" y1="0" x2="${f(r[0])}" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".05"/><stop offset=".3" stop-color="#fff" stop-opacity=".2"/><stop offset=".55" stop-color="#fff" stop-opacity=".08"/><stop offset="1" stop-color="#fff" stop-opacity=".02"/></linearGradient>`);
+  for (let i = 0; i < n; i++) {
+    const a = y0 + h * i;
+    // upper flank of the fold: from its crest up into the crease above
+    S.fill(band(a + h * 0.5, peak(i), a + h * 0.95, valley(i) + 0.6), `url(#${gid})`);
+    // lower flank in shadow, crease line
+    S.fill(band(a + h * 0.05, valley(i) + 0.5, a + h * 0.45, peak(i) - 0.2), 'rgb(0 0 0 / .35)');
+    if (i < n - 1) S.raw(`<path d="${frontArcD(E(a + h, valley(i)))}" fill="none" stroke="#000" stroke-opacity=".7" stroke-width="1.2"/>`);
+    S.hl(frontArcD(E(a + h * 0.56, peak(i) - 0.1)), 0.1);
+  }
+  // crest highlights on the lit side of each fold
+  for (let i = 0; i < n; i++) {
+    const e = E(y0 + h * (i + 0.52), peak(i) - 0.15), A = (d) => [e.cx + e.rx * Math.cos(d * Math.PI / 180), e.cy + e.ry * Math.sin(d * Math.PI / 180)];
+    S.raw(`<path d="M${pt(A(168))}A${f(e.rx)} ${f(e.ry)} 0 0 0 ${pt(A(118))}" fill="none" stroke="#fff" stroke-opacity=".42" stroke-width="${f(Math.max(1.3, cam.s * 1.2))}"/>`);
   }
 }
 // dial markings on the top ring (rotating group in the ring's plane)
@@ -508,29 +562,40 @@ function dialFace(S, cam, gx, y, gz, R0, cls = '', big = false) {
 }
 
 // ------------------------------------------------------------------ catch cup (Weber style)
-// Straight black cylinder with a foot ring, the bell inside: a disc with a
-// slender stem and ball knob.
+// Photo 7: matte black anodised cylinder, straight sides, a shallow waist
+// groove near the bottom over a foot ring. Opaque. The bell plugs its bottom:
+// a flared disc, a slender stem that thickens towards the disc, a ball knob.
+const CC = { h: 62, r: 31 };
 function catchCup(S, cam, cx, y0, cz, o = {}) {
-  const h = 64, r = 31;
+  const { h, r } = CC;
   if (o.shadow !== false) groundShadow(S, cam, cx, cz, r + 4, y0, 1.1);
-  const cup = lathe(cam, cx, cz, [[y0 + h, r], [y0 + h - 1, r + 0.4, 1], [y0 + 12, r + 0.4, 1], [y0 + 10.5, r - 1.6, 1], [y0 + 1.5, r - 1.6], [y0, r - 2.6]]);
-  S.solid(cup.sil, 'dark');
-  S.line(cup.front(y0 + 11.5, r + 0.3), 's');
-  S.hl(cup.streak(y0 + h - 5, y0 + 16, r, 150), 0.5);
-  S.face(cup.ring(y0 + h, r), `rgb(${PAPER} / .1)`);
-  S.face(cup.ring(y0 + h, r - 2.2), o.full ? `url(#${S.id}coffee)` : 'hole');
+  const cup = G.stackLathe(cam, cx, cz, [[y0 + h, r], [y0 + 15, r], [y0 + 12, r - 1.2], [y0 + 9.5, r - 2.4], [y0 + 7, r - 1], [y0 + 4.5, r - 0.2], [y0 + 1, r - 0.4], [y0, r - 1.6]], 6);
+  S.solid(cup.sil, 'black', { rim: 0.9 });
+  // waist groove: shadowed above the foot, a light lip on the foot
+  S.raw(`<path d="${cup.front(y0 + 11, r - 1.4)}" fill="none" stroke="#000" stroke-opacity=".8" stroke-width="1.4"/>`);
+  S.hl(cup.front(y0 + 6.2, r - 0.6), 0.22);
+  const lc = lathe(cam, cx, cz, [[y0 + h, r], [y0 + 16, r]]);
+  S.hl(lc.streak(y0 + h - 5, y0 + 18, r, 150), 0.38);
+  S.hl(lc.streak(y0 + h - 8, y0 + 22, r, 132), 0.1);
+  // rim, then the dark inside (inner wall catches a little light at the back)
+  S.face(cup.ring(y0 + h, r), 'rgb(70 78 80)');
+  S.face(cup.ring(y0 + h, r - 1.8), o.full ? `url(#${S.id}coffee)` : '#050708');
+  if (!o.full) S.face(cup.back(y0 + h, r - 1.8) + `A${f(cup.ell(y0 + h - 14, r - 1.8).rx)} ${f(cup.ell(y0 + h - 14, r - 1.8).ry)} 0 0 0 ${pt([cup.ell(y0 + h - 14, r - 1.8).cx - cup.ell(y0 + h - 14, r - 1.8).rx, cup.ell(y0 + h - 14, r - 1.8).cy])}Z`, 'rgb(255 255 255 / .05)');
   S.line(cup.ring(y0 + h, r), 's');
   return { cup, top: y0 + h, r };
 }
 function bell(S, cam, cx, yDisc, cz, cls = '') {
   S.open(cls);
-  const stem = lathe(cam, cx, cz, [[yDisc + 62, 2.2], [yDisc + 2, 2.2]]);
-  S.solid(stem.sil, 'dark', { under: false });
-  const knob = lathe(cam, cx, cz, [[yDisc + 74, 0.01], [yDisc + 72, 4.6], [yDisc + 68, 6.4], [yDisc + 64, 4.6], [yDisc + 62, 0.01]]);
-  S.solid(knob.sil, 'dark', { under: false });
-  S.hl(knob.streak(yDisc + 71, yDisc + 66, 5, 140), 0.7);
-  const disc = lathe(cam, cx, cz, [[yDisc + 4, 3], [yDisc + 1, 26.5], [yDisc, 28.4]]);
-  S.solid(disc.sil, 'dark', { under: false });
+  const disc = convexLathe(cam, cx, cz, [[yDisc + 6, 7], [yDisc + 3, 20], [yDisc + 1.4, 28], [yDisc, 28.6]]);
+  S.solid(disc.sil, 'black', { under: false, rim: 0.8 });
+  S.hl(disc.front(yDisc + 2.6, 22), 0.25);
+  const stem = G.stackLathe(cam, cx, cz, [[yDisc + 66, 2], [yDisc + 30, 2.2], [yDisc + 12, 3.2], [yDisc + 6, 5.5], [yDisc + 4, 9]], 6);
+  S.solid(stem.sil, 'black', { under: false, rim: 0.7 });
+  S.raw(`<path d="${lathe(cam, cx, cz, [[yDisc + 64, 2.1], [yDisc + 10, 2.1]]).streak(yDisc + 63, yDisc + 10, 1.6, 150)}" stroke="#fff" stroke-opacity=".5" stroke-width="1"/>`);
+  const knob = convexLathe(cam, cx, cz, [[yDisc + 75.5, 0.01], [yDisc + 75, 2.4], [yDisc + 73.5, 4.2], [yDisc + 71, 5.2], [yDisc + 68.5, 4.2], [yDisc + 67, 2.4], [yDisc + 66.5, 0.01]]);
+  S.solid(knob.sil, 'black', { under: false, rim: 0.7 });
+  const kc = cam.P(cx - 1.8, yDisc + 72.8, cz + 2);
+  S.fill(circle(kc, 1.3 * cam.s), 'rgb(255 255 255 / .75)');
   S.close();
 }
 
@@ -552,126 +617,165 @@ function funnel(S, cam, cx, y0, cz, cls = '') {
 // narrow neck, rounded cap. The neck + cap is the part you press.
 function tamper(S, cam, cx, y0, cz, o = {}) {
   S.open(o.cls || '');
-  const base = lathe(cam, cx, cz, [[y0 + 5, 34], [y0 + 4, 35, 1], [y0 + 1, 35], [y0, 34]]);
-  const face = lathe(cam, cx, cz, [[y0 + 1, 28.6], [y0 - 7, 28.6]]);
-  S.solid(face.sil, 'metal', { under: false });
-  S.solid(base.sil, 'dark');
-  S.face(base.ring(y0 + 5, 34), `rgb(${PAPER} / .08)`);
-  const body = lathe(cam, cx, cz, [[y0 + 34, 24], [y0 + 33, 25, 1], [y0 + 5, 25]]);
-  S.solid(body.sil, 'dark');
-  const ring = lathe(cam, cx, cz, [[y0 + 30, 25.4], [y0 + 27, 25.4]]);
-  S.solid(ring.sil, 'metal', { under: false });
-  S.hl(body.streak(y0 + 25, y0 + 8, 25, 150), 0.5);
-  S.face(body.ring(y0 + 34, 24), `rgb(${PAPER} / .08)`);
+  const face = G.stackLathe(cam, cx, cz, [[y0 + 1, 28.6], [y0 - 7, 28.6], [y0 - 7.6, 28]], 2);
+  S.solid(face.sil, 'steel', { under: false, rim: 0.8 });
+  const base = G.stackLathe(cam, cx, cz, [[y0 + 5, 34], [y0 + 4.2, 35], [y0 + 0.8, 35], [y0, 34.2]], 3);
+  S.solid(base.sil, 'black');
+  S.face(base.ring(y0 + 5, 34), `rgb(${PAPER} / .1)`);
+  S.hl(base.front(y0 + 2.5, 35), 0.25);
+  const body = G.stackLathe(cam, cx, cz, [[y0 + 30, 25], [y0 + 5, 25]], 2);
+  S.solid(body.sil, 'black');
+  S.hl(body.streak(y0 + 27, y0 + 8, 25, 150), 0.45);
+  // thin steel ring where the neck slides into the collar
+  const ring = G.stackLathe(cam, cx, cz, [[y0 + 33, 24.4], [y0 + 30, 25.2]], 2);
+  S.solid(ring.sil, 'steel', { under: false, rim: 0.6 });
+  S.face(ring.ring(y0 + 33, 24.4), 'rgb(255 255 255 / .12)');
   S.open(o.pressCls || '');
-  const neck = lathe(cam, cx, cz, [[y0 + 52, 12.5], [y0 + 30, 12.5]]);
-  S.solid(neck.sil, 'dark');
-  S.hl(neck.streak(y0 + 50, y0 + 36, 12.5, 150), 0.4);
-  const cap = lathe(cam, cx, cz, [[y0 + 84, 14], [y0 + 83, 17.5], [y0 + 79, 19.5], [y0 + 70, 20], [y0 + 54, 19.5], [y0 + 51, 18]]);
-  S.solid(cap.sil, 'dark');
-  S.face(cap.ring(y0 + 84, 14), `rgb(${PAPER} / .1)`);
-  S.hl(cap.streak(y0 + 79, y0 + 56, 19.6, 148), 0.55);
+  const neck = G.stackLathe(cam, cx, cz, [[y0 + 54, 15.5], [y0 + 32, 15.5]], 2);
+  S.solid(neck.sil, 'black');
+  S.hl(neck.streak(y0 + 50, y0 + 36, 15.5, 150), 0.4);
+  const cap = G.stackLathe(cam, cx, cz, [[y0 + 88, 16], [y0 + 87.4, 19], [y0 + 86, 21.6], [y0 + 83.5, 23.2], [y0 + 80, 23.8], [y0 + 56, 23.8], [y0 + 54, 23]], 6);
+  S.solid(cap.sil, 'black');
+  S.face(cap.ring(y0 + 88, 16), `rgb(${PAPER} / .07)`);
+  S.hl(cap.streak(y0 + 80, y0 + 58, 23.8, 150), 0.55);
+  const ct = cam.ell(cx, y0 + 86.5, cz, 20.5);
+  S.raw(`<path d="M${pt([ct.cx + ct.rx * Math.cos(2.5), ct.cy + ct.ry * Math.sin(2.5)])}A${f(ct.rx)} ${f(ct.ry)} 0 0 1 ${pt([ct.cx + ct.rx * Math.cos(-2.2), ct.cy + ct.ry * Math.sin(-2.2)])}" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="1.4"/>`);
   S.close();
   S.close();
 }
 
 // ------------------------------------------------------------------ knock box
-// Rounded tub (photo 8) with a deep U scoop in the front and a bar across.
+// Photo 8: glossy black rounded tub; the front wall is cut by a deep, wide U
+// scoop that sweeps up to the top at the corners; a rubber knock bar runs
+// side to side just under the rim, its round end caps through the side walls.
+const KB = { a: 74, d: 58, h: 124, r: 30, t: 5, by: 113, bz: -6, br: 9 };
 function knockBox(S, cam, cx, cz, o = {}) {
-  const a = 76, d = 60, h = 128, r = 26, t = 6;
+  const { a, d, h, r, t, by, br } = KB, bz = cz + KB.bz;
   S.shadow(rrectTop(cam, cx - a - 8, cx + a + 14, cz - d - 6, cz + d + 12, 0, r + 8));
+  const capDisc = (x, sgn) => { const T = cam.plane([x, by, bz], [0, 0, -1], [0, -1, 0]); return `<g transform="${T}"><circle r="12.5" fill="#0b1214" stroke="url(#${S.id}rim)" stroke-width="1" vector-effect="non-scaling-stroke"/><circle r="12.5" fill="url(#${S.id}black)" fill-opacity=".9"/><circle r="5" fill="none" stroke="rgb(${PAPER} / .28)" vector-effect="non-scaling-stroke"/><path d="M${-9 * sgn} -6a11 11 0 0 1 6 -4" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="1.4" vector-effect="non-scaling-stroke"/></g>`; };
+  // the far end cap sticks out past the left wall
+  S.raw(capDisc(cx - a - 5, -1));
   const box = rbox(cam, cx - a, cx + a, cz - d, cz + d, 0, h, r);
-  S.solid(box.sil, 'dark');
+  S.solid(box.sil, 'black', { rim: 1 });
   // right face a touch darker
-  S.face(polyD([cam.P(cx + a, h, cz + d - r), cam.P(cx + a, h, cz - d + r), cam.P(cx + a, 0, cz - d + r), cam.P(cx + a, 0, cz + d - r)]), 'rgb(0 0 0 / .22)');
-  // rim (wall thickness) and the dark inside
-  const outer = rrectTop(cam, cx - a, cx + a, cz - d, cz + d, h, r);
+  S.face(polyD([cam.P(cx + a, h, cz + d - r), cam.P(cx + a, h, cz - d + r), cam.P(cx + a, 0, cz - d + r), cam.P(cx + a, 0, cz + d - r)]), 'rgb(0 0 0 / .25)');
+  // the opening and the U scoop through the front wall
   const inner = rrectTop(cam, cx - a + t, cx + a - t, cz - d + t, cz + d - t, h, r - t);
-  S.fill(outer + inner, `rgb(${PAPER} / .13)`, ' fill-rule="evenodd"');
-  S.fill(inner, '#030809');
-  // far inside walls catch a little light
-  S.fill(rrectTop(cam, cx - a + t, cx + a - t, cz - d + t, cz + d - t, h - 34, r - t), 'rgb(255 255 255 / .03)');
-  // U scoop through the front wall: front plane and inner plane, joined
-  const U = []; for (let i = 0; i <= 24; i++) { const th = Math.PI * i / 24; U.push([-46 * Math.cos(th), 70 * Math.sin(th) ** 0.9]); }
-  const Upts = (zz) => U.map(([x, y]) => cam.P(cx + x, h - y, zz));
+  const U = []; const uw = a - 12, ud = 74;
+  for (let i = 0; i <= 32; i++) { const th = Math.PI * i / 32, c = Math.cos(th); U.push([-uw * c, h - ud * Math.pow(Math.sin(th), 1.6) * (1 - 0.0 * c)]); }
+  const Upts = (zz) => U.map(([x, y]) => cam.P(cx + x, y, zz));
   const uf = Upts(cz + d), ui = Upts(cz + d - t);
   const cut = polyD(hull(uf.concat(ui)));
-  S.fill(cut, '#030809');
-  if (o.inside) o.inside({ cut, inner });
-  // edges
-  S.raw(`<path d="${polyD(uf, false)}" fill="none" stroke="url(#${S.id}rim)" stroke-width="1.1"/>`);
-  S.raw(`<path d="${polyD(ui, false)}" fill="none" stroke="rgb(${PAPER} / .18)" stroke-width=".8"/>`);
+  // rim band, dark inside
+  S.fill(box.top + inner, `rgb(${PAPER} / .16)`, ' fill-rule="evenodd"');
+  S.fill(inner, '#040809');
+  S.fill(cut, '#040809');
+  const cid = S.uid('kin');
+  S.raw(`<clipPath id="${cid}"><path d="${inner}"/><path d="${cut}"/></clipPath><g clip-path="url(#${cid})">`);
+  // back inner wall catches a soft light from above
+  const gk = S.uid('kg'), gt = cam.P(cx, h, cz - d), gb = cam.P(cx, 30, cz - d);
+  S.raw(`<linearGradient id="${gk}" gradientUnits="userSpaceOnUse" x1="0" y1="${f(gt[1])}" x2="0" y2="${f(gb[1])}"><stop offset="0" stop-color="#fff" stop-opacity=".09"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>`);
+  S.fill(polyD([cam.P(cx - a, h, cz - d + t), cam.P(cx + a, h, cz - d + t), cam.P(cx + a, 0, cz - d + t), cam.P(cx - a, 0, cz - d + t)]), `url(#${gk})`);
+  S.raw('</g>');
+  if (o.inside) o.inside({ cut, inner, sil: box.sil });
+  // the knock bar, seen through the opening and the scoop
+  S.raw(`<g clip-path="url(#${cid})">`);
+  const bar = tube(cam, [[cx - a, by, bz], [cx, by, bz], [cx + a, by, bz]], br);
+  S.solid(bar.d, 'black', { under: false, rim: 0.8 });
+  S.raw(`<path d="${crD([cam.P(cx - a, by - br * 0.55, bz + br * 0.8), cam.P(cx + a, by - br * 0.55, bz + br * 0.8)])}" stroke="#000" stroke-opacity=".6" stroke-width="${f(br * cam.s * 0.5)}" fill="none"/>`);
+  S.hl(crD([cam.P(cx - a, by + br * 0.7, bz + br * 0.5), cam.P(cx + a, by + br * 0.7, bz + br * 0.5)]), 0.5);
+  S.raw('</g>');
+  if (o.front) o.front({ cut, inner, sil: box.sil });
+  // scoop edges: outer lip and the wall thickness
+  S.raw(`<path d="${polyD(uf, false)}" fill="none" stroke="url(#${S.id}rim)" stroke-width="1.2"/>`);
+  S.raw(`<path d="${polyD(ui, false)}" fill="none" stroke="rgb(${PAPER} / .2)" stroke-width=".8"/>`);
   S.line(inner, 's');
-  // glossy highlights
-  S.hl(crD([cam.P(cx - a + 9, h - 14, cz + d - 2.5), cam.P(cx - a + 9, 14, cz + d - 2.5)]), 0.45);
-  S.hl(crD([cam.P(cx + a - 2.5, h - 14, cz + d - 9), cam.P(cx + a - 2.5, 14, cz + d - 9)]), 0.28);
-  // the knock bar across the middle, round end caps through the sides
-  const by = h + 3, bz = cz - 2;
-  const bar = tube(cam, [[cx - a - 2, by, bz], [cx, by, bz], [cx + a + 2, by, bz]], 8);
-  S.solid(bar.d, 'dark', { under: false });
-  S.hl(crD([cam.P(cx - a + 6, by + 5.5, bz + 3), cam.P(cx + a - 6, by + 5.5, bz + 3)]), 0.45);
-  const capT = cam.plane([cx + a + 2, by, bz], [0, 0, -1], [0, -1, 0]);
-  S.raw(`<g transform="${capT}"><circle r="12" fill="#0a1214" stroke="url(#${S.id}rim)" stroke-width="1" vector-effect="non-scaling-stroke"/><circle r="4.5" fill="none" stroke="rgb(${PAPER} / .3)" vector-effect="non-scaling-stroke"/></g>`);
-  return { top: h, by, bz, inner, cut };
+  // glossy highlights on the front corners and the right face
+  S.hl(crD([cam.P(cx - a + 10, h - 16, cz + d - 3), cam.P(cx - a + 10, 16, cz + d - 3)]), 0.45);
+  S.hl(crD([cam.P(cx + a - 3, h - 16, cz + d - 10), cam.P(cx + a - 3, 16, cz + d - 10)]), 0.3);
+  S.hl(crD([cam.P(cx + a - 0.5, h - 12, cz - 10), cam.P(cx + a - 0.5, 20, cz - 10)]), 0.12);
+  // near end cap on the right wall
+  S.raw(capDisc(cx + a + 5, 1));
+  return { top: h, by, bz, br, inner, cut, sil: box.sil };
 }
 
 // ------------------------------------------------------------------ bottles
+// Photo 9: slim clear bottle with round shoulders, white ribbed screw collar,
+// white pump head with a side nozzle, a clear dip tube curving to the bottom.
 function sprayBottle(S, cam, cx, cz, o = {}) {
   groundShadow(S, cam, cx, cz, 18);
-  const bt = lathe(cam, cx, cz, [[116, 10.5], [113, 11.5], [107, 15.5, 1], [101, 16.5], [4, 16.5], [1, 15.8], [0, 14.4]]);
-  const lq = lathe(cam, cx, cz, [[66, 15.4], [5, 15.4], [2, 14.6]]);
-  S.raw(`<path d="${lq.sil}" style="fill:var(--acc)" fill-opacity=".2"/>`);
-  S.raw(`<path d="${lq.ring(66, 15.4)}" fill="none" style="stroke:var(--acc)" stroke-opacity=".55" stroke-width="1"/>`);
-  S.raw(`<path d="M${pt(cam.P(cx + 1.5, 116, cz))}L${pt(cam.P(cx + 3.5, 4, cz))}" stroke="rgb(${PAPER} / .35)" stroke-width="1.4" fill="none"/>`);
+  const bt = G.stackLathe(cam, cx, cz, [[117, 8.6], [114, 8.9], [111, 10.4], [107.5, 13.2], [104, 15.4], [100.5, 16.6], [97, 17], [4, 17], [1.5, 16.6], [0, 15.4]], 6);
+  // water, then the dip tube, seen through the bottle
+  const lq = G.stackLathe(cam, cx, cz, [[62, 16], [4, 16], [1.5, 15.6], [0.8, 14.6]], 4);
+  S.raw(`<path d="${lq.sil}" style="fill:var(--acc)" fill-opacity=".18"/>`);
+  S.raw(`<path d="${lq.ring(62, 16)}" style="fill:var(--acc)" fill-opacity=".12"/><path d="${lq.ring(62, 16)}" fill="none" style="stroke:var(--acc)" stroke-opacity=".5" stroke-width="1"/>`);
+  const tubeP = [[cx, 116, cz], [cx + 0.5, 80, cz], [cx + 3, 40, cz + 2], [cx + 9, 12, cz + 6], [cx + 12, 3, cz + 8]].map((p) => cam.P(...p));
+  S.raw(`<path d="${crD(tubeP)}" stroke="rgb(${PAPER} / .42)" stroke-width="${f(Math.max(1.2, 2.6 * cam.s))}" fill="none"/><path d="${crD(tubeP)}" stroke="rgb(20 40 44 / .6)" stroke-width="${f(Math.max(0.5, 1.2 * cam.s))}" fill="none"/>`);
   S.solid(bt.sil, 'glass');
-  S.hl(bt.streak(98, 10, 16.5, 150), 0.7);
-  S.hl(bt.streak(92, 24, 16.5, 58), 0.22);
-  const collar = lathe(cam, cx, cz, [[128, 11.6], [127, 12.2, 1], [114, 12.2]]);
-  S.solid(collar.sil, 'white');
-  S.line(collar.ribs(115, 126.5, 12.2, 10), 'rgb(0 0 0 / .16)');
+  S.face(bt.ring(117, 8.6), 'rgb(255 255 255 / .06)');
+  const sl = lathe(cam, cx, cz, [[96, 17], [4, 17]]);
+  S.hl(sl.streak(94, 8, 17, 150), 0.7);
+  S.hl(sl.streak(92, 20, 17, 120), 0.18);
+  S.hl(sl.streak(88, 14, 17, 50), 0.22);
+  S.raw(`<path d="${bt.front(2.5, 16.4)}" fill="none" stroke="rgb(255 255 255 / .3)" stroke-width="1"/>`);
+  // white ribbed collar
+  const collar = G.stackLathe(cam, cx, cz, [[128, 11.4], [127.2, 12.1], [114.6, 12.1], [114, 11.6]], 3);
+  S.solid(collar.sil, 'white', { rim: 0.8 });
+  S.line(lathe(cam, cx, cz, [[127, 12.1], [115, 12.1]]).ribs(115.5, 126.5, 12.1, 16), 'rgb(0 0 0 / .14)');
+  S.face(collar.ring(128, 11.4), 'rgb(255 255 255 / .35)');
   S.open(o.pumpCls || '');
-  const stem = lathe(cam, cx, cz, [[131, 3], [127, 3]]);
+  const stem = lathe(cam, cx, cz, [[131, 3.2], [127.5, 3.2]]);
   S.solid(stem.sil, 'white', { under: false });
-  const head = lathe(cam, cx, cz, [[146, 8.4], [145, 9.2, 1], [132, 9.2], [131, 8.8]]);
-  S.solid(head.sil, 'white');
-  S.face(head.ring(146, 8.4), 'rgb(255 255 255 / .55)');
-  // nozzle hole on the side facing the beans (+x)
-  const nz = cam.right(cx + 9.2, 140, cz);
-  S.raw(`<g transform="${nz}"><ellipse rx="2.4" ry="2.4" fill="#33464a"/></g>`);
+  const head = G.stackLathe(cam, cx, cz, [[147, 7.4], [146, 8.6], [144, 9], [132, 9], [131, 8.4]], 3);
+  S.solid(head.sil, 'white', { rim: 0.8 });
+  S.face(head.ring(147, 7.4), 'rgb(255 255 255 / .6)');
+  S.hl(lathe(cam, cx, cz, [[144, 9], [132, 9]]).streak(143, 133, 9, 140), 0.8);
+  // nozzle on the side facing the beans (+x)
+  const nz = cam.right(cx + 9.05, 140, cz);
+  S.raw(`<g transform="${nz}"><circle r="2.6" fill="rgb(0 0 0 / .15)"/><circle r="1.3" fill="#26383c"/></g>`);
   S.close();
   return { nozzle: cam.P(cx + 10, 140, cz) };
 }
+// Photo 10: amber glass, straight body, round shoulders, short neck with a
+// lip the cap screws onto.
 function mineralBottle(S, cam, bx, bz, o = {}) {
   groundShadow(S, cam, bx, bz, 20);
   // neck (behind the dropper)
-  const neck = lathe(cam, bx, bz, [[86, 8.4], [76, 8.4]]);
+  const neck = G.stackLathe(cam, bx, bz, [[86, 8.2], [84.5, 8.8], [80.5, 8.8], [79.6, 8]], 3);
   S.solid(neck.sil, 'amber', { under: false });
-  S.face(neck.ring(86, 6.4), 'deep');
-  S.line(neck.front(83, 8.5) + neck.front(80, 8.5), 's');
+  S.face(neck.ring(86, 6.2), 'deep');
+  S.line(neck.front(80.2, 8.6), 's');
   if (o.dropper) o.dropper();
-  const bottle = lathe(cam, bx, bz, [[78, 8.4], [76, 9.2], [73, 12.6], [68, 16.6], [62, 18.6], [56, 19.2, 1], [6, 19.2, 1], [2, 18.4], [0, 16.6]]);
+  const bottle = G.stackLathe(cam, bx, bz, [[79.6, 7.8], [76, 8], [74.5, 9.2], [72.5, 12.4], [70, 15.4], [66.5, 17.6], [62, 18.8], [57, 19.2], [5, 19.2], [2, 18.7], [0, 17.4]], 6);
   S.solid(bottle.sil, 'amber');
-  const liq = lathe(cam, bx, bz, [[36, 17.6], [6, 17.6], [2.6, 16.6], [1.6, 15]]);
-  S.fill(liq.sil, 'rgb(242 179 61 / .28)');
-  S.raw(`<path d="${liq.ring(36, 17.6)}" fill="none" stroke="rgb(255 210 120 / .45)" stroke-width=".9"/>`);
-  S.hl(bottle.streak(52, 12, 19.2, 152), 0.75);
-  S.hl(bottle.streak(64, 58, 18, 150), 0.55);
-  S.hl(bottle.streak(50, 28, 19.2, 58), 0.2);
+  const liq = G.stackLathe(cam, bx, bz, [[38, 17.8], [5, 17.8], [2.4, 17.2], [1.4, 16]], 4);
+  S.fill(liq.sil, 'rgb(242 179 61 / .26)');
+  S.raw(`<path d="${liq.ring(38, 17.8)}" fill="rgb(255 210 120 / .08)" stroke="rgb(255 210 120 / .45)" stroke-width=".9"/>`);
+  const st = lathe(cam, bx, bz, [[57, 19.2], [5, 19.2]]);
+  S.hl(st.streak(54, 10, 19.2, 152), 0.75);
+  S.hl(st.streak(50, 28, 19.2, 58), 0.2);
+  // shoulder catches a curved highlight
+  const sh = [[70, 15.2], [67, 17.2], [63.5, 18.4]].map(([y, r]) => { const e = cam.ell(bx, y, bz, r); return [e.cx + e.rx * Math.cos(150 * Math.PI / 180), e.cy + e.ry * Math.sin(150 * Math.PI / 180)]; });
+  S.raw(`<path d="${crD(sh)}" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="1.6"/>`);
   return bottle;
 }
 // eyedropper: glass pipette, black ribbed screw cap, rubber bulb. (x, y, z) = cap bottom
 function dropper(S, cam, x, y, z, o = {}) {
-  const pip = lathe(cam, x, z, [[y + 1, 3.1], [y - 52, 3.1], [y - 60, 1.6], [y - 64, 1]]);
+  const pip = G.stackLathe(cam, x, z, [[y + 1, 3.1], [y - 54, 3.1], [y - 60, 1.8], [y - 64, 1.1]], 4);
   S.solid(pip.sil, 'glass', { rim: 0.8 });
-  S.raw(`<path d="${pip.streak(y - 4, y - 50, 2.6, 150)}" stroke="rgb(255 255 255 / .45)" stroke-width="1"/>`);
-  const cap = lathe(cam, x, z, [[y + 15, 9.4], [y + 14.2, 10.2, 1], [y + 0.8, 10.2], [y, 9.6]]);
-  S.solid(cap.sil, 'dark');
-  S.line(cap.ribs(y + 1, y + 14, 10.2, 13), 's');
-  S.open(o.bulbCls || '', o.bulbCls ? ` style="transform-origin:${f(cam.P(x, y + 15, z)[0])}px ${f(cam.P(x, y + 15, z)[1])}px"` : '');
-  const bulb = lathe(cam, x, z, [[y + 40, 0.01], [y + 39, 3.8], [y + 36.5, 6.4], [y + 31, 7.6], [y + 23, 7.2], [y + 18.5, 6], [y + 17, 7, 1], [y + 15, 8]]);
-  S.solid(bulb.sil, 'dark');
-  S.line(bulb.front(y + 17, 7), 's');
-  S.hl(bulb.streak(y + 36, y + 22, 7, 145), 0.55);
+  S.raw(`<path d="${lathe(cam, x, z, [[y, 2.6], [y - 50, 2.6]]).streak(y - 4, y - 50, 2.6, 150)}" stroke="rgb(255 255 255 / .45)" stroke-width="1"/>`);
+  // ribbed screw cap over a thin tamper ring
+  const ring = G.stackLathe(cam, x, z, [[y + 3, 10.4], [y, 10.4]], 2);
+  S.solid(ring.sil, 'black', { rim: 0.6 });
+  const cap = G.stackLathe(cam, x, z, [[y + 17, 9.6], [y + 16.2, 10.4], [y + 3.6, 10.4], [y + 3, 10]], 3);
+  S.solid(cap.sil, 'black', { rim: 0.8 });
+  S.raw(`<path d="${lathe(cam, x, z, [[y + 16, 10.4], [y + 4, 10.4]]).ribs(y + 4, y + 15.6, 10.4, 15)}" stroke="rgb(255 255 255 / .16)" stroke-width="1"/>`);
+  S.face(cap.ring(y + 17, 9.6), 'rgb(255 255 255 / .06)');
+  S.open(o.bulbCls || '', o.bulbCls ? ` style="transform-origin:${f(cam.P(x, y + 17, z)[0])}px ${f(cam.P(x, y + 17, z)[1])}px"` : '');
+  const bulb = G.stackLathe(cam, x, z, [[y + 44, 0.01], [y + 43.4, 3], [y + 41.5, 5.6], [y + 37, 7.2], [y + 29, 7.2], [y + 22, 6.4], [y + 19.5, 6.6], [y + 18, 8], [y + 17, 8.2]], 6);
+  S.solid(bulb.sil, 'black', { rim: 0.8 });
+  S.raw(`<path d="${bulb.front(y + 19, 7)}" fill="none" stroke="rgb(255 255 255 / .18)" stroke-width="1"/>`);
+  S.hl(lathe(cam, x, z, [[y + 40, 6.4], [y + 23, 6.4]]).streak(y + 39, y + 24, 6.6, 145), 0.5);
   S.close();
   return { tip: cam.P(x, y - 64, z) };
 }
@@ -689,7 +793,6 @@ function shaker(S, cam, cx, cz, o = {}) {
   const id = S.uid('sb'); S.raw(`<clipPath id="${id}"><path d="${body.sil}"/></clipPath><g clip-path="url(#${id})">`);
   polish(S, body, 128, 1, 39);
   S.raw('</g>');
-  S.line(body.front(122, 44), 's');
   S.open(o.topCls || '');
   const top = lathe(cam, cx, cz, [[192, 14.2], [188, 15.6], [178, 20], [164, 31], [150, 40.6], [140, 44.6, 1], [129, 44.8]]);
   S.solid(top.sil, 'metal');
@@ -720,4 +823,4 @@ function glass(S, cam, cx, cz, o = {}) {
   return gl;
 }
 
-module.exports = { bellows, handleMarble, espressoCup, CUP_H, portafilter, groundsMound, paperDisc, de1, DE, ghc, grinder, GR, dialFace, catchCup, bell, funnel, tamper, knockBox, sprayBottle, mineralBottle, dropper, shaker, glass, circle, ellipseD, groundShadow, drop, scale, dots, FONT, DOSE, BEANS, bean, dosingCup, PAPER };
+module.exports = { KB, CC, bellows, handleMarble, espressoCup, CUP_H, portafilter, groundsMound, paperDisc, de1, DE, ghc, grinder, GR, dialFace, catchCup, bell, funnel, tamper, knockBox, sprayBottle, mineralBottle, dropper, shaker, glass, circle, ellipseD, groundShadow, drop, scale, dots, FONT, DOSE, BEANS, bean, dosingCup, PAPER };

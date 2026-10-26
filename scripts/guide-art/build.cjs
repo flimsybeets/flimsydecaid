@@ -26,10 +26,12 @@ function Style(sid) {
   lg('cream', [[0, `rgb(${PAPER} / .26)`], [0.55, `rgb(${PAPER} / .10)`], [1, `rgb(${PAPER} / .06)`]]);
   lg('ceramic', [[0, `rgb(${PAPER} / .30)`], [0.55, `rgb(${PAPER} / .13)`], [1, `rgb(${PAPER} / .08)`]]);
   lg('dark', [[0, 'rgb(48 68 72 / .8)'], [0.5, 'rgb(8 18 21 / .88)'], [1, 'rgb(2 8 10 / .92)']]);
+  lg('black', [[0, 'rgb(58 66 68)'], [0.18, 'rgb(24 29 31)'], [0.6, 'rgb(10 13 14)'], [1, 'rgb(3 5 6)']], 1, 0.15);
+  lg('steel', [[0, 'rgb(150 162 162)'], [0.22, 'rgb(70 82 84)'], [0.45, 'rgb(190 200 198)'], [0.7, 'rgb(52 62 64)'], [1, 'rgb(110 122 122)']], 1, 0);
   lg('smoke', [[0, 'rgb(70 92 96 / .55)'], [0.5, 'rgb(14 26 29 / .72)'], [1, 'rgb(4 10 12 / .8)']]);
   lg('metal', [[0, `rgb(${PAPER} / .40)`], [0.35, `rgb(${PAPER} / .12)`], [0.62, `rgb(${PAPER} / .30)`], [1, `rgb(${PAPER} / .08)`]], 1, 0);
   lg('glass', [[0, `rgb(${PAPER} / .18)`], [0.3, `rgb(${PAPER} / .04)`], [0.8, `rgb(${PAPER} / .06)`], [1, `rgb(${PAPER} / .14)`]], 1, 0);
-  lg('white', [[0, 'rgb(250 252 250 / .78)'], [0.6, 'rgb(220 230 228 / .55)'], [1, 'rgb(180 196 194 / .5)']], 1, 0.3);
+  lg('white', [[0, 'rgb(250 252 250 / .95)'], [0.35, 'rgb(232 238 236 / .9)'], [0.75, 'rgb(196 208 206 / .85)'], [1, 'rgb(160 176 174 / .85)']], 1, 0.3);
   lg('amber', [[0, 'rgb(214 128 40 / .75)'], [0.45, 'rgb(150 76 18 / .72)'], [1, 'rgb(84 38 8 / .82)']], 1, 0.2);
   lg('resin', [[0, '#3c2552'], [0.45, '#1a0f26'], [1, '#09060d']], 0.3, 1);
   lg('coffee', [[0, '#8a5a36'], [1, '#4a2c18']], 0.4, 1);
@@ -51,7 +53,7 @@ function Style(sid) {
     solid(d, tone = 'cream', o = {}) {
       const k = S.uid('s');
       defs.push(`<path id="${k}" d="${d}"/>`);
-      const back = { glass: 0, amber: 0.45, white: 0.5, ceramic: 0.94, resin: 0, coffee: 0, latte: 0, smoke: 0.75 }[tone] ?? 0.8;
+      const back = o.back ?? ({ glass: 0, amber: 0.45, white: 0.92, ceramic: 1, metal: 0.95, resin: 0, coffee: 0, latte: 0, smoke: 0.75, black: 1, steel: 1 }[tone] ?? 0.8);
       if (back) P(`<use href="#${k}" fill="url(#${id}bg)" fill-opacity="${back}"/>`);
       P(`<use href="#${k}" fill="url(#${id}${tone})"/>`);
       if (o.under !== false) P(`<use href="#${k}" fill="url(#${id}under)"/>`);
