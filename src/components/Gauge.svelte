@@ -11,7 +11,7 @@
   interface Target { value: number | null | undefined; colour: string }
 
   let {
-    label, unit, min, max, major, minor = 2, needles, targets = [], decimals = 1, redline, side = false,
+    label, unit, min, max, major, minor = 2, needles, targets = [], decimals = 1, redline, side = false, active = false, ring,
   }: {
     label: string;
     unit: string;
@@ -28,6 +28,10 @@
     redline?: number;
     /** Put the label beside the dial instead of under it (the dial then fills the height and is square); the label runs vertically on its left. */
     side?: boolean;
+    /** Highlight ring on (this is the pump the machine is controlling). Only the class changes per frame. */
+    active?: boolean;
+    /** Colour of the highlight ring. */
+    ring?: string;
   } = $props();
 
   const C = 100;
@@ -44,7 +48,7 @@
 </script>
 
 <figure class="gauge" class:side>
-  <div class="face">
+  <div class="face" class:active style={ring ? `--ring: ${ring}` : undefined}>
   <svg viewBox="0 0 200 200" role="img" aria-label="{label}: {needles.map((n) => `${n.name ? `${n.name} ` : ''}${fmt(n.value)} ${unit}`).join(', ')}">
     <defs>
       <linearGradient id="face-{uid}" x1="0.1" y1="0" x2="0.9" y2="1">
@@ -122,6 +126,23 @@
   }
   .face { flex: 1; min-height: 0; width: 100%; position: relative; }
   .face > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  /* Highlight ring: a static gradient band on the disc's rim, no filter or shadow; it only fades in and out. */
+  .face::after {
+    content: '';
+    position: absolute;
+    /* a centred square the height of the face, like the SVG inside it (the face can be wider than tall in the row layout) */
+    top: 0;
+    left: 50%;
+    height: 100%;
+    aspect-ratio: 1;
+    translate: -50% 0;
+    border-radius: 50%;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 220ms ease;
+    background: radial-gradient(closest-side, transparent 84%, color-mix(in srgb, var(--ring, #fff) 22%, transparent) 90%, color-mix(in srgb, var(--ring, #fff) 70%, transparent) 96%, var(--ring, #fff) 98.5%, transparent 100%);
+  }
+  .face.active::after { opacity: 1; }
   .gauge.side { flex-direction: row; align-items: center; gap: 2px; }
   .gauge.side .face { flex: none; width: auto; height: 100%; aspect-ratio: 1; }
   /* Vertical label left of the dial, reading bottom to top, centred on the dial. */
