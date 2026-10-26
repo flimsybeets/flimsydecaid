@@ -15,6 +15,7 @@ import { applyDecrement, applyGiveback, doseOf, shouldDecrement } from '../lib/b
 import { withDialIn, type DialIn } from '../lib/dialIn';
 import { shotStats } from '../lib/history';
 import { photoKey, toJpegDataUrl } from '../lib/photo';
+import { parseTheme, THEME_KEY } from '../lib/theme';
 import { clampDim, dimTarget, fitDataUrl, parseDim, SCREENSAVER_BRIGHTNESS, SCREENSAVER_DIM_KEY, SCREENSAVER_KEY } from '../lib/screensaver';
 import { clampRefill, waterState } from '../lib/water';
 import { parseSettings, pluginState, VISUALIZER_ID, type PluginState, type VisualizerSettings } from '../lib/visualizer';
@@ -88,6 +89,9 @@ class AppState {
   /** Tank water level and refill threshold (mm), null until Decaid reports. */
   water = $state.raw<WaterLevels | null>(null);
   waterStatus = $derived(waterState(this.water, this.machine.state?.state === 'needsWater'));
+
+  /** Theme option: ghosts instead of the clock on the screensaver. */
+  halloween = $state(false);
 
   /** Settings' "Preview" shows the screensaver without the machine asleep. */
   screensaverPreview = $state(false);
@@ -435,6 +439,12 @@ class AppState {
     const url = await gateway.storeGet<string>(SCREENSAVER_KEY).catch(() => null);
     this.screensaverImage = typeof url === 'string' && url.startsWith('data:image/') ? url : null;
     this.screensaverDim = parseDim(await gateway.storeGet(SCREENSAVER_DIM_KEY).catch(() => null));
+    this.halloween = parseTheme(await gateway.storeGet(THEME_KEY).catch(() => null)).halloween;
+  }
+
+  async setHalloween(on: boolean): Promise<void> {
+    this.halloween = on;
+    await gateway.storeSet(THEME_KEY, { halloween: on }).catch(() => {});
   }
 
   private dimSaveTimer: ReturnType<typeof setTimeout> | null = null;
