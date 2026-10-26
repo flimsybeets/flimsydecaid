@@ -131,6 +131,22 @@ describe('shot recorder', () => {
   });
 });
 
+describe('shot recorder with scale frames', () => {
+  it('moves the newest sample to the latest weight, only while recording', () => {
+    const r = new ShotRecorder();
+    const f = (substate: string) => ({ state: { state: 'espresso' as const, substate: substate as never }, pressure: 6 });
+    expect(r.onScale({ weight: 1, weightFlow: 0 } as never)).toBe(false);
+    r.onMachine(f('pouring'), 0);
+    r.onMachine(f('pouring'), 100);
+    expect(r.onScale({ weight: 3.5, weightFlow: 1.2 } as never)).toBe(true);
+    expect(r.samples.map((s) => s.weight)).toEqual([1, 3.5]);
+    expect(r.samples[1]).toMatchObject({ weightFlow: 1.2, pressure: 6, t: 0.1 });
+    r.onMachine(f('pouringDone'), 200);
+    expect(r.onScale({ weight: 40, weightFlow: 0 } as never)).toBe(false);
+    expect(r.samples[1]!.weight).toBe(3.5);
+  });
+});
+
 describe('steam heater', () => {
   it('is on only within the supported range', () => {
     expect(heaterOn({ targetTemperature: 0, duration: 60, flow: 1 })).toBe(false);

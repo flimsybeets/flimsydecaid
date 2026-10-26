@@ -156,10 +156,10 @@
   .col.sel .name { fill: var(--paper); }
   .grid { stroke: var(--g-grid); stroke-width: 1; }
   .axis { fill: var(--paper-faint); font-family: var(--font); font-size: 11px; }
-  .target { fill: none; stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; pointer-events: none; }
-  .ghost { fill: none; stroke-width: 2; opacity: 0.35; pointer-events: none; }
-  .temp { stroke: var(--g-puck); stroke-width: 4; stroke-linecap: round; opacity: 0.85; pointer-events: none; }
-  .temp.water { stroke: var(--g-water); stroke-width: 2; }
+  .target { fill: none; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; pointer-events: none; }
+  .ghost { fill: none; stroke-width: 1.5; opacity: 0.35; pointer-events: none; }
+  .temp { stroke: var(--g-puck); stroke-width: 2.5; stroke-linecap: round; opacity: 0.85; pointer-events: none; }
+  .temp.water { stroke: var(--g-water); stroke-width: 1.5; }
   .limit { stroke-width: 2; stroke-dasharray: 2 5; opacity: 0.8; pointer-events: none; }
   .exit line { stroke-width: 1.5; stroke-dasharray: 6 5; pointer-events: none; }
   .exit text { font-family: var(--font); font-size: 11px; font-weight: 700; pointer-events: none; }

@@ -7,6 +7,12 @@
   let { onClose }: { onClose: () => void } = $props();
 
   let stopping = $state(false);
+  // The dial column is as wide as its dials: each dial is square and fills its
+  // quarter of the column height. Height comes from the layout (stretch), never
+  // from this width, so there is no measure/resize loop.
+  const DIAL_GAP = 8;
+  let colH = $state(0);
+  const dial = $derived(Math.max(0, Math.floor((colH - DIAL_GAP * 3) / 4)));
   const steps = $derived(app.workflow.profile?.steps ?? []);
   const frame = $derived(app.machine.profileFrame ?? 0);
   const elapsed = $derived(app.shot.at(-1)?.t ?? 0);
@@ -42,38 +48,41 @@
     {/if}
   </header>
 
-  {#if steps.length}
-    <ol class="steps" aria-label="Profile steps">
-      {#each steps as s, i (i)}
-        <li class:current={app.shotActive && i === frame} class:past={i < frame || !app.shotActive && app.shot.length > 0}>{s.name}</li>
-      {/each}
-    </ol>
-  {/if}
+  <div class="body">
+    {#if app.shotActive}
+      <div class="dials" aria-label="Live readings" bind:clientHeight={colH} style="--dial: {dial}px">
+        <Gauge side label="Flow in" unit="ml/s" min={0} max={8} major={1} minor={2}
+          needles={[{ value: m.flow, colour: 'var(--g-flow)', width: 3.2 }]}
+          targets={[{ value: activeTarget(m.targetFlow), colour: 'var(--g-flow)' }]} />
+        <Gauge side label="Flow out" unit="g/s" min={0} max={8} major={1} minor={2}
+          needles={[{ value: app.scaleConnected ? app.weightFlow : null, colour: 'var(--g-weight)', width: 3.2 }]} />
+        <Gauge side label="Pressure" unit="bar" min={0} max={12} major={2} minor={4} redline={10}
+          needles={[{ value: m.pressure, colour: 'var(--g-pressure)', width: 3.2 }]}
+          targets={[{ value: activeTarget(m.targetPressure), colour: 'var(--g-pressure)' }]} />
+        <Gauge side label="Water · Puck" unit="°C" min={tempRange[0]} max={tempRange[1]} major={5} minor={5}
+          needles={[
+            { name: 'Water', value: m.mixTemperature, colour: 'var(--g-water)', width: 2 },
+            { name: 'Puck', value: m.groupTemperature, colour: 'var(--g-puck)', width: 4.2 },
+          ]}
+          targets={[
+            { value: m.targetMixTemperature, colour: 'var(--g-water)' },
+            { value: m.targetGroupTemperature, colour: 'var(--g-puck)' },
+          ]} />
+      </div>
+    {/if}
 
-  {#if app.shotActive}
-    <div class="dials" aria-label="Live readings">
-      <Gauge label="Flow in" unit="ml/s" min={0} max={8} major={1} minor={2}
-        needles={[{ value: m.flow, colour: 'var(--g-flow)', width: 3.2 }]}
-        targets={[{ value: activeTarget(m.targetFlow), colour: 'var(--g-flow)' }]} />
-      <Gauge label="Flow out" unit="g/s" min={0} max={8} major={1} minor={2}
-        needles={[{ value: app.scaleConnected ? app.weightFlow : null, colour: 'var(--g-weight)', width: 3.2 }]} />
-      <Gauge label="Pressure" unit="bar" min={0} max={12} major={2} minor={4} redline={10}
-        needles={[{ value: m.pressure, colour: 'var(--g-pressure)', width: 3.2 }]}
-        targets={[{ value: activeTarget(m.targetPressure), colour: 'var(--g-pressure)' }]} />
-      <Gauge label="Water · Puck" unit="°C" min={tempRange[0]} max={tempRange[1]} major={5} minor={5}
-        needles={[
-          { name: 'Water', value: m.mixTemperature, colour: 'var(--g-water)', width: 2 },
-          { name: 'Puck', value: m.groupTemperature, colour: 'var(--g-puck)', width: 4.2 },
-        ]}
-        targets={[
-          { value: m.targetMixTemperature, colour: 'var(--g-water)' },
-          { value: m.targetGroupTemperature, colour: 'var(--g-puck)' },
-        ]} />
+    <div class="main">
+    {#if steps.length}
+      <ol class="steps" aria-label="Profile steps">
+        {#each steps as s, i (i)}
+          <li class:current={app.shotActive && i === frame} class:past={i < frame || !app.shotActive && app.shot.length > 0}>{s.name}</li>
+        {/each}
+      </ol>
+    {/if}
+    <div class="graph glass thick">
+      <ShotChart samples={app.shot} {yieldTarget} />
     </div>
-  {/if}
-
-  <div class="graph glass thick">
-    <ShotChart samples={app.shot} {yieldTarget} />
+    </div>
   </div>
 </section>
 
@@ -137,22 +146,37 @@
   .steps li.past { color: var(--paper-dim); }
   .steps li.current { background: linear-gradient(170deg, #fff, #dde9e5); color: var(--ink); font-weight: 650; box-shadow: 0 4px 12px -6px rgb(0 0 0 / 0.5); }
 
+  .body { flex: 1; min-height: 0; display: flex; gap: 12px; }
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 9px; }
+
+  /* One column of four dials left of the graph, full height under the title
+     bar. Hidden when the shot ends, and the graph takes the width. */
   .dials {
     flex: none;
-    height: clamp(112px, 25vh, 195px);
+    width: calc(var(--dial) + 26px);
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    grid-template-rows: minmax(0, 1fr);
-    gap: 9px;
+    grid-template-rows: repeat(4, minmax(0, 1fr));
+    gap: 8px;
     animation: appear 260ms ease;
+    /* The dials repaint ten times a second: keep that inside this box. */
+    contain: layout paint;
   }
 
   @media (max-height: 760px) {
-    .shot { gap: 9px; padding-top: 10px; }
-    .dials { height: 21vh; }
+    .shot { gap: 9px; padding-top: 10px; padding-bottom: 12px; }
   }
 
-  .graph { flex: 1; min-height: 135px; display: flex; padding: 14px 15px 10px; border-radius: 26px; }
+  /* Too narrow for a column: a row of dials above the graph, labels under. */
+  @media (max-width: 700px) {
+    .body { flex-direction: column; }
+    .dials { width: auto; height: 21vh; grid-template-rows: none; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .dials :global(.gauge.side) { flex-direction: column; gap: 0; }
+    .dials :global(.gauge.side figcaption) { order: 0; writing-mode: horizontal-tb; transform: none; white-space: normal; }
+    .dials :global(.gauge.side .face) { flex: 1; width: 100%; height: auto; aspect-ratio: auto; }
+    .dials :global(.gauge.side figcaption) { flex: none; margin-top: 2px; text-align: center; }
+  }
+
+  .graph { flex: 1; min-height: 135px; contain: layout paint; display: flex; padding: 14px 15px 10px; border-radius: 26px; }
   .graph > :global(*) { flex: 1; }
   @keyframes appear { from { opacity: 0; transform: scale(1.01); } }
 </style>

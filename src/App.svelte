@@ -25,6 +25,9 @@
   // so you can read the finished graph.
   let shotOpen = $state(false);
   $effect(() => { if (app.shotActive) shotOpen = true; });
+  // Full-screen views are opaque, so what sits under them is hidden: no
+  // painting, no animating, no touches, until they close.
+  const covered = $derived((app.guiding && app.guide !== null) || shotOpen || app.editing !== undefined);
 
   // Screensaver: up while the machine sleeps, once a photo is chosen.
   // Tapping asks the machine to wake. If it stays asleep (say the wake
@@ -69,7 +72,7 @@
   });
 </script>
 
-<div class="shell">
+<div class="shell" class:covered inert={covered}>
   <header>
     <nav class="glass" aria-label="Sections">
       {#each tabs as t (t.id)}
@@ -120,7 +123,7 @@
 {/if}
 
 {#if app.guiding && app.guide}
-  <Guide onclose={() => (app.guiding = false)} />
+  <Guide covered={shotOpen} onclose={() => (app.guiding = false)} />
 {/if}
 
 {#if app.editing !== undefined}
@@ -138,6 +141,9 @@
 {/if}
 
 <style>
+  /* Under a full-screen view: hidden, and nothing under it animates (Home's guide tile spins forever). */
+  .shell.covered { visibility: hidden; }
+  .shell.covered, .shell.covered :global(*) { animation: none !important; transition: none !important; }
   .shell {
     display: grid;
     grid-template-rows: auto 1fr auto;

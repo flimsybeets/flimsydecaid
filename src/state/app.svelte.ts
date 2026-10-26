@@ -30,7 +30,8 @@ class AppState {
   tab = $state<Tab>('home');
 
   // Live
-  machine = $state<MachineSnapshot>({});
+  // Replaced whole with every frame (about 10 Hz), never mutated: $state.raw skips the deep proxy.
+  machine = $state.raw<MachineSnapshot>({});
   sockets = $state<Record<'machine' | 'scale' | 'devices', SocketStatus>>({ machine: 'connecting', scale: 'connecting', devices: 'connecting' });
   devices = $state<DeviceInfo[]>([]);
   scanning = $state(false);
@@ -39,7 +40,8 @@ class AppState {
   /** Flow into the cup in g/s, from the scale. */
   weightFlow = $state<number | null>(null);
   scaleBattery = $state<number | null>(null);
-  shot = $state<ShotSample[]>([]);
+  // A fresh array each tick (see onMachine), so raw is enough.
+  shot = $state.raw<ShotSample[]>([]);
   shotActive = $state(false);
   /** Bumped when a pull ends, so History knows to refetch. */
   shotsFinished = $state(0);
@@ -150,7 +152,8 @@ class AppState {
     this.weight = f.weight;
     this.weightFlow = f.weightFlow ?? null;
     this.scaleBattery = f.battery ?? null;
-    this.recorder.onScale(f);
+    // The graph's weight trace follows the scale frame by frame, not just per machine frame.
+    if (this.recorder.onScale(f)) this.shot = this.recorder.samples.slice();
   }
 
   rootOf(profileId: string): string {
