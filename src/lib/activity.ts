@@ -26,10 +26,26 @@ export function isPreparing(state: MachineState | undefined, shotActive: boolean
   return state === 'espresso' && !shotActive;
 }
 
-/** "Preheating…" while the group is still short of its target, otherwise "Getting ready…". */
-export function preheatText(group: number | undefined, target: number | undefined): string {
-  if (group === undefined || !target) return 'Getting ready…';
-  return target - group > 1.5 ? 'Preheating…' : 'Getting ready…';
+/** Substates where the machine has finished heating and the shot is under way. */
+const STARTING = new Set(['preinfusion', 'pouring']);
+
+/** Within this of the target the puck counts as up to temperature. */
+export const NEAR_TARGET = 1.5;
+
+/**
+ * The big line while the machine gets ready to pour: how far the puck still
+ * has to heat, then "Almost there", then "Starting" once it moves on.
+ */
+export function preheatText(group: number | undefined, target: number | undefined, substate?: string): string {
+  if (substate && STARTING.has(substate)) return 'Starting';
+  if (group === undefined || !target) return 'Heating up';
+  const gap = target - group;
+  return gap > NEAR_TARGET ? `Heating up · ${gap.toFixed(1)}° to go` : 'Almost there';
+}
+
+/** Puck reading is at temperature (shown green). */
+export function atTemp(value: number | undefined, target: number | undefined): boolean {
+  return value !== undefined && !!target && Math.abs(target - value) <= NEAR_TARGET;
 }
 
 /** m:ss for an elapsed or planned time. */
