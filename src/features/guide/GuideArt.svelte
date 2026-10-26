@@ -1,320 +1,523 @@
 <script lang="ts">
   import type { GuideStepId, WeighState } from '../../lib/guide';
 
-  // One animated scene per guide step. Line art in the skin's cream with
-  // brushed-metal and coffee tones. Live values (scale weight, grind
-  // setting, rinse running) feed straight into the drawings.
+  // One animated line-art scene per guide step: thin even strokes in the
+  // skin's cream, one accent colour per scene for the moving or important
+  // bit, no gradients, filters or shadows (weak tablet GPU). Everything
+  // animates with transform, opacity or stroke-dashoffset only. Live values
+  // (scale weight, grind setting, rinse running) feed straight into the
+  // drawings.
 
   let {
     step,
     weight = null,
     weighState = 'empty',
     grind = null,
-    ghc = false,
     active = false,
   }: {
     step: GuideStepId;
     weight?: number | null;
     weighState?: WeighState;
     grind?: string | null;
-    ghc?: boolean;
     /** Rinse: water running. */
     active?: boolean;
   } = $props();
 
+  // Each scene is framed to fill the panel. Strokes are non-scaling, so the
+  // line weight stays the same whatever the framing.
+  const frame = (cx: number, cy: number, w: number) => `${cx - w / 2} ${cy - w * 0.375} ${w} ${w * 0.75}`;
+  const VIEWBOX: Record<GuideStepId, string> = {
+    weigh: frame(200, 158, 250), spray: frame(206, 185, 330), dial: frame(211, 167, 370), grind: frame(205, 132, 350),
+    basket: frame(216, 155, 290), funnel: frame(240, 151, 300), tamp: frame(240, 175, 290), paper: frame(244, 150, 310),
+    minerals: frame(194, 186, 330), start: frame(200, 145, 312), knock: frame(226, 164, 300), rinse: frame(200, 145, 312),
+    done: frame(218, 193, 300),
+  };
   const lcd = $derived(weight == null ? '--.-' : weight.toFixed(1));
-  const beans = [0, 1, 2, 3, 4, 5];
-  const specks = Array.from({ length: 14 }, (_, i) => i);
+  const beans = [0, 1, 2, 3, 4];
+  const range = (n: number) => Array.from({ length: n }, (_, i) => i);
+
+  // Grinder dial: 0 (fine) to 90 (coarse) over 300 degrees; the ring turns
+  // so the chosen number sits under the fixed pointer at the top.
+  const DIAL_START = -150;
+  const DIAL_PER = 300 / 90;
+  const gv = $derived.by(() => {
+    const n = grind == null ? NaN : parseFloat(grind);
+    return Number.isFinite(n) && n >= 0 && n <= 90 ? n : null;
+  });
+  const dialTo = $derived(-DIAL_START - DIAL_PER * (gv ?? 14));
+  const dialAngle = (v: number) => DIAL_START + DIAL_PER * v;
+  const dialTicks = range(46).map((i) => i * 2);
+  const dialLabels = range(10).map((i) => i * 10);
 </script>
 
-<svg viewBox="0 0 400 300" class="art {step}" aria-hidden="true">
-  <defs>
-    <linearGradient id="metal" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#e3ebe8" /><stop offset="0.45" stop-color="#9aa9ab" /><stop offset="1" stop-color="#55666a" />
-    </linearGradient>
-    <linearGradient id="metal-h" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#5f6f72" /><stop offset="0.5" stop-color="#d9e2df" /><stop offset="1" stop-color="#5f6f72" />
-    </linearGradient>
-    <linearGradient id="dark" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#2b3b40" /><stop offset="1" stop-color="#121c1f" />
-    </linearGradient>
-    <linearGradient id="cup" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#cfc6b6" /><stop offset="0.4" stop-color="#fbf6ee" /><stop offset="1" stop-color="#bdb3a2" />
-    </linearGradient>
-    <radialGradient id="grounds" cx="0.5" cy="0.4" r="0.6">
-      <stop offset="0" stop-color="#7a5236" /><stop offset="1" stop-color="#3e2615" />
-    </radialGradient>
-    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0" stop-color="var(--glow, #8fd3c0)" stop-opacity="0.55" /><stop offset="1" stop-color="var(--glow, #8fd3c0)" stop-opacity="0" />
-    </radialGradient>
-    <symbol id="bean" viewBox="-10 -14 20 28">
-      <ellipse rx="9" ry="13" fill="#6b4126" />
-      <ellipse rx="9" ry="13" fill="url(#grounds)" opacity="0.5" />
-      <path d="M0,-11 C-4,-4 4,4 0,11" stroke="#2a170b" stroke-width="2" fill="none" stroke-linecap="round" />
-    </symbol>
-  </defs>
+<svg viewBox={VIEWBOX[step]} class="art {step}" aria-hidden="true">
+  {#snippet bean(x: number, y: number, r: number)}
+    <g transform="translate({x} {y}) rotate({r})">
+      <ellipse rx="4.5" ry="6.5" class="l a" />
+      <path d="M0,-5 C-3,-2 3,2 0,5" class="l a" />
+    </g>
+  {/snippet}
 
-  <ellipse cx="200" cy="268" rx="150" ry="14" fill="rgb(0 0 0 / 0.28)" />
+  <!-- Pebble dosing cup, origin at the bottom centre; spout up on the left. -->
+  {#snippet dosingCup()}
+    <path d="M-52,-54 C-34,-44 14,-42 44,-50 C20,-74 -40,-72 -52,-54 Z" class="l t f" />
+    <path d="M-52,-54 C-56,-26 -40,0 -4,0 C34,0 54,-16 50,-36 C49,-42 47,-46 44,-50" class="l" />
+    <path d="M-52,-54 C-34,-44 14,-42 44,-50" class="l" />
+    <path d="M-52,-54 C-40,-72 20,-74 44,-50" class="l" />
+  {/snippet}
+
+  <!-- Bookoo Themis Mini: low near-square slab, flat platform, little display and one button. -->
+  {#snippet scale(cx: number, top: number)}
+    <rect x={cx - 66} y={top} width="132" height="5" rx="2.5" class="l" />
+    <rect x={cx - 75} y={top + 5} width="150" height="30" rx="11" class="l" />
+    <rect x={cx - 58} y={top + 12} width="60" height="16" rx="4" class="l f" />
+    <circle cx={cx + 48} cy={top + 20} r="4.5" class="l" />
+  {/snippet}
+
+  <!-- Decent naked portafilter, side view: round holder, open bottom, straight handle. -->
+  {#snippet portafilter(x: number, top: number)}
+    <path d="M{x - 52},{top} V{top + 36} Q{x - 52},{top + 44} {x - 44},{top + 44} H{x + 44} Q{x + 52},{top + 44} {x + 52},{top + 36} V{top}" class="l" />
+    <path d="M{x - 56},{top} H{x + 56}" class="l" />
+    <path d="M{x + 52},{top + 10} L{x + 142},{top + 12} Q{x + 154},{top + 17} {x + 154},{top + 23} Q{x + 154},{top + 29} {x + 142},{top + 34} L{x + 52},{top + 36}" class="l" />
+  {/snippet}
+
+  <!-- The grinder, origin at the middle of its base on the bench. -->
+  {#snippet grinder()}
+    <rect x="-66" y="-16" width="174" height="16" rx="8" class="l" />
+    <path d="M-40,-16 V-138 M40,-16 V-138" class="l" />
+    <path d="M-40,-16 A40,7 0 0 0 40,-16" class="l f" />
+    <path d="M-44,-146 V-138 A44,9.5 0 0 0 44,-138 V-146" class="l" />
+    <ellipse cy="-146" rx="44" ry="9.5" class="l" />
+    <ellipse cy="-146" rx="35" ry="7" class="l f" />
+    <circle cx="-20" cy="-100" r="5" class="l" />
+    <path d="M17,-146 V-164 M-17,-146 V-164 M-17,-146 A17,3.5 0 0 0 17,-146" class="l" />
+    <path d="M40,-130 C70,-136 90,-120 90,-92 V-62 M40,-96 C47,-96 52,-90 52,-82 V-62 M46,-62 H96" class="l" />
+    <path d="M46,-62 V-24 Q46,-16 54,-16 H88 Q96,-16 96,-24 V-62" class="l" />
+    <path d="M48,-26 H94" class="l f" />
+  {/snippet}
+
+  <!-- Bellows (ribbed) with a flat lid, origin on the collar. -->
+  {#snippet bellows()}
+    <path d="M-17,-164 C-24,-168 -24,-174 -17,-176 C-24,-180 -24,-186 -17,-188 C-24,-192 -24,-198 -17,-200 C-24,-204 -21,-208 -17,-212 M17,-164 C24,-168 24,-174 17,-176 C24,-180 24,-186 17,-188 C24,-192 24,-198 17,-200 C24,-204 21,-208 17,-212" class="l" />
+  {/snippet}
+  {#snippet lid()}
+    <path d="M-22,-216 V-212 A22,5 0 0 0 22,-212 V-216" class="l" />
+    <ellipse cy="-216" rx="22" ry="5" class="l" />
+  {/snippet}
+
+  <!-- Machine icons (group head controller). -->
+  {#snippet icon(kind: 'steam' | 'water' | 'espresso' | 'flush', x: number, on: boolean)}
+    <g transform="translate({x} 66)" class="ico" class:on>
+      <circle r="14" class="l f" />
+      {#if kind === 'steam'}
+        <path d="M-5,6 C-8,2 -2,0 -5,-6 M0,6 C-3,2 3,0 0,-6 M5,6 C2,2 8,0 5,-6" class="l" />
+      {:else if kind === 'water'}
+        <path d="M0,-8 C4,-2 6,1 6,4 A6,6 0 0 1 -6,4 C-6,1 -4,-2 0,-8 Z" class="l" />
+      {:else if kind === 'espresso'}
+        <path d="M-7,-3 H4 V3 Q4,7 -1.5,7 Q-7,7 -7,3 Z M4,-1 Q9,-1 8.5,2.5 Q8,5 4,4.5 M-4,-7 V-5 M0,-7 V-5" class="l" />
+      {:else}
+        <path d="M-6,-7 H6 M-4,-3 V6 M0,-3 V6 M4,-3 V6" class="l" />
+      {/if}
+    </g>
+  {/snippet}
+  {#snippet machine(lit: 'espresso' | 'flush')}
+    <path d="M62,262 V74 Q62,28 108,28 H292 Q338,28 338,74 V262" class="l f" />
+    <rect x="112" y="44" width="176" height="44" rx="16" class="l" />
+    {@render icon('steam', 142, false)}
+    {@render icon('water', 180, false)}
+    {@render icon('espresso', 220, lit === 'espresso')}
+    {@render icon('flush', 258, lit === 'flush')}
+    <path d="M164,88 V104 Q164,112 172,112 H228 Q236,112 236,104 V88" class="l" />
+    <path d="M92,262 H308" class="l" />
+  {/snippet}
+
+  <path d="M40,262 H360" class="l f ground" />
 
   {#if step === 'weigh'}
-    <!-- Scale with a dosing cup; beans drop in until the dose is right. Live weight on the display. -->
-    <g class:settled={weighState === 'ok'}>
+    <!-- Dosing cup on the scale; beans drop in until the dose is right. Live weight on the display. -->
+    {@render scale(200, 196)}
+    <text x="165" y="221" text-anchor="middle" class="lcd {weighState}">{lcd}</text>
+    <g transform="translate(200 196)">{@render dosingCup()}</g>
+    <g class="mound" class:show={weighState !== 'empty'}>
+      {@render bean(188, 143, 25)}{@render bean(203, 146, -15)}{@render bean(218, 143, 60)}{@render bean(196, 150, -50)}
+    </g>
+    <g class="fall-group" class:settled={weighState === 'ok'}>
       {#each beans as b (b)}
-        <use href="#bean" class="drop" style="--i: {b}; --x: {182 + (b % 3) * 14}px" width="20" height="28" x="-10" y="-14" />
+        <g class="drop fx" style="--i: {b}; --x: {170 + b * 15}px">{@render bean(0, 0, b * 40)}</g>
       {/each}
     </g>
-    <path d="M150,140 L250,140 L240,212 L160,212 Z" fill="url(#cup)" />
-    <ellipse cx="200" cy="140" rx="50" ry="9" fill="#e9e0d1" stroke="#a89d8b" stroke-width="2" />
-    <ellipse cx="200" cy="142" rx="40" ry="6" fill="url(#grounds)" opacity={weighState === 'empty' ? 0 : 0.9} />
-    <rect x="80" y="212" width="240" height="14" rx="7" fill="url(#metal)" />
-    <rect x="70" y="224" width="260" height="38" rx="12" fill="url(#dark)" stroke="rgb(255 255 255 / 0.15)" />
-    <rect x="150" y="231" width="100" height="24" rx="6" class="lcd {weighState}" />
-    <text x="200" y="249" text-anchor="middle" class="lcd-text {weighState}">{lcd}</text>
-    <circle cx="105" cy="243" r="7" fill="#3a4a4e" stroke="rgb(255 255 255 / 0.25)" />
-    <circle cx="295" cy="243" r="7" fill="#3a4a4e" stroke="rgb(255 255 255 / 0.25)" />
   {:else if step === 'spray'}
-    <!-- A spritz of water on the beans cuts static in the grinder. -->
-    <path d="M200,150 L270,150 L262,230 L208,230 Z" fill="url(#cup)" />
-    <ellipse cx="235" cy="150" rx="35" ry="7" fill="#e9e0d1" stroke="#a89d8b" stroke-width="2" />
-    {#each [0, 1, 2, 3, 4] as b (b)}<use href="#bean" x={215 + b * 9} y={135 + (b % 2) * 6} width="14" height="20" />{/each}
-    <g class="bottle">
-      <rect x="70" y="120" width="56" height="110" rx="16" fill="rgb(143 211 192 / 0.35)" stroke="var(--paper)" stroke-width="3" />
-      <rect x="84" y="96" width="28" height="26" rx="5" fill="url(#metal)" />
-      <path d="M112,100 L150,100 L150,112 L112,112 Z" fill="url(#metal)" />
-      <path d="M96,122 L96,224" stroke="rgb(255 255 255 / 0.5)" stroke-width="2" />
-      <path class="trigger" d="M104,112 Q96,132 108,140" stroke="var(--paper)" stroke-width="5" fill="none" stroke-linecap="round" />
-    </g>
-    {#each specks as m (m)}
-      <circle class="mist" style="--i: {m}; --dx: {40 + (m % 5) * 14}px; --dy: {10 + (m % 4) * 8}px" cx="154" cy="106" r={2 + (m % 3)} fill="#bfe8ff" />
+    <!-- Spray bottle misting the beans from a distance. -->
+    <g transform="translate(300 262)">{@render dosingCup()}</g>
+    {@render bean(285, 208, 30)}{@render bean(302, 205, -20)}{@render bean(318, 208, 55)}{@render bean(295, 214, -60)}
+    <rect x="64" y="204" width="52" height="56" rx="11" class="t" />
+    <rect x="62" y="158" width="56" height="102" rx="16" class="l a" />
+    <path d="M82,158 V146 H98 V158 M76,146 V128 Q76,120 84,120 H138 V134 H108 V146" class="l" />
+    <path d="M70,204 H110" class="l a f" />
+    <g class="trigger"><path d="M110,134 C124,138 124,154 112,162" class="l" /></g>
+    {#each range(8) as m (m)}
+      <circle class="mist fx s" style="--i: {m}; --dx: {96 + (m % 4) * 17}px; --dy: {26 + (m % 3) * 22}px" cx="142" cy="127" r={1.6 + (m % 3) * 0.6} />
     {/each}
   {:else if step === 'dial'}
-    <!-- The grinder's adjustment dial turns to your setting. -->
-    <circle cx="200" cy="150" r="118" fill="url(#glow)" />
-    <g class="dial-ring">
-      <circle cx="200" cy="150" r="96" fill="url(#dark)" stroke="url(#metal-h)" stroke-width="10" />
-      {#each Array.from({ length: 40 }, (_, i) => i) as t (t)}
-        <line x1="200" y1="62" x2="200" y2={t % 5 === 0 ? 80 : 72} stroke="var(--paper)" stroke-width={t % 5 === 0 ? 3 : 1.5} opacity={t % 5 === 0 ? 0.9 : 0.5} transform="rotate({t * 9} 200 150)" />
-      {/each}
+    <!-- The grinder's dial, magnified: the ring turns to your setting. -->
+    <g transform="translate(105 268)">
+      {@render grinder()}
+      {@render bellows()}
+      {@render lid()}
     </g>
-    <path d="M200,44 L190,26 L210,26 Z" fill="var(--warn)" />
-    <circle cx="200" cy="150" r="58" fill="url(#metal)" />
-    <text x="200" y={grind ? 168 : 162} text-anchor="middle" class="dial-num" class:small={!grind || grind.length > 4}>{grind ?? '?'}</text>
-  {:else if step === 'grind'}
-    <!-- Grinder whirring, grounds falling into the cup. -->
-    <g class="grinder">
-      <path d="M150,30 L250,30 L228,90 L172,90 Z" fill="rgb(255 255 255 / 0.12)" stroke="var(--paper)" stroke-width="3" />
-      {#each [0, 1, 2, 3, 4, 5, 6] as b (b)}<use href="#bean" x={168 + b * 9} y={52 + (b % 3) * 7} width="13" height="18" />{/each}
-      <rect x="160" y="88" width="80" height="104" rx="14" fill="url(#metal)" />
-      <circle cx="200" cy="140" r="22" fill="url(#dark)" />
-      <g class="burr"><path d="M200,124 L204,136 L216,140 L204,144 L200,156 L196,144 L184,140 L196,136 Z" fill="#9aa9ab" /></g>
-      <path d="M190,192 L210,192 L206,206 L194,206 Z" fill="#55666a" />
-    </g>
-    {#each specks as m (m)}
-      <circle class="fall" style="--i: {m}; --x: {195 + (m % 5) * 2.5}px" r="2.2" cx="0" cy="0" fill="#5a3820" />
-    {/each}
-    <path d="M168,222 L232,222 L226,262 L174,262 Z" fill="url(#cup)" />
-    <ellipse cx="200" cy="222" rx="32" ry="6" fill="#e9e0d1" stroke="#a89d8b" stroke-width="2" />
-    <ellipse cx="200" cy="225" rx="24" ry="4" class="fill-up" fill="url(#grounds)" />
-  {:else if step === 'funnel'}
-    <!-- Funnel on the portafilter; the cup tips the grounds in. -->
-    <g class="pour-cup">
-      <path d="M-30,-40 L30,-40 L24,30 L-24,30 Z" fill="url(#cup)" transform="translate(250 92)" />
-    </g>
-    {#each specks as m (m)}
-      <circle class="pour" style="--i: {m}; --x: {204 + (m % 4) * 3}px" r="2.4" cx="0" cy="0" fill="#5a3820" />
-    {/each}
-    <path d="M150,160 L250,160 L238,186 L162,186 Z" fill="url(#metal-h)" opacity="0.95" />
-    <path d="M162,186 L238,186 L230,226 Q200,240 170,226 Z" fill="url(#metal)" />
-    <rect x="236" y="196" width="112" height="22" rx="11" fill="url(#dark)" stroke="rgb(255 255 255 / 0.2)" />
-    <path d="M190,232 L210,232 L206,252 L194,252 Z" fill="#55666a" />
-  {:else if step === 'tamp'}
-    <!-- Tap to settle, then tamp level. -->
-    <g class="pf">
-      <path d="M140,170 L260,170 L250,214 Q200,232 150,214 Z" fill="url(#metal)" />
-      <ellipse cx="200" cy="170" rx="60" ry="10" fill="url(#grounds)" stroke="url(#metal-h)" stroke-width="4" />
-      <rect x="258" y="178" width="104" height="22" rx="11" fill="url(#dark)" stroke="rgb(255 255 255 / 0.2)" />
-    </g>
-    <g class="tamper">
-      <rect x="186" y="40" width="28" height="60" rx="14" fill="#6b4126" stroke="var(--paper)" stroke-width="2" />
-      <rect x="194" y="98" width="12" height="22" fill="url(#metal-h)" />
-      <rect x="146" y="118" width="108" height="18" rx="4" fill="url(#metal)" />
-    </g>
-    <text x="200" y="262" text-anchor="middle" class="caption"><tspan class="cap-tap">tap, tap</tspan><tspan class="cap-tamp" x="200">press level</tspan></text>
-  {:else if step === 'paper'}
-    <!-- Seen from above: a paper filter settles onto the tamped puck. -->
-    <circle cx="200" cy="150" r="104" fill="url(#metal-h)" />
-    <circle cx="200" cy="150" r="90" fill="url(#grounds)" />
-    {#each Array.from({ length: 30 }, (_, i) => i) as g (g)}
-      <circle cx={200 + Math.cos(g * 2.39) * (g * 2.8)} cy={150 + Math.sin(g * 2.39) * (g * 2.8)} r="1.6" fill="#2a170b" opacity="0.6" />
-    {/each}
-    <g class="paper-disc">
-      <circle cx="200" cy="150" r="86" fill="rgb(250 248 242 / 0.92)" />
-      <circle cx="200" cy="150" r="86" fill="none" stroke="rgb(0 0 0 / 0.08)" stroke-width="6" />
-      {#each Array.from({ length: 22 }, (_, i) => i) as f (f)}
-        <line x1="130" y1={86 + f * 6} x2="270" y2={80 + f * 6} stroke="rgb(0 0 0 / 0.04)" />
-      {/each}
-    </g>
-  {:else if step === 'start'}
-    <!-- Lock the portafilter into the group, then start. -->
-    <rect x="100" y="30" width="200" height="70" rx="18" fill="url(#metal)" />
-    <rect x="140" y="98" width="120" height="18" rx="4" fill="url(#metal-h)" />
-    {#if ghc}
-      <circle cx="270" cy="64" r="22" fill="url(#glow)" class="pulse" />
-      <circle cx="270" cy="64" r="11" fill="var(--go)" stroke="#fff" stroke-width="2" />
-    {/if}
-    <g class="lock">
-      <path d="M144,118 L256,118 L246,160 Q200,176 154,160 Z" fill="url(#metal)" />
-      <rect x="250" y="124" width="116" height="24" rx="12" fill="url(#dark)" stroke="rgb(255 255 255 / 0.2)" />
-    </g>
-    <path d="M140,212 L200,212 L196,256 L144,256 Z" fill="url(#cup)" />
-    <path d="M200,222 Q216,222 216,234 Q216,246 199,246" fill="none" stroke="#cfc6b6" stroke-width="5" />
-    {#if !ghc}
-      <g class="start-pill">
-        <rect x="236" y="214" width="120" height="44" rx="22" fill="var(--go)" />
-        <text x="296" y="242" text-anchor="middle" class="pill-text">Start</text>
+    <path d="M149,118 L226,108 M149,128 L226,192" class="l f" />
+    <g transform="translate(300 150)">
+      <circle r="84" class="l" />
+      <g class="dial-ring" style="--from: {dialTo + 70}deg; --to: {dialTo}deg">
+        <circle r="70" class="l f" />
+        {#each dialTicks as v (v)}
+          <path d="M0,-70 V{v % 10 === 0 ? -57 : -63}" transform="rotate({dialAngle(v)})" class="l" style="stroke-opacity: {v % 10 === 0 ? 0.9 : 0.4}" />
+        {/each}
+        {#each dialLabels as v (v)}
+          <text transform="rotate({dialAngle(v)}) translate(0 -45)" text-anchor="middle" dominant-baseline="central" class="tick-num">{v}</text>
+        {/each}
       </g>
-    {/if}
-  {:else if step === 'knock'}
-    <!-- Knock the puck out. -->
-    <rect x="120" y="170" width="160" height="92" rx="14" fill="url(#dark)" stroke="rgb(255 255 255 / 0.18)" />
-    <rect x="112" y="166" width="176" height="12" rx="6" fill="#3d2a1c" />
-    <g class="knock-pf">
-      <path d="M150,80 L250,80 L242,116 Q200,130 158,116 Z" fill="url(#metal)" />
-      <rect x="248" y="86" width="104" height="22" rx="11" fill="url(#dark)" stroke="rgb(255 255 255 / 0.2)" />
+      <path d="M0,-52 L-7,-70 H7 Z" class="s pointer" />
+      <circle r="27" class="l a t" />
+      <text y="2" text-anchor="middle" dominant-baseline="central" class="dial-num" class:small={gv === null || (grind ?? '').length > 4}>{gv === null ? (grind ?? '?') : grind}</text>
     </g>
-    <ellipse class="puck" cx="200" cy="0" rx="38" ry="10" fill="url(#grounds)" />
+  {:else if step === 'grind'}
+    <!-- Grinder loop: on, beans in, grinding, off, tap the bellows. -->
+    <g transform="translate(235 268)">
+      {@render grinder()}
+      <circle cx="-20" cy="-100" r="5" class="s power" />
+      <path d="M-50,-92 Q-56,-100 -50,-108 M-58,-88 Q-68,-100 -58,-112" class="l a fx vib" />
+      <g class="bellows">{@render bellows()}</g>
+      <g class="lid">{@render lid()}</g>
+      <!-- grounds fall inside the chute and pile up in the catch cup -->
+      <rect x="48" y="-62" width="46" height="44" rx="4" class="t pile" />
+      {#each range(6) as m (m)}
+        <circle class="grain fx s" style="--i: {m}; --x: {60 + (m % 3) * 12}px" cx="0" cy="-92" r="1.8" />
+      {/each}
+      {#each range(4) as m (m)}
+        <circle class="puff fx s" style="--i: {m}; --x: {62 + m * 8}px" cx="0" cy="-92" r="1.8" />
+      {/each}
+      <g class="finger"><rect x="-8" y="-46" width="16" height="46" rx="8" transform="translate(6 -224) rotate(22)" class="l" /></g>
+    </g>
+    <g class="pour-cup">
+      <g transform="translate(168 98) scale(-1 1)">{@render dosingCup()}</g>
+    </g>
+    {#each range(6) as b (b)}
+      <g class="pour-bean fx" style="--i: {b}; --x: {214 + (b % 3) * 7}px">{@render bean(0, 0, b * 50)}</g>
+    {/each}
+  {:else if step === 'basket'}
+    <!-- Convex basket dropping into the naked portafilter (shown in section). -->
+    <path d="M98,144 V196 Q98,206 108,206 H128 M242,144 V196 Q242,206 232,206 H212 M112,144 V198 M228,144 V198" class="l" />
+    <path d="M92,144 H112 M228,144 H248" class="l" />
+    <path d="M242,160 L318,158 Q336,164 336,174 Q336,184 318,190 L242,188" class="l" />
+    <g class="basket-in">
+      <path d="M108,126 H232 M114,128 V176 Q114,182 120,182 M226,128 V176 Q226,182 220,182 M120,182 C140,150 200,150 220,182" class="l a" />
+      <path d="M120,182 C140,150 200,150 220,182 L114,182" class="t" />
+      {#each [138, 156, 170, 184, 202] as hx, i (hx)}<circle cx={hx} cy={178 - (i % 2 === 0 ? 10 : 24) + (hx > 150 && hx < 190 ? -4 : 6)} r="1.4" class="s dot" />{/each}
+    </g>
+    <path d="M232,102 L240,110 L254,92" class="l a tick fx" />
+  {:else if step === 'funnel'}
+    <!-- Funnel on the portafilter, cup on the funnel; the bell lifts out, grounds drop in, tap to settle. -->
+    <g class="pf-stack">
+      {@render portafilter(200, 204)}
+      <path d="M156,204 V190 L132,158 H268 L244,190 V204 M128,158 H272" class="l" />
+    </g>
+    <g class="cup-w">
+      <path d="M150,84 V158 M250,84 V158 M146,84 H254" class="l" />
+      <path d="M152,138 H248 V114 Q200,102 152,114 Z" class="t heap" />
+      <g class="bell">
+        <path d="M200,142 V56 M156,158 V148 Q156,138 176,138 H224 Q244,138 244,148 V158 H156" class="l a" />
+        <circle cx="200" cy="48" r="8" class="l a" />
+      </g>
+    </g>
+    {#each range(8) as m (m)}
+      <circle class="drop-g fx s" style="--i: {m}; --x: {188 + (m % 4) * 8}px" cx="0" cy="164" r="2" />
+    {/each}
+    <path d="M150,262 H250" class="l a f tapfx fx" />
+  {:else if step === 'tamp'}
+    <!-- Funnel off, then the impact tamper presses down and its spring compresses. -->
+    <g class="pf-t">{@render portafilter(200, 206)}</g>
+    <path d="M156,206 V192 L132,160 H268 L244,192 V206 M128,160 H272" class="l funnel-off" />
+    <g class="tamper">
+      <path d="M154,206 V198 Q154,172 200,172 Q246,172 246,198 V206 Z" class="l" />
+      <path d="M200,172 V160" class="l f" />
+      <g class="spring"><path d="M200,172 L190,164 L210,156 L190,148 L210,140 L190,132 L200,128" class="l a spring-line" /></g>
+      <g class="cap"><rect x="168" y="102" width="64" height="26" rx="13" class="l" /></g>
+    </g>
+    <path d="M142,204 L130,198 M258,204 L270,198 M140,214 L126,214 M260,214 L274,214" class="l a fx hit" />
+  {:else if step === 'paper'}
+    <!-- A paper disc settles onto the tamped puck. -->
+    <path d="M104,152 L108,222 Q110,236 128,236 H272 Q290,236 292,222 L296,152" class="l" />
+    <ellipse cx="200" cy="152" rx="96" ry="24" class="l" />
+    <ellipse cx="200" cy="154" rx="80" ry="18" class="l f" />
+    <path d="M292,196 L372,204 Q384,208 382,216 Q380,224 368,224 L286,220" class="l" />
+    <g class="paper-disc">
+      <ellipse cx="200" cy="152" rx="76" ry="16" class="l a t" />
+      <ellipse cx="200" cy="152" rx="40" ry="8" class="l a f" />
+    </g>
+  {:else if step === 'minerals'}
+    <!-- Shake the bottle, lift the eyedropper out, squeeze: one drop into the cup. -->
+    <g class="bottle-s">
+      <path d="M76,208 H124 V252 Q124,262 114,262 H86 Q76,262 76,252 Z" class="t" />
+      <path d="M90,170 V182 Q70,188 70,206 V252 Q70,262 82,262 H118 Q130,262 130,252 V206 Q130,188 110,182 V170" class="l" />
+      <path d="M72,208 H128" class="l a f" />
+      <ellipse cx="100" cy="170" rx="10" ry="2.6" class="l" />
+      <path d="M52,186 L44,190 M52,206 L42,206 M148,186 L156,190 M148,206 L158,206" class="l f fx shake-lines" />
+    </g>
+    <g class="dropper">
+      <path d="M100,242 V182" class="l" />
+      <path d="M88,176 H112 V168 H88 Z" class="l" />
+      <g class="bulb"><path d="M93,168 C84,148 90,128 100,120 C110,128 116,148 107,168" class="l a t" /></g>
+    </g>
+    <path d="M254,222 H326 V234 Q326,262 290,262 Q254,262 254,234 Z M326,230 Q344,230 342,244 Q340,256 322,254" class="l" />
+    <ellipse cx="290" cy="222" rx="36" ry="5" class="l f" />
+    <g class="drip-drop"><path d="M290,176 C294,184 296,188 296,192 A6,6 0 0 1 284,192 C284,188 286,184 290,176 Z" class="a t l" /></g>
+    <ellipse cx="290" cy="250" rx="12" ry="2.5" class="l a ripple fx" />
+  {:else if step === 'start'}
+    <!-- Portafilter locked in, cup on the scale; the brew button on the group head pulses. -->
+    {@render machine('espresso')}
+    <g class="lock-in">
+      <rect x="156" y="112" width="88" height="24" rx="8" class="l" />
+      <path d="M244,118 L322,136 Q332,139 330,146 Q327,153 318,151 L244,132" class="l" />
+    </g>
+    <path d="M164,176 H236 V198 Q236,222 200,222 Q164,222 164,198 Z M236,184 Q254,184 254,198 Q254,210 234,208" class="l" />
+    {@render scale(200, 222)}
+  {:else if step === 'knock'}
+    <!-- Knock the puck out on the bar; it drops in with its paper. -->
+    <path d="M126,190 L274,190 L290,202 L110,202 Z" class="l" />
+    <path d="M110,202 V262 H290 V202" class="l" />
+    <path d="M134,190 V170 M266,190 V170" class="l" />
+    <rect x="128" y="168" width="144" height="8" rx="4" class="l a" />
+    <g class="knock-pf">
+      <path d="M160,100 V134 H240 V100 M164,100 H236 M156,100 H244" class="l" />
+      <path d="M240,108 L330,110 Q342,115 342,121 Q342,127 330,130 L240,132" class="l" />
+    </g>
+    <clipPath id="box-clip"><rect x="90" y="0" width="220" height="200" /></clipPath>
+    <g clip-path="url(#box-clip)"><g class="puck-fall">
+      <rect x="164" y="138" width="72" height="16" rx="5" class="l a t" />
+      <path d="M166,158 H234" class="l f" />
+    </g></g>
   {:else if step === 'rinse'}
-    <!-- Flush the group head with the empty portafilter held under it: the
-         machine's button pulses until the water runs, then the basket gets
-         rinsed (a gentle swirl, water pooling, drips into the tray). -->
-    <rect x="100" y="30" width="200" height="80" rx="18" fill="url(#metal)" />
-    <rect x="136" y="108" width="128" height="16" rx="4" fill="url(#metal-h)" />
-    {#each [0, 1, 2, 3, 4, 5, 6, 7] as w (w)}
-      <line class="stream" class:on={active} x1={146 + w * 15} y1="126" x2={146 + w * 15} y2="178" style="--i: {w}" />
+    <!-- Flush on the group head controller; water onto the empty portafilter held under it. -->
+    {@render machine('flush')}
+    {#each [0, 1, 2, 3, 4] as w (w)}
+      <path class="stream" class:on={active} d="M{176 + w * 12},116 V168" style="--i: {w}" />
     {/each}
     <g class="rinse-pf" class:on={active}>
-      <path d="M138,176 L262,176 L252,214 Q200,230 148,214 Z" fill="url(#metal)" />
-      <ellipse cx="200" cy="177" rx="62" ry="9" fill="url(#dark)" stroke="url(#metal-h)" stroke-width="4" />
-      <ellipse cx="200" cy="179" rx="50" ry="6" class="pool" class:on={active} fill="#8ccaff" />
-      <path d="M258,186 L372,214 L366,232 L254,204 Z" fill="url(#dark)" stroke="rgb(255 255 255 / 0.2)" />
-      <path d="M190,222 L210,222 L206,236 L194,236 Z" fill="#55666a" />
+      {@render portafilter(200, 170)}
+      <path d="M160,174 Q200,186 240,174" class="l a pool" class:on={active} />
     </g>
     {#if active}
       {#each [0, 1, 2] as d (d)}
-        <circle class="drip" style="--i: {d}" cx={196 + d * 4} cy="238" r="3" fill="#8ccaff" />
+        <circle class="drip fx s" style="--i: {d}" cx={188 + d * 12} cy="220" r="2.2" />
       {/each}
     {/if}
-    <rect x="110" y="250" width="180" height="14" rx="6" fill="url(#dark)" stroke="rgb(255 255 255 / 0.18)" />
-    {#if !active}<circle cx="276" cy="70" r="22" fill="url(#glow)" style="--glow: var(--g-flow)" class="pulse" />{/if}
-    <circle cx="276" cy="70" r="11" fill="var(--g-flow)" stroke="#fff" stroke-width="2" />
   {:else}
-    <!-- Done: a cup with steam. -->
-    <circle cx="200" cy="140" r="120" fill="url(#glow)" />
-    {#each [0, 1, 2] as s (s)}
-      <path class="steam" style="--i: {s}" d="M{180 + s * 20},128 C{170 + s * 20},108 {195 + s * 20},96 {184 + s * 20},72" stroke="rgb(255 255 255 / 0.5)" stroke-width="4" fill="none" stroke-linecap="round" />
-    {/each}
-    <ellipse cx="200" cy="232" rx="100" ry="16" fill="#d9d0c0" />
-    <path d="M140,140 L260,140 L248,222 Q200,238 152,222 Z" fill="url(#cup)" />
-    <ellipse cx="200" cy="140" rx="60" ry="11" fill="#c9a17a" stroke="#efe6d8" stroke-width="4" />
-    <ellipse cx="200" cy="141" rx="44" ry="7" fill="#b07a4c" opacity="0.6" />
-    <path d="M258,160 Q290,162 286,186 Q282,208 250,204" fill="none" stroke="#efe6d8" stroke-width="10" />
+    <!-- Done: an iced latte shaken in a cobbler shaker, poured into a glass without the ice. -->
+    <g class="shaker">
+      <g transform="translate(130 262)">
+        <path d="M-23,0 L-32,-92 H32 L23,0 Z" class="l" />
+        <path d="M-27.5,-30 H27.5 L23,0 H-23 Z" class="t" />
+        <path d="M-32,-92 L-26,-120 H26 L32,-92" class="l" />
+        <path d="M-9,-106 H-8 M0,-106 H1 M9,-106 H10" class="l f" />
+        <g class="ice"><rect x="-14" y="-24" width="12" height="12" rx="3" class="l f" transform="rotate(-12 -8 -18)" /></g>
+        <g class="ice b"><rect x="3" y="-40" width="12" height="12" rx="3" class="l f" transform="rotate(18 9 -34)" /></g>
+        <g class="ice c"><rect x="-8" y="-62" width="12" height="12" rx="3" class="l f" transform="rotate(6 -2 -56)" /></g>
+        <g class="cap-s"><path d="M-12,-120 V-130 Q-12,-138 0,-138 Q12,-138 12,-130 V-120" class="l" /></g>
+      </g>
+    </g>
+    <path d="M293,176 V228" class="l a stream-l fx" />
+    <path d="M276,200 L282,262 H334 L340,200" class="l" />
+    <path d="M282,262 L278.2,222 H337.8 L334,262 Z" class="t liquid" />
+    <path d="M278.2,222 L276.7,207 C282,203 288,208 294,204 C300,200 306,208 312,204 C318,200 324,208 330,204 C334,203 337,205 339.3,207 L337.8,222" class="l a foam" />
   {/if}
 </svg>
 
 <style>
-  .art { width: 100%; height: 100%; overflow: visible; }
+  .art {
+    --acc: #8fd3c0;
+    --coffee: #e2a86c;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
   text { font-family: var(--font); font-variant-numeric: tabular-nums; }
 
+  /* Line language: one stroke weight, rounded; the accent only where it matters. */
+  .l { vector-effect: non-scaling-stroke; fill: none; stroke: var(--paper); stroke-opacity: 0.92; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .l.f { stroke-opacity: 0.38; }
+  .l.a { stroke: var(--acc); stroke-opacity: 1; }
+  .l.a.f { stroke-opacity: 0.55; }
+  .t { fill: var(--acc); fill-opacity: 0.12; stroke: none; }
+  .l.t { stroke: var(--paper); }
+  .l.a.t { stroke: var(--acc); }
+  .s { fill: var(--acc); stroke: none; }
+  .l.f.t { fill-opacity: 0.08; }
+
+  .art.weigh { --acc: rgb(var(--accent)); }
+  .art.spray, .art.minerals, .art.rinse { --acc: var(--g-flow); }
+  .art.dial { --acc: var(--warn); }
+  .art.grind, .art.funnel, .art.knock, .art.done { --acc: var(--coffee); }
+  .art.basket, .art.tamp, .art.paper { --acc: var(--go); }
+  .art.start { --acc: var(--go); }
+  .ground { stroke-opacity: 0.22; }
+
   /* weigh */
-  .drop { animation: drop 1.6s cubic-bezier(.5, 0, .9, .6) infinite; animation-delay: calc(var(--i) * 0.27s); opacity: 0; translate: var(--x) 0; }
-  @keyframes drop { 0% { transform: translateY(40px) rotate(0deg); opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } 100% { transform: translateY(150px) rotate(200deg); opacity: 0; } }
-  /* Dose reached: the beans stop falling. (A paused animation keeps its own opacity, so fade the group.) */
-  g:has(> .drop) { transition: opacity 300ms ease; }
-  .settled { opacity: 0; }
-  .lcd { fill: #0b1f17; stroke: rgb(255 255 255 / 0.15); }
-  .lcd.ok { fill: #0e3a24; }
-  .lcd-text { font-size: 19px; font-weight: 700; fill: #9fe7c3; letter-spacing: 0.05em; }
-  .lcd-text.under { fill: #ffd27a; }
-  .lcd-text.over { fill: #ff9a8e; }
-  .lcd-text.ok { fill: #8dffb9; filter: drop-shadow(0 0 6px #4cff9a); }
+  .lcd { font-size: 14px; font-weight: 700; fill: var(--paper); letter-spacing: 0.03em; }
+  .lcd.under { fill: var(--warn); }
+  .lcd.over { fill: var(--stop); }
+  .lcd.ok { fill: var(--go); }
+  .mound { opacity: 0; transition: opacity 300ms ease; }
+  .mound.show { opacity: 1; }
+  .drop { animation: drop 1.7s cubic-bezier(.5, 0, .9, .6) infinite; animation-delay: calc(var(--i) * 0.31s); opacity: 0; translate: var(--x) 0; }
+  @keyframes drop { 0% { transform: translateY(40px); opacity: 0; } 15% { opacity: 1; } 80% { opacity: 1; } 100% { transform: translateY(116px) rotate(120deg); opacity: 0; } }
+  /* Dose reached: the beans stop falling. */
+  .fall-group { transition: opacity 300ms ease; }
+  .fall-group.settled { opacity: 0; }
 
   /* spray */
-  .bottle { transform-origin: 98px 230px; animation: tilt 2.4s ease-in-out infinite; }
-  @keyframes tilt { 0%, 100% { transform: rotate(0deg); } 40%, 60% { transform: rotate(14deg); } }
-  .trigger { animation: squeeze 2.4s ease-in-out infinite; transform-origin: 104px 112px; }
-  @keyframes squeeze { 0%, 35%, 70%, 100% { transform: rotate(0); } 45%, 55% { transform: rotate(-12deg); } }
-  .mist { opacity: 0; animation: mist 2.4s ease-out infinite; animation-delay: calc(0.9s + var(--i) * 0.03s); }
-  @keyframes mist { 0% { opacity: 0; transform: translate(0, 0) scale(0.4); } 15% { opacity: 0.9; } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1.4); } }
+  .trigger { transform-origin: 110px 134px; animation: squeeze 2.6s ease-in-out infinite; }
+  @keyframes squeeze { 0%, 30%, 75%, 100% { transform: rotate(0); } 42%, 62% { transform: rotate(-10deg); } }
+  .mist { opacity: 0; animation: mist 2.6s ease-out infinite; animation-delay: calc(0.8s + var(--i) * 0.05s); }
+  @keyframes mist { 0% { opacity: 0; transform: translate(0, 0) scale(0.5); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1.3); } }
 
   /* dial */
-  .dial-ring { transform-origin: 200px 150px; animation: dial 1.8s cubic-bezier(.2, .9, .25, 1.15) both; }
-  @keyframes dial { from { transform: rotate(-110deg); } to { transform: rotate(0deg); } }
-  .dial-num { font-size: 46px; font-weight: 800; fill: var(--ink); }
-  .dial-num.small { font-size: 30px; }
+  .dial-ring { transform-origin: 0 0; animation: dial 5s cubic-bezier(.2, .9, .25, 1.1) infinite; }
+  @keyframes dial { 0% { transform: rotate(var(--from)); } 35%, 100% { transform: rotate(var(--to)); } }
+  .tick-num { font-size: 10px; font-weight: 700; fill: var(--paper); fill-opacity: 0.8; }
+  .dial-num { font-size: 26px; font-weight: 800; fill: var(--acc); }
+  .dial-num.small { font-size: 15px; }
+  .pointer { animation: none; }
 
-  /* grind */
-  .grinder { animation: buzz 0.12s linear infinite; }
-  @keyframes buzz { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(0.8px); } }
-  .burr { transform-origin: 200px 140px; animation: spin 0.5s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .fall { animation: fall 0.9s linear infinite; animation-delay: calc(var(--i) * 0.065s); translate: var(--x) 0; }
-  @keyframes fall { from { transform: translateY(206px); opacity: 1; } to { transform: translateY(228px); opacity: 0.2; } }
-  .fill-up { transform-origin: 200px 225px; animation: fill 4s ease-out infinite; }
-  @keyframes fill { from { transform: scale(0.3); } to { transform: scale(1.1); } }
+  /* grind: one 10 s loop in five beats, matching the list on screen */
+  .power { opacity: 0; animation: power 10s linear infinite; }
+  @keyframes power { 0%, 3% { opacity: 0; } 6%, 60% { opacity: 1; } 64%, 100% { opacity: 0; } }
+  .vib { opacity: 0; animation: vib 10s linear infinite; }
+  @keyframes vib { 0%, 6% { opacity: 0; transform: translateX(0); } 8% { opacity: 1; } 12%, 56% { opacity: 1; } 60% { opacity: 0; } 100% { opacity: 0; } }
+  .vib { animation-name: vib, wob; animation-duration: 10s, 0.25s; animation-timing-function: linear, ease-in-out; animation-iteration-count: infinite, infinite; }
+  @keyframes wob { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-2px); } }
+  .pour-cup { transform-origin: 218px 44px; animation: tip 10s ease-in-out infinite; }
+  @keyframes tip { 0%, 18% { transform: translate(-6px, 24px) rotate(0deg); opacity: 0.55; } 24% { transform: translate(0, 0) rotate(0deg); opacity: 1; } 31%, 39% { transform: translate(0, 0) rotate(52deg); opacity: 1; } 46% { transform: translate(0, 0) rotate(0deg); opacity: 1; } 52%, 100% { transform: translate(-6px, 24px) rotate(0deg); opacity: 0.55; } }
+  .pour-bean { opacity: 0; animation: pbean 10s linear infinite; animation-delay: calc(var(--i) * 0.14s); translate: var(--x) 0; }
+  @keyframes pbean { 0%, 28% { opacity: 0; transform: translateY(30px); } 30% { opacity: 1; } 36% { opacity: 1; transform: translateY(58px); } 37%, 100% { opacity: 0; transform: translateY(66px); } }
+  .lid { animation: lid 10s ease-in-out infinite; transform-origin: 0 -216px; }
+  @keyframes lid { 0%, 18% { transform: translate(0, 0) rotate(0); } 24%, 44% { transform: translate(34px, -30px) rotate(14deg); } 50%, 78% { transform: translate(0, 0) rotate(0); } 83%, 88% { transform: translate(0, 10px); } 93%, 100% { transform: translate(0, 0); } }
+  .bellows { transform-origin: 0 -164px; animation: squash 10s ease-in-out infinite; }
+  @keyframes squash { 0%, 78% { transform: scaleY(1); } 83%, 88% { transform: scaleY(0.8); } 93%, 100% { transform: scaleY(1); } }
+  .finger { opacity: 0; animation: finger 10s ease-in-out infinite; }
+  @keyframes finger { 0%, 74% { opacity: 0; transform: translate(10px, -26px); } 79% { opacity: 1; transform: translate(0, -8px); } 83%, 88% { opacity: 1; transform: translate(0, 2px); } 93% { opacity: 1; transform: translate(0, -8px); } 97%, 100% { opacity: 0; transform: translate(10px, -26px); } }
+  .grain { opacity: 0; animation: grain 0.7s linear infinite; animation-delay: calc(var(--i) * 0.11s); translate: var(--x) 0; }
+  @keyframes grain { 0% { transform: translateY(0); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(30px); opacity: 1; } }
+  /* grounds only fall while the grinder is running and for the last puff */
+  .grain { animation-name: grain, grainwin; animation-duration: 0.7s, 10s; animation-iteration-count: infinite, infinite; animation-delay: calc(var(--i) * 0.11s), 0s; }
+  @keyframes grainwin { 0%, 34% { visibility: hidden; } 35%, 60% { visibility: visible; } 61%, 100% { visibility: hidden; } }
+  .puff { opacity: 0; animation: puff 10s ease-in infinite; animation-delay: calc(var(--i) * 0.08s); translate: var(--x) 0; }
+  @keyframes puff { 0%, 83% { opacity: 0; transform: translateY(0); } 85% { opacity: 1; } 92% { opacity: 1; transform: translateY(30px); } 93%, 100% { opacity: 0; transform: translateY(30px); } }
+  .pile { transform-origin: 71px -18px; animation: pile 10s ease-out infinite; }
+  @keyframes pile { 0%, 34% { transform: scaleY(0.04); opacity: 0; } 36% { opacity: 1; } 60% { transform: scaleY(0.75); } 92% { transform: scaleY(0.9); opacity: 1; } 99%, 100% { transform: scaleY(0.9); opacity: 0; } }
+
+  /* basket: the convex basket drops in and seats; a check confirms it */
+  .basket-in { animation: seat 4.5s cubic-bezier(.3, .7, .3, 1) infinite; }
+  @keyframes seat { 0% { transform: translateY(-74px); opacity: 0; } 18% { opacity: 1; } 50%, 62% { transform: translateY(14px); } 70%, 90% { transform: translateY(14px); opacity: 1; } 100% { transform: translateY(14px); opacity: 0; } }
+  .tick { opacity: 0; animation: check 4.5s linear infinite; }
+  @keyframes check { 0%, 52% { opacity: 0; } 60%, 88% { opacity: 1; } 96%, 100% { opacity: 0; } }
 
   /* funnel */
-  .pour-cup { transform-origin: 250px 92px; animation: tip 3s ease-in-out infinite; }
-  @keyframes tip { 0%, 100% { transform: translate(0, 0) rotate(0deg); } 30%, 75% { transform: translate(-20px, 10px) rotate(-118deg); } }
-  .pour { opacity: 0; animation: pour 3s linear infinite; animation-delay: calc(0.9s + var(--i) * 0.08s); translate: var(--x) 0; }
-  @keyframes pour { 0% { opacity: 0; transform: translateY(100px); } 5% { opacity: 1; } 35% { opacity: 1; transform: translateY(176px); } 36%, 100% { opacity: 0; transform: translateY(176px); } }
+  .bell { animation: bell 9s ease-in-out infinite; }
+  @keyframes bell { 0%, 14% { transform: translateY(0); } 26%, 42% { transform: translateY(-34px); } 52%, 100% { transform: translateY(0); } }
+  .heap { transform-origin: 200px 138px; animation: heap 9s ease-in infinite; }
+  @keyframes heap { 0%, 15% { transform: scaleY(1); opacity: 1; } 34% { transform: scaleY(0.1); opacity: 0.2; } 36%, 90% { transform: scaleY(0.1); opacity: 0; } 98%, 100% { transform: scaleY(1); opacity: 1; } }
+  .cup-w { animation: cupaway 9s ease-in-out infinite; }
+  @keyframes cupaway { 0%, 46% { transform: translateY(0); opacity: 1; } 56%, 90% { transform: translateY(-70px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+  .drop-g { opacity: 0; animation: dropg 9s linear infinite; animation-delay: calc(var(--i) * 0.1s); translate: var(--x) 0; }
+  @keyframes dropg { 0%, 16% { opacity: 0; transform: translateY(0); } 18% { opacity: 1; } 28% { opacity: 1; transform: translateY(46px); } 29%, 100% { opacity: 0; transform: translateY(46px); } }
+  .pf-stack { animation: taps 9s ease-in-out infinite; }
+  @keyframes taps { 0%, 58%, 76%, 100% { transform: translateY(0); } 64% { transform: translateY(-14px); } 69% { transform: translateY(0); } 70% { transform: translateY(0); } 73% { transform: translateY(-14px); } }
+  .tapfx { opacity: 0; animation: tapfx 9s linear infinite; }
+  @keyframes tapfx { 0%, 66% { opacity: 0; } 69%, 70% { opacity: 1; } 72%, 77% { opacity: 0; } 78% { opacity: 1; } 82%, 100% { opacity: 0; } }
 
-  /* tamp: two taps, then the tamper presses and lifts */
-  .pf { animation: tap 3.6s ease-in-out infinite; }
-  @keyframes tap { 0%, 30%, 100% { transform: translateY(0); } 6% { transform: translateY(-12px); } 10% { transform: translateY(0); } 16% { transform: translateY(-12px); } 20% { transform: translateY(0); } }
-  .tamper { animation: tamp 3.6s cubic-bezier(.4, 0, .2, 1) infinite; }
-  @keyframes tamp { 0%, 30% { transform: translateY(-20px); opacity: 0.4; } 50%, 70% { transform: translateY(40px); opacity: 1; } 90%, 100% { transform: translateY(-20px); opacity: 0.4; } }
-  .caption { font-size: 18px; font-weight: 700; fill: var(--paper-dim); }
-  .cap-tap { animation: cap1 3.6s step-end infinite; }
-  .cap-tamp { animation: cap2 3.6s step-end infinite; }
-  @keyframes cap1 { 0% { opacity: 1; } 32% { opacity: 0; } }
-  @keyframes cap2 { 0% { opacity: 0; } 32% { opacity: 1; } }
+  /* tamp: funnel lifts off, tamper presses, spring compresses */
+  .funnel-off { animation: funoff 5.5s ease-in-out infinite; }
+  @keyframes funoff { 0%, 8% { transform: translateY(0); opacity: 1; } 24%, 92% { transform: translateY(-60px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+  .tamper { animation: arrive 5.5s cubic-bezier(.3, .7, .3, 1) infinite; }
+  @keyframes arrive { 0%, 20% { transform: translateY(-80px); opacity: 0; } 38%, 78% { transform: translateY(0); opacity: 1; } 94%, 100% { transform: translateY(-80px); opacity: 0; } }
+  .cap { animation: press 5.5s ease-in-out infinite; }
+  @keyframes press { 0%, 44% { transform: translateY(0); } 56% { transform: translateY(22px); } 62%, 66% { transform: translateY(22px); } 76%, 100% { transform: translateY(0); } }
+  .spring { transform-origin: 200px 172px; animation: coil 5.5s ease-in-out infinite; }
+  @keyframes coil { 0%, 44% { transform: scaleY(1); } 56%, 66% { transform: scaleY(0.44); } 76%, 100% { transform: scaleY(1); } }
+  .pf-t { animation: settle 5.5s ease-in-out infinite; }
+  @keyframes settle { 0%, 54%, 100% { transform: translateY(0); } 58% { transform: translateY(2px); } 64% { transform: translateY(0); } }
+  .hit { opacity: 0; animation: hit 5.5s linear infinite; }
+  @keyframes hit { 0%, 54% { opacity: 0; } 58%, 62% { opacity: 1; } 70%, 100% { opacity: 0; } }
 
   /* paper */
-  .paper-disc { transform-origin: 200px 150px; animation: float 3.2s cubic-bezier(.3, .7, .3, 1) infinite; }
-  @keyframes float { 0% { transform: translate(-30px, -110px) rotate(-25deg) scale(1.15); opacity: 0; } 15% { opacity: 1; } 70%, 100% { transform: translate(0, 0) rotate(0) scale(1); opacity: 1; } }
+  .paper-disc { animation: float 3.4s cubic-bezier(.3, .7, .3, 1) infinite; }
+  @keyframes float { 0% { transform: translate(-20px, -110px) rotate(-8deg); opacity: 0; } 15% { opacity: 1; } 60%, 88% { transform: translate(0, 0) rotate(0); opacity: 1; } 100% { transform: translate(0, 0); opacity: 0; } }
 
-  /* start */
-  .lock { transform-origin: 200px 118px; animation: lock 2.6s cubic-bezier(.3, .8, .3, 1) infinite; }
-  @keyframes lock { 0% { transform: translateY(40px) rotate(-14deg); opacity: 0.4; } 35% { transform: translateY(0) rotate(-14deg); opacity: 1; } 60%, 100% { transform: translateY(0) rotate(0); } }
-  .start-pill { transform-origin: 296px 236px; animation: pill 1.4s ease-in-out infinite; }
-  @keyframes pill { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
-  .pill-text { font-size: 20px; font-weight: 800; fill: var(--cat-ink); }
-  .pulse { transform-box: fill-box; transform-origin: center; animation: pulse 1.3s ease-in-out infinite; }
-  @keyframes pulse { 0%, 100% { transform: scale(0.8); opacity: 0.5; } 50% { transform: scale(1.3); opacity: 1; } }
+  /* minerals: shake, lift the dropper out, squeeze, one drop, put it back */
+  .bottle-s { transform-origin: 100px 262px; animation: shake 8s linear infinite; }
+  @keyframes shake { 0%, 24%, 100% { transform: rotate(0); } 2% { transform: translateY(-8px) rotate(8deg); } 4% { transform: translateY(2px) rotate(-8deg); } 6% { transform: translateY(-8px) rotate(8deg); } 8% { transform: translateY(2px) rotate(-8deg); } 10% { transform: translateY(-8px) rotate(8deg); } 12% { transform: translateY(2px) rotate(-8deg); } 14% { transform: translateY(-8px) rotate(6deg); } 16% { transform: translateY(0) rotate(-4deg); } 18% { transform: translateY(0) rotate(0); } }
+  .shake-lines { opacity: 0; animation: shl 8s linear infinite; }
+  @keyframes shl { 0%, 1% { opacity: 0; } 3%, 16% { opacity: 1; } 19%, 100% { opacity: 0; } }
+  .dropper { animation: lift 8s ease-in-out infinite; }
+  @keyframes lift { 0%, 20% { transform: translate(0, 0); } 28% { transform: translate(0, -64px); } 40%, 78% { transform: translate(190px, -64px); } 90%, 100% { transform: translate(0, 0); } 86% { transform: translate(0, -64px); } }
+  .bulb { transform-origin: 100px 168px; animation: squeeze2 8s ease-in-out infinite; }
+  @keyframes squeeze2 { 0%, 46% { transform: scaleY(1); } 54%, 58% { transform: scaleY(0.78); } 66%, 100% { transform: scaleY(1); } }
+  .drip-drop { transform-box: fill-box; opacity: 0; animation: drop2 8s cubic-bezier(.5, 0, .9, .6) infinite; }
+  @keyframes drop2 { 0%, 54% { opacity: 0; transform: translateY(0) scale(0.2); } 58% { opacity: 1; transform: translateY(0) scale(1); } 74% { opacity: 1; transform: translateY(54px) scale(1); } 75%, 100% { opacity: 0; transform: translateY(54px); } }
+  .ripple { opacity: 0; transform-origin: 290px 250px; animation: ripple 8s ease-out infinite; }
+  @keyframes ripple { 0%, 74% { opacity: 0; transform: scale(0.3); } 76% { opacity: 1; } 90%, 100% { opacity: 0; transform: scale(1.6); } }
+
+  /* start: portafilter locks in, brew button pulses */
+  .lock-in { transform-origin: 160px 124px; animation: lock 3.2s cubic-bezier(.3, .8, .3, 1) infinite; }
+  @keyframes lock { 0% { transform: translateY(26px) rotate(-18deg); opacity: 0.3; } 35% { transform: translateY(0) rotate(-18deg); opacity: 1; } 60%, 100% { transform: translateY(0) rotate(0); opacity: 1; } }
+  .ico.on :global(.l) { stroke: var(--acc); stroke-opacity: 1; }
+  .ico.on :global(circle.l) { fill: var(--acc); fill-opacity: 0.14; animation: pulse 1.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.22); } }
 
   /* knock */
-  .knock-pf { transform-origin: 300px 97px; animation: whack 1.8s cubic-bezier(.6, 0, .4, 1) infinite; }
-  @keyframes whack { 0%, 100% { transform: rotate(0); } 40% { transform: rotate(-8deg) translateY(-14px); } 55% { transform: rotate(4deg) translateY(56px); } 65% { transform: rotate(0) translateY(52px); } }
-  .puck { animation: puck 1.8s ease-in infinite; opacity: 0; }
-  @keyframes puck { 0%, 55% { transform: translateY(150px); opacity: 0; } 58% { opacity: 1; } 85% { transform: translateY(230px); opacity: 1; } 100% { transform: translateY(232px); opacity: 0; } }
+  .knock-pf { animation: knock 4s cubic-bezier(.6, 0, .4, 1) infinite; }
+  @keyframes knock { 0%, 8%, 100% { transform: translateY(-34px); } 22% { transform: translateY(34px); } 30% { transform: translateY(8px); } 42% { transform: translateY(34px); } 60% { transform: translateY(-34px); } }
+  .puck-fall { opacity: 0; animation: puck 4s ease-in infinite; }
+  @keyframes puck { 0%, 40% { opacity: 0; transform: translateY(0); } 42% { opacity: 1; transform: translateY(0); } 70% { opacity: 1; transform: translateY(96px); } 71%, 100% { opacity: 0; transform: translateY(96px); } }
 
   /* rinse */
-  .stream { stroke: #8ccaff; stroke-width: 4; stroke-linecap: round; stroke-dasharray: 10 14; opacity: 0.15; }
-  .stream.on { opacity: 0.9; animation: water 0.5s linear infinite; animation-delay: calc(var(--i) * -0.06s); }
-  @keyframes water { to { stroke-dashoffset: -24; } }
-  .rinse-pf { transform-origin: 200px 200px; }
+  .stream { fill: none; stroke: var(--acc); stroke-width: 2; stroke-linecap: round; stroke-dasharray: 6 9; opacity: 0.15; }
+  .stream.on { opacity: 1; animation: water 0.5s linear infinite; animation-delay: calc(var(--i) * -0.07s); }
+  @keyframes water { to { stroke-dashoffset: -15; } }
   .rinse-pf.on { animation: swirl 2.2s ease-in-out infinite; }
-  @keyframes swirl { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg) translateX(3px); } }
-  .pool { opacity: 0; transition: opacity 600ms ease; }
-  .pool.on { opacity: 0.75; }
-  .drip { animation: drip 0.7s ease-in infinite; animation-delay: calc(var(--i) * 0.23s); opacity: 0; }
-  @keyframes drip { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(14px); opacity: 0; } }
+  @keyframes swirl { 0%, 100% { transform: translateX(-3px); } 50% { transform: translateX(3px); } }
+  .pool { opacity: 0; transition: opacity 500ms ease; }
+  .pool.on { opacity: 1; }
+  .drip { opacity: 0; animation: drip 0.7s ease-in infinite; animation-delay: calc(var(--i) * 0.23s); }
+  @keyframes drip { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(30px); opacity: 0; } }
 
-  /* done */
-  .steam { animation: steam 2.8s ease-in-out infinite; animation-delay: calc(var(--i) * 0.5s); opacity: 0; }
-  @keyframes steam { 0% { opacity: 0; transform: translateY(10px); } 40% { opacity: 0.8; } 100% { opacity: 0; transform: translateY(-24px); } }
+  /* done: shake with ice, pour, foam */
+  .shaker { transform-origin: 130px 193px; animation: shaker 8s ease-in-out infinite; }
+  @keyframes shaker {
+    0%, 2% { transform: translate(0, 0) rotate(0); }
+    4% { transform: translate(6px, -14px) rotate(8deg); } 6% { transform: translate(-4px, 4px) rotate(-6deg); }
+    8% { transform: translate(6px, -14px) rotate(8deg); } 10% { transform: translate(-4px, 4px) rotate(-6deg); }
+    12% { transform: translate(6px, -14px) rotate(8deg); } 14% { transform: translate(-4px, 4px) rotate(-6deg); }
+    16% { transform: translate(6px, -14px) rotate(8deg); } 18% { transform: translate(-4px, 4px) rotate(-6deg); }
+    22%, 30% { transform: translate(0, 0) rotate(0); }
+    40%, 66% { transform: translate(105px, -47px) rotate(112deg); }
+    78%, 100% { transform: translate(0, 0) rotate(0); }
+  }
+  .ice { animation: ice 0.4s ease-in-out infinite alternate; }
+  .ice.b { animation-delay: -0.15s; } .ice.c { animation-delay: -0.3s; }
+  @keyframes ice { to { transform: translate(2px, -4px); } }
+  .cap-s { animation: capoff 8s ease-in-out infinite; }
+  @keyframes capoff { 0%, 28% { transform: translate(0, 0); opacity: 1; } 38%, 70% { transform: translate(8px, -26px); opacity: 0; } 82%, 100% { transform: translate(0, 0); opacity: 1; } }
+  .stream-l { stroke-dasharray: 5 7; opacity: 0; animation: pourline 8s linear infinite; }
+  @keyframes pourline { 0%, 42% { opacity: 0; stroke-dashoffset: 0; } 46% { opacity: 1; } 62% { opacity: 1; stroke-dashoffset: -48; } 66%, 100% { opacity: 0; stroke-dashoffset: -60; } }
+  .liquid { transform-origin: 310px 262px; animation: fillup 8s ease-out infinite; }
+  @keyframes fillup { 0%, 44% { transform: scaleY(0.05); opacity: 0; } 46% { opacity: 1; } 64%, 94% { transform: scaleY(1); opacity: 1; } 100% { transform: scaleY(1); opacity: 0; } }
+  .foam { animation: foam 8s ease-out infinite; }
+  @keyframes foam { 0%, 62% { opacity: 0; } 70%, 94% { opacity: 1; } 100% { opacity: 0; } }
 
   @media (prefers-reduced-motion: reduce) {
-    .art * { animation: none !important; }
+    .art * { animation: none !important; transition: none !important; }
+    .art .fx { display: none; }
   }
 </style>
