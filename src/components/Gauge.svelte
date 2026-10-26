@@ -11,7 +11,7 @@
   interface Target { value: number | null | undefined; colour: string }
 
   let {
-    label, unit, min, max, major, minor = 2, needles, targets = [], decimals = 1, redline,
+    label, unit, min, max, major, minor = 2, needles, targets = [], decimals = 1, redline, side = false,
   }: {
     label: string;
     unit: string;
@@ -26,6 +26,8 @@
     decimals?: number;
     /** Start of a red zone that runs to max. */
     redline?: number;
+    /** Put the label beside the dial instead of under it (the dial then fills the height and is square). */
+    side?: boolean;
   } = $props();
 
   const C = 100;
@@ -41,7 +43,7 @@
   const drawOrder = $derived([...needles].sort((a, b) => (b.width ?? 3) - (a.width ?? 3)));
 </script>
 
-<figure class="gauge">
+<figure class="gauge" class:side>
   <div class="face">
   <svg viewBox="0 0 200 200" role="img" aria-label="{label}: {needles.map((n) => `${n.name ? `${n.name} ` : ''}${fmt(n.value)} ${unit}`).join(', ')}">
     <defs>
@@ -120,6 +122,9 @@
   }
   .face { flex: 1; min-height: 0; width: 100%; position: relative; }
   .face > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .gauge.side { flex-direction: row; align-items: center; gap: 6px; }
+  .gauge.side .face { flex: none; width: auto; height: 100%; aspect-ratio: 1; }
+  .gauge.side figcaption { flex: 1; min-width: 0; margin: 0; line-height: 1.2; overflow-wrap: normal; }
   figcaption {
     margin-top: 2px;
     color: var(--paper-dim);
