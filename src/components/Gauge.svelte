@@ -42,6 +42,7 @@
 </script>
 
 <figure class="gauge">
+  <div class="face">
   <svg viewBox="0 0 200 200" role="img" aria-label="{label}: {needles.map((n) => `${n.name ? `${n.name} ` : ''}${fmt(n.value)} ${unit}`).join(', ')}">
     <defs>
       <linearGradient id="face-{uid}" x1="0.1" y1="0" x2="0.9" y2="1">
@@ -85,15 +86,6 @@
       {/if}
     {/each}
 
-    <!-- needles -->
-    {#each drawOrder as n, i (i)}
-      {@const w = (n.width ?? 3) * 0.5}
-      <g class="needle" class:idle={!shown(n.value)} style="transform: rotate({angle(shown(n.value) ? n.value : min)}deg)">
-        <line x1={C} y1={C} x2={C} y2={C - 76} stroke={n.colour} stroke-width={w} stroke-linecap="round" />
-      </g>
-    {/each}
-    <circle cx={C} cy={C} r="4.5" class="hub" />
-
     <!-- readout in the open bottom -->
     {#if single}
       <text class="value" x={C} y="160" text-anchor="middle">{fmt(single.value)}</text>
@@ -104,6 +96,14 @@
     {/if}
     <text class="unit" x={C} y="179" text-anchor="middle">{unit}</text>
   </svg>
+  <!-- Needles are their own SVGs so the browser can turn them on the compositor: a transition on an SVG child costs main-thread style work every frame. -->
+  {#each drawOrder as n, i (i)}
+    <svg class="needle" class:idle={!shown(n.value)} viewBox="0 0 200 200" aria-hidden="true" style="transform: rotate({angle(shown(n.value) ? n.value : min)}deg)">
+      <line x1={C} y1={C} x2={C} y2={C - 76} stroke={n.colour} stroke-width={(n.width ?? 3) * 0.5} stroke-linecap="round" />
+      <circle cx={C} cy={C} r="4.5" class="hub" />
+    </svg>
+  {/each}
+  </div>
   <figcaption>{label}</figcaption>
 </figure>
 
@@ -118,7 +118,8 @@
     flex-direction: column;
     align-items: center;
   }
-  svg { flex: 1; min-height: 0; width: 100%; }
+  .face { flex: 1; min-height: 0; width: 100%; position: relative; }
+  .face > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
   figcaption {
     margin-top: 2px;
     color: var(--paper-dim);
@@ -140,8 +141,9 @@
   .tick.major { stroke: rgb(238 243 239 / 0.5); stroke-width: 1.4; }
   .target { stroke-width: 3; stroke-linecap: round; }
 
-  .needle {
-    transform-origin: 100px 100px;
+  .face > svg.needle {
+    pointer-events: none;
+    transform-origin: 50% 50%;
     transition: transform 110ms linear;
     will-change: transform;
   }
