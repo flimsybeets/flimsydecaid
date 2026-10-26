@@ -93,6 +93,14 @@ function dosingCup(S, x, y, k, o = {}) {
     for (const [bx, by, rot, sc] of BEANS) bean(S, bx, by, rot, sc);
     S.raw('</g>');
   }
+  // things dropping into the cup: in front of the back wall, behind the
+  // front lip (visible above the back rim edge and through the opening)
+  if (o.fall) {
+    const fid = S.uid('cf');
+    S.raw(`<clipPath id="${fid}"><path d="M-400 -600H400V48L186 48C166 36 134 25 100 17C70 10 38 4 13 8L-400 8Z"/><path d="${DOSE.inner}"/></clipPath><g clip-path="url(#${fid})">`);
+    o.fall();
+    S.raw('</g>');
+  }
   S.line(DOSE.lip, 'p');
   S.line(DOSE.back, 's');
   S.hl('M14 26C15 48 26 72 46 92');
@@ -125,7 +133,7 @@ function espressoCup(S, cam, cx, y0, cz, o = {}) {
 // ------------------------------------------------------------------ portafilter
 // Decent naked portafilter: bottomless holder ring with two ears, steel stem,
 // teardrop handle (30042 drawing: 140 long, 23 at the stem, 33 at the belly)
-// in glossy marbled purple and black resin. Convex (domed) basket.
+// in glossy marbled purple and black resin. IKAPE tapered basket (BK).
 // (cx, y0, cz) = top of the basket rim. ang = handle direction in the
 // ground plane, degrees from +x towards +z. content: 'none' (holder only),
 // 'empty', 'grounds', 'tamped', 'paper'.
@@ -159,6 +167,57 @@ function handleMarble(S, cam, a, dir, prof, uid) {
   S.raw(`<path d="${sw([[0.35, 0.72], [0.55, 0.78], [0.75, 0.66]])}" fill="none" stroke="#b58ae0" stroke-opacity=".35" stroke-width="1.2" stroke-linecap="round"/>`);
   return rv;
 }
+// IKAPE 58 mm precision basket (photo 13): a tapered cone, 58 mm across the
+// top and 33 mm deep, with a flared lip, two raised rings just under it and
+// walls sloping in to a flat 39 mm floor. y = 0 is the top of the lip.
+const BK = { lip: 32.6, top: 29.2, depth: 33, floor: 19.5 };
+const basketProf = (y0) => [
+  [y0 + 0.8, 32.2], [y0, 32.6, 1], [y0 - 0.6, 31, 1], [y0 - 1.2, 29.4, 1],
+  [y0 - 2.6, 29.4, 1], [y0 - 3.4, 30, 1], [y0 - 4.6, 30, 1], [y0 - 5.4, 29.4, 1],
+  [y0 - 6.6, 29.4, 1], [y0 - 7.4, 30, 1], [y0 - 8.6, 30, 1], [y0 - 9.4, 29.2, 1],
+  [y0 - 11, 28.6], [y0 - 20, 24.6], [y0 - 28, 21.2], [y0 - 32.2, 19.8, 1], [y0 - 33, 19.2, 1],
+];
+// the cone's outer wall below height yTop: brushed steel, its rings, a sheen
+function basketWall(S, cam, cx, y0, cz, yTop = y0 + 0.8) {
+  const prof = basketProf(y0).filter(([y]) => y <= yTop + 1e-6);
+  const w = G.stackLathe(cam, cx, cz, prof, 4);
+  S.solid(w.sil, 'brushed');
+  // the raised rings catch a line of light on their upper edge
+  for (const yr of [y0 - 3.4, y0 - 7.4]) if (yr < yTop) { S.raw(`<path d="${w.front(yr, 30)}" fill="none" stroke="rgb(255 255 255 / .55)" stroke-width="1"/>`); S.raw(`<path d="${w.front(yr - 1.2, 30)}" fill="none" stroke="rgb(0 0 0 / .35)" stroke-width="1"/>`); }
+  // a crease where the cone starts, then a long specular streak down the cone
+  if (y0 - 11 < yTop) S.raw(`<path d="${w.front(y0 - 11, 28.6)}" fill="none" stroke="rgb(0 0 0 / .25)" stroke-width="1"/>`);
+  const k = (y) => { const p = prof; for (let i = 1; i < p.length; i++) if (y >= p[i][0]) { const t = (y - p[i][0]) / (p[i - 1][0] - p[i][0]); return p[i][1] + (p[i - 1][1] - p[i][1]) * t; } return p[p.length - 1][1]; };
+  for (const [a, op, wd] of [[146, 0.75, 2.2], [40, 0.3, 1.4]]) {
+    const ya = Math.min(yTop, y0 - 12), yb = y0 - 31;
+    const pts = []; for (let i = 0; i <= 10; i++) { const y = ya + (yb - ya) * i / 10, r = k(y); pts.push(cam.P(cx + r * Math.cos(a * Math.PI / 180), y, cz + r * Math.sin(a * Math.PI / 180))); }
+    S.raw(`<path d="${crD(pts)}" fill="none" stroke="#fff" stroke-opacity="${op}" stroke-width="${wd}" stroke-linecap="round"/>`);
+  }
+  // the flat floor's front edge
+  S.raw(`<path d="${w.front(y0 - 33, 19.2)}" fill="none" stroke="rgb(255 255 255 / .3)" stroke-width="1"/>`);
+  return w;
+}
+// the whole basket on its own (the Basket scene): wall, lip, a look inside
+// down the sloped inner wall to the flat perforated floor
+function basket(S, cam, cx, y0, cz) {
+  const w = basketWall(S, cam, cx, y0, cz);
+  S.face(w.ring(y0 + 0.8, 32.2), `rgb(${PAPER} / .22)`);
+  S.face(w.ring(y0 + 0.8, 29), 'rgb(14 24 26 / .9)');
+  const ic = S.uid('bi');
+  S.raw(`<clipPath id="${ic}"><path d="${w.ring(y0 + 0.8, 29)}"/></clipPath><g clip-path="url(#${ic})">`);
+  // far inner wall: lit brushed steel sloping down to the floor
+  const inner = G.stackLathe(cam, cx, cz, [[y0 + 0.8, 29], [y0 - 11, 28], [y0 - 32, 18.8]], 4);
+  S.fill(inner.sil, `url(#${S.id}brushed)`, ' fill-opacity=".55"');
+  S.fill(ellD(cam.ell(cx, y0 - 32, cz, 18.8)), 'rgb(70 84 86)');
+  let hd = '';
+  for (const [rk, n] of [[0, 1], [4, 7], [8, 13], [12, 19], [16, 25]]) for (let i = 0; i < n; i++) { const a = (i + (rk % 8 ? 0.5 : 0)) / n * 2 * Math.PI; const p = cam.P(cx + rk * Math.cos(a), y0 - 32, cz + rk * Math.sin(a)); hd += `M${f(p[0] - 0.35)} ${f(p[1])}h.7`; }
+  S.raw(`<path d="${hd}" stroke="rgb(10 18 20 / .75)" stroke-width="${f(Math.max(1, cam.s * 0.6))}" stroke-linecap="round"/>`);
+  S.raw(`<path d="${w.back(y0 - 32, 18.8)}" fill="none" stroke="rgb(0 0 0 / .4)" stroke-width="1"/>`);
+  S.raw('</g>');
+  S.line(w.ring(y0 + 0.8, 32.2), 's');
+  S.line(w.ring(y0 + 0.8, 29), 's');
+  S.hl(w.front(y0 + 0.8, 32), 0.45);
+  return w;
+}
 function portafilter(S, cam, cx, y0, cz, o = {}) {
   const R = Math.PI / 180, ang = (o.ang ?? 143) * R, tilt = (o.tilt ?? -4) * R;
   const content = o.content ?? 'empty';
@@ -176,13 +235,8 @@ function portafilter(S, cam, cx, y0, cz, o = {}) {
     parts.handle = handleMarble(S, cam, add3(a0, dir, 30), dir, HANDLE);
   };
   if (!toward && o.handle !== false) drawHandle();
-  // naked bottom: the basket's lower wall and its domed floor show under the ring
-  if (content !== 'none') {
-    const bot = convexLathe(cam, cx, cz, [[y0 - 12, 28.6], [y0 - 19, 27.8], [y0 - 22.5, 25.6], [y0 - 25.4, 18], [y0 - 26.8, 8], [y0 - 27.2, 0.01]]);
-    S.solid(bot.sil, 'metal');
-    S.hl(bot.streak(y0 - 14, y0 - 21, 27.8, 140), 0.45);
-    parts.bot = bot;
-  }
+  // naked bottom: the basket's tapered cone hangs out under the ring
+  if (content !== 'none') parts.bot = basketWall(S, cam, cx, y0, cz, y0 - 11);
   // ears
   for (const s of [-1, 1]) {
     const e = [Math.cos(ang + s * Math.PI / 2), 0, Math.sin(ang + s * Math.PI / 2)];
@@ -206,8 +260,10 @@ function portafilter(S, cam, cx, y0, cz, o = {}) {
     // far inner wall catches light
     S.face(holder.ring(y0 - 6, 28.6), 'rgb(0 0 0 / .25)');
     if (content === 'empty') {
-      S.face(holder.ring(y0 - 20, 27.5), `rgb(${PAPER} / .08)`);
-      for (let i = 0; i < 18; i++) { const a = i * 0.9, r = 4 + (i % 6) * 3.8; const p = cam.P(cx + r * Math.cos(a * 3.1), y0 - 20, cz + r * Math.sin(a * 3.1)); S.fill(circle(p, 0.5 * cam.s), `rgb(${PAPER} / .25)`); }
+      // deep tapered basket: the sloped far wall, then the flat floor
+      S.face(holder.ring(y0 - 14, 26.8), `rgb(${PAPER} / .06)`);
+      S.face(holder.ring(y0 - 32, 18.8), `rgb(${PAPER} / .1)`);
+      for (let i = 0; i < 14; i++) { const a = i * 0.9, r = 3 + (i % 5) * 3.6; const p = cam.P(cx + r * Math.cos(a * 3.1), y0 - 32, cz + r * Math.sin(a * 3.1)); S.fill(circle(p, 0.5 * cam.s), `rgb(${PAPER} / .25)`); }
     }
     if (content === 'grounds') {
       parts.mound = groundsMound(S, cam, cx, y0, cz, o.groundsCls);
@@ -437,9 +493,8 @@ function grinder(S, cam, gx, gz, o = {}) {
   S.solid(body.sil, 'cream', { back: 1 });
   S.hl(body.streak(body1 - 10, body0 + 20, r, 150), 0.5);
   S.hl(body.streak(body1 - 30, body0 + 40, r, 128), 0.16);
-  // power button with its light, on the front of the body
-  const pb = cam.plane([gx + r * Math.cos(110 * Math.PI / 180), 120, gz + r * Math.sin(110 * Math.PI / 180)], [Math.cos(20 * Math.PI / 180), 0, -Math.sin(20 * Math.PI / 180)], [0, -1, 0]);
-  S.raw(`<g transform="${pb}"><circle r="6" fill="rgb(0 0 0 / .45)" stroke="rgb(${PAPER} / .4)" stroke-width="1" vector-effect="non-scaling-stroke"/><circle r="3" fill="none" stroke="rgb(${PAPER} / .55)" stroke-width="1" vector-effect="non-scaling-stroke"/>${o.power ? `<g class="${o.power}"><circle r="11" fill="url(#${S.id}glow)"/><circle r="3" fill="none" stroke="#fff" stroke-width="1.4" vector-effect="non-scaling-stroke"/></g>` : ''}</g>`);
+  // (the power button is at the back of the base, out of view: the Grind
+  // scene shows it in a callout)
   // the chute (photo 2): a mounting plate on the body, an elbow straight out
   // and down, and a wider collar the catch cup tucks under
   const cy = 180, tr = 25, cT = 44 + CC.h; // cup top
@@ -823,4 +878,4 @@ function glass(S, cam, cx, cz, o = {}) {
   return gl;
 }
 
-module.exports = { KB, CC, bellows, handleMarble, espressoCup, CUP_H, portafilter, groundsMound, paperDisc, de1, DE, ghc, grinder, GR, dialFace, catchCup, bell, funnel, tamper, knockBox, sprayBottle, mineralBottle, dropper, shaker, glass, circle, ellipseD, groundShadow, drop, scale, dots, FONT, DOSE, BEANS, bean, dosingCup, PAPER };
+module.exports = { BK, basketProf, basketWall, basket, KB, CC, bellows, handleMarble, espressoCup, CUP_H, portafilter, groundsMound, paperDisc, de1, DE, ghc, grinder, GR, dialFace, catchCup, bell, funnel, tamper, knockBox, sprayBottle, mineralBottle, dropper, shaker, glass, circle, ellipseD, groundShadow, drop, scale, dots, FONT, DOSE, BEANS, bean, dosingCup, PAPER };

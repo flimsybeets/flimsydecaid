@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { ShotSample } from '../lib/shot';
+  import { valuesAt } from '../lib/scrub';
 
   // Two stacked panels sharing a time axis:
   //   top    pressure (green), flow (blue), weight (brown, own scale)
@@ -8,7 +9,9 @@
   // Temperatures get their own panel and their own °C axis so a 1° swing
   // is visible instead of being flattened against a 0–12 bar scale.
 
-  let { samples, yieldTarget = null }: { samples: ShotSample[]; yieldTarget?: number | null } = $props();
+  // `scrub` (History only) lets a finger or pointer read values off a saved
+  // shot. Off, no handlers are attached and none of that code runs.
+  let { samples, yieldTarget = null, scrub = false }: { samples: ShotSample[]; yieldTarget?: number | null; scrub?: boolean } = $props();
 
   let width = $state(800);
   let height = $state(480);
@@ -96,10 +99,61 @@
   });
 
   const last = $derived(samples.at(-1));
+
+  // ---- scrubbing (only reachable when `scrub` is on) ----
+  let cursorT = $state<number | null>(null);
+  let plotEl = $state<HTMLDivElement>();
+  const at = $derived(scrub && cursorT !== null ? valuesAt(samples, cursorT) : null);
+  const cx = $derived(at ? x(at.t) : 0);
+  const flip = $derived(cx > PAD.l + plotW / 2);
+
+  function seek(e: PointerEvent) {
+    if (!plotEl) return;
+    const r = plotEl.getBoundingClientRect();
+    cursorT = Math.min(tMax, Math.max(0, ((e.clientX - r.left - PAD.l) / plotW) * tMax));
+  }
+  function down(e: PointerEvent) {
+    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+    seek(e);
+  }
+  function move(e: PointerEvent) {
+    if ((e.currentTarget as Element).hasPointerCapture?.(e.pointerId)) seek(e);
+  }
+  // Stays after lift; a press anywhere outside the graph clears it.
+  $effect(() => {
+    if (!scrub || cursorT === null) return;
+    const away = (e: PointerEvent) => { if (!plotEl?.contains(e.target as Node)) cursorT = null; };
+    document.addEventListener('pointerdown', away, true);
+    return () => document.removeEventListener('pointerdown', away, true);
+  });
+  // A different shot clears it.
+  $effect(() => { samples; cursorT = null; });
+
+  const num = (v: number | undefined, d = 1) => (v === undefined ? '–' : v.toFixed(d));
+  const rows = $derived(at ? [
+    { c: 'var(--g-pressure)', n: 'Pressure', v: num(at.pressure), tg: at.targetPressure, u: 'bar' },
+    { c: 'var(--g-flow)', n: 'Flow', v: num(at.flow), tg: at.targetFlow, u: 'ml/s' },
+    { c: 'var(--g-weight)', n: 'Weight', v: num(at.weight), tg: undefined, u: 'g' },
+    { c: 'var(--g-water)', n: 'Water', v: num(at.waterTemp), tg: at.targetWaterTemp, u: '°' },
+    { c: 'var(--g-puck)', n: 'Puck', v: num(at.puckTemp), tg: at.targetPuckTemp, u: '°' },
+  ] : []);
+  const dots = $derived(at ? [
+    ['--g-weight', at.weight, yWeight], ['--g-pressure', at.pressure, yMain], ['--g-flow', at.flow, yMain],
+    ['--g-water', at.waterTemp, yTemp], ['--g-puck', at.puckTemp, yTemp],
+  ] as const : []);
 </script>
 
 <div class="chart">
-  <div class="plot" bind:clientWidth={width} bind:clientHeight={height}>
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div
+    class="plot"
+    class:scrub
+    bind:this={plotEl}
+    bind:clientWidth={width}
+    bind:clientHeight={height}
+    onpointerdown={scrub ? down : undefined}
+    onpointermove={scrub ? move : undefined}
+  >
   <svg {width} {height} role="img" aria-label="Shot graph">
     <!-- grid: main panel -->
     {#each [0, 3, 6, 9, 12] as v (v)}
@@ -140,7 +194,22 @@
     <path class="line" stroke="var(--g-flow)" stroke-width="2.4" d={paths.f} />
     <path class="line" stroke="var(--g-water)" stroke-width="1.4" d={paths.wt} />
     <path class="line" stroke="var(--g-puck)" stroke-width="3.4" d={paths.pk} />
+
+    {#if at}
+      <line class="cursor" x1={cx} x2={cx} y1={PAD.t} y2={tempTop + tempH} />
+      {#each dots as [c, v, y] (c)}
+        {#if v !== undefined}<circle class="dot" cx={cx} cy={y(v)} r="4.5" fill="var({c})" />{/if}
+      {/each}
+    {/if}
   </svg>
+  {#if at}
+    <div class="readout" style={flip ? `right:${width - cx + 10}px` : `left:${cx + 10}px`} aria-live="off">
+      <div class="time">{at.t.toFixed(1)} s</div>
+      {#each rows as r (r.n)}
+        <div class="row" style="--c: {r.c}"><i></i><span>{r.n}</span><b>{r.v}</b><small>{r.u}{r.tg !== undefined ? ` · target ${r.tg.toFixed(1)}` : ''}</small></div>
+      {/each}
+    </div>
+  {/if}
   </div>
 
   <ul class="legend" aria-label="Live readings">
@@ -155,6 +224,28 @@
 <style>
   .chart { width: 100%; height: 100%; min-height: 120px; contain: layout paint; display: grid; grid-template-rows: minmax(0, 1fr) auto; }
   .plot { position: relative; min-height: 0; }
+  .plot.scrub { touch-action: pan-y; cursor: crosshair; user-select: none; -webkit-user-select: none; }
+  .cursor { stroke: var(--paper); stroke-opacity: 0.7; stroke-width: 1.5; }
+  .dot { stroke: rgb(8 22 26 / 0.85); stroke-width: 1.5; }
+  .readout {
+    position: absolute;
+    top: 6px;
+    display: grid;
+    gap: 2px;
+    padding: 7px 10px;
+    border-radius: 12px;
+    background: rgb(8 22 26 / 0.9);
+    border: 1px solid rgb(255 255 255 / 0.14);
+    font-size: var(--t-xs);
+    color: var(--paper-dim);
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .readout .time { color: var(--paper); font-weight: 700; font-size: var(--t-sm); }
+  .readout .row { display: grid; grid-template-columns: 10px 4.2em auto auto; gap: 6px; align-items: baseline; }
+  .readout i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); align-self: center; }
+  .readout b { color: var(--paper); font-weight: 650; text-align: right; }
+  .readout small { font-size: inherit; opacity: 0.8; }
   svg { position: absolute; inset: 0; display: block; overflow: visible; }
   .grid { stroke: var(--g-grid); stroke-width: 1; }
   .axis { fill: var(--paper-faint); font-size: 11px; font-family: var(--font); }

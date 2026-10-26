@@ -116,7 +116,7 @@
   .art.grind, .art.funnel, .art.knock, .art.done { --acc: #e2a86c; }
   .art.basket, .art.tamp, .art.paper, .art.start { --acc: var(--go); }
 
-  /* weigh: beans fall in until the dose is right; live weight on the display */
+  /* weigh: beans fall into the cup (in front of its back wall, behind the lip) and settle on the pile until the dose is right; live weight on the display */
   .lcd circle { fill: var(--paper); }
   .lcd.under circle { fill: var(--warn); }
   .lcd.over circle { fill: var(--stop); }
@@ -129,7 +129,7 @@
   .art :global(.k-drop.d2) { animation-delay: 0.8s; }
   .art :global(.k-drop.d3) { animation-delay: 1.2s; }
   .art :global(.k-drop.d4) { animation-delay: 1.6s; }
-  @keyframes k-drop { 0% { translate: 0 0; opacity: 0; } 12% { opacity: 1; } 75% { opacity: 1; } 100% { translate: 0 150px; opacity: 0; } }
+  @keyframes k-drop { 0% { translate: 0 0; opacity: 0; } 10% { opacity: 1; } 68% { translate: 0 var(--fall); opacity: 1; animation-timing-function: linear; } 86% { translate: 0 var(--fall); opacity: 1; } 100% { translate: 0 var(--fall); opacity: 0; } }
 
   /* spray: two pumps, a soft mist drifts onto the beans */
   .art :global(.k-pump) { animation: k-pump 5s ease-in-out infinite; }
@@ -146,7 +146,7 @@
   .dial-num text { fill: var(--acc); font-size: 17px; font-weight: 800; }
   .dial-num text.small { font-size: 11px; }
 
-  /* grind: lid off, beans in, lid on, power on, grinding, off, tap the bellows */
+  /* grind: lid off, beans in, lid on, power on (callout), grinding, off, tap the bellows */
   .art :global(.k-lid) { animation: k-lid 12s ease-in-out infinite; }
   @keyframes k-lid { 0%, 3% { transform: translate(0, 0) rotate(0); } 9%, 27% { transform: translate(34px, -30px) rotate(14deg); } 33%, 74% { transform: translate(0, 0) rotate(0); } 77%, 79% { transform: translate(0, 8px); } 81% { transform: translate(0, 0); } 84%, 86% { transform: translate(0, 8px); } 89%, 100% { transform: translate(0, 0); } }
   .art :global(.k-bellows) { animation: k-bellows 12s ease-in-out infinite; }
@@ -159,6 +159,13 @@
   @keyframes k-in { 0%, 15% { opacity: 0; translate: 0 0; } 16% { opacity: 1; } 21% { opacity: 1; translate: 0 26px; } 22%, 100% { opacity: 0; translate: 0 30px; } }
   .art :global(.k-power) { opacity: 0; animation: k-power 12s ease infinite; }
   @keyframes k-power { 0%, 35% { opacity: 0; } 37%, 66% { opacity: 1; } 68%, 100% { opacity: 0; } }
+  /* power button callout (back of the base): pressed at "on" and "off" */
+  .art :global(.k-btn) { animation: k-btn 12s ease infinite; }
+  @keyframes k-btn { 0%, 33%, 36.5%, 63%, 66.5%, 100% { transform: scale(1); } 34.5%, 64.5% { transform: scale(0.84); } }
+  .art :global(.k-btnring) { opacity: 0; animation: k-btnring 12s ease-out infinite; }
+  @keyframes k-btnring { 0%, 33% { opacity: 0; transform: scale(0.9); } 34.5% { opacity: 1; transform: scale(1); } 41% { opacity: 0; transform: scale(1.8); } 41.1%, 63% { opacity: 0; transform: scale(0.9); } 64.5% { opacity: 1; transform: scale(1); } 71%, 100% { opacity: 0; transform: scale(1.8); } }
+  .art :global(.k-callout) { opacity: 0.35; animation: k-callout 12s ease infinite; }
+  @keyframes k-callout { 0%, 31%, 42%, 61%, 72%, 100% { opacity: 0.35; } 34%, 38%, 64%, 68% { opacity: 1; } 36%, 66% { opacity: 0.6; } }
   .art :global(.k-vib) { opacity: 0; animation: k-power 12s ease infinite, k-wob 0.18s linear infinite alternate; }
   @keyframes k-wob { to { translate: -2px 0; } }
   .art :global(.k-grains) { opacity: 0; animation: k-grains 12s linear infinite; }
@@ -168,11 +175,11 @@
   .art :global(.k-grains .g2), .art :global(.k-grains .g5) { animation-delay: -0.4s; }
   @keyframes k-grain { from { translate: 0 0; } to { translate: 0 14px; } }
 
-  /* basket: the convex basket drops into the holder, then the tick */
-  .art :global(.k-basket) { animation: k-basket 5s cubic-bezier(.3, .7, .3, 1) infinite; }
-  @keyframes k-basket { 0%, 6% { opacity: 0; translate: 0 -70px; } 14% { opacity: 1; } 40%, 90% { opacity: 1; translate: 0 0; } 97%, 100% { opacity: 0; translate: 0 0; } }
-  .art :global(.k-check) { animation: k-check 5s ease infinite; }
-  @keyframes k-check { 0%, 42% { opacity: 0; transform: scale(0.4); } 50% { opacity: 1; transform: scale(1.1); } 54%, 88% { opacity: 1; transform: scale(1); } 94%, 100% { opacity: 0; transform: scale(1); } }
+  /* basket: the tapered basket hangs above the holder (sloped walls on show), drops in, then the tick */
+  .art :global(.k-basket) { animation: k-basket 6s cubic-bezier(.45, 0, .3, 1) infinite; }
+  @keyframes k-basket { 0% { opacity: 0; translate: 0 -112px; } 8%, 36% { opacity: 1; translate: 0 -112px; } 56%, 92% { opacity: 1; translate: 0 0; } 98%, 100% { opacity: 0; translate: 0 0; } }
+  .art :global(.k-check) { animation: k-check 6s ease infinite; }
+  @keyframes k-check { 0%, 58% { opacity: 0; transform: scale(0.4); } 64% { opacity: 1; transform: scale(1.1); } 67%, 90% { opacity: 1; transform: scale(1); } 96%, 100% { opacity: 0; transform: scale(1); } }
 
   /* funnel: the bell lifts out, the cup comes off, two taps to settle */
   .art :global(.k-bell) { animation: k-bell 9s cubic-bezier(.45, 0, .3, 1) infinite; }

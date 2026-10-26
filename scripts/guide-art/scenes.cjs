@@ -15,13 +15,23 @@ scenes.weigh = (S) => {
   const e = cam.ell(3, sc.top, 4, 26);
   S.shadow(ellD({ ...e, rx: e.rx * 1.25, ry: e.ry * 1.1 }));
   const foot = cam.P(0, sc.top, 2);
-  // beans dropping in (behind the rim: drawn before the cup's front)
-  S.open('k-fall fx');
-  for (let i = 0; i < 5; i++) bean(S, foot[0] - 30 + i * 15, foot[1] - 250, i * 47, 1.4, `k-drop d${i}`);
-  S.close();
-  dosingCup(S, foot[0], foot[1] + 20, 1.36, { beansCls: 'k-beans' });
+  // beans dropping into the cup: drawn inside the cup (frame units), after
+  // its back wall and pile, before its front lip; each lands on the pile
+  dosingCup(S, foot[0], foot[1] + 20, 1.36, {
+    beansCls: 'k-beans',
+    fall: () => {
+      S.open('k-fall fx');
+      [[86, 47], [134, 51], [108, 56], [150, 50], [96, 58]].forEach(([x, land], i) => {
+        const y0 = -28;
+        S.raw(`<g style="--fall:${land - y0}px">`);
+        bean(S, x, y0, i * 47 - 30, 0.95, `k-drop d${i}`);
+        S.raw('</g>');
+      });
+      S.close();
+    },
+  });
   S.slot(); // live weight on the left display
-  return { lcd: sc.lcd, lcdAt: sc.lcdAt };
+  return { lcd: sc.lcd, lcdAt: sc.lcdAt, extra: { top: 26 } };
 };
 
 
@@ -113,7 +123,7 @@ scenes.dial = (S) => {
 
 scenes.grind = (S) => {
   const cam = Cam(YAW, 20, 0.95, 200, 380);
-  const gr = grinder(S, cam, 0, 0, { power: 'k-power', topCls: '', bellowsCls: 'k-bellows', lidCls: 'k-lid' });
+  const gr = grinder(S, cam, 0, 0, { topCls: '', bellowsCls: 'k-bellows', lidCls: 'k-lid' });
   // the bellows opening (lid off) and beans dropping in
   const op = cam.ell(0, GR.bel1, 0, 30);
   // grounds falling from the chute into the catch cup
@@ -134,58 +144,76 @@ scenes.grind = (S) => {
   S.open('k-in fx');
   for (let i = 0; i < 5; i++) bean(S, spout[0] - 2 + (i % 2) * 5, spout[1] + 4, i * 60, 0.45, `b${i}`);
   S.close();
+  powerCallout(S, cam);
   return { extra: { top: 30 } };
 };
 
-// the convex basket's domed floor, seen from above: shaded so the dome reads,
-// with rings of holes that ride up over it
-function domeFloor(S, cam, cx, yEdge, cz, R = 26, rise = 3.2) {
-  const fl = cam.ell(cx, yEdge, cz, R);
-  const gid = S.uid('df'), top = cam.P(cx - 5, yEdge + rise, cz - 4);
-  S.raw(`<radialGradient id="${gid}" gradientUnits="userSpaceOnUse" cx="${f(top[0])}" cy="${f(top[1])}" r="${f(fl.rx * 1.05)}" gradientTransform="translate(${f(top[0])} ${f(top[1])}) scale(1 ${f(cam.sp)}) translate(${f(-top[0])} ${f(-top[1])})"><stop offset="0" stop-color="#eef3ef" stop-opacity=".42"/><stop offset=".45" stop-color="#eef3ef" stop-opacity=".16"/><stop offset=".85" stop-color="#000" stop-opacity=".2"/><stop offset="1" stop-color="#000" stop-opacity=".45"/></radialGradient>`);
-  S.fill(ellD(fl), 'rgb(120 134 134 / .55)');
-  S.fill(ellD(fl), `url(#${gid})`);
-  let hd = '';
-  for (const [rk, n] of [[4.5, 7], [9, 13], [13.5, 19], [18, 25], [22.5, 31]]) {
-    const yk = yEdge + rise * (1 - (rk / R) ** 2);
-    for (let i = 0; i < n; i++) { const a = (i + (rk % 2) * 0.5) / n * 2 * Math.PI; const p = cam.P(cx + rk * Math.cos(a), yk, cz + rk * Math.sin(a)); hd += `M${f(p[0] - 0.35)} ${f(p[1])}h.7`; }
-  }
-  S.raw(`<path d="${hd}" stroke="rgb(10 18 20 / .7)" stroke-width="${f(Math.max(1, cam.s * 0.65))}" stroke-linecap="round"/>`);
-  // the crown catches a soft highlight
-  S.fill(ellD({ cx: top[0] - 2, cy: top[1] - 1, rx: fl.rx * 0.32, ry: fl.ry * 0.26 }), 'rgb(255 255 255 / .1)');
+// The grinder's round power button sits low on the back of the base, out of
+// view, so it gets a manual-style callout: an inset bubble with the button,
+// a leader that runs behind the base (dashed where hidden). The button
+// presses and its ring pulses at the "on" and "off" moments of the loop.
+function powerCallout(S, cam) {
+  const tgt = cam.P(-50, 7, -12); tgt[1] += 11; // into the base's side band
+  const c = [tgt[0] - 112, tgt[1] - 92], R0 = 40;
+  // leader: solid from the bubble to the base's edge, dashed behind it
+  const edge = [tgt[0] - 32, tgt[1] - 2];
+  const dx = edge[0] - c[0], dy = edge[1] - c[1], L = Math.hypot(dx, dy);
+  const st = [c[0] + dx / L * (R0 + 2), c[1] + dy / L * (R0 + 2)];
+  S.raw(`<path d="M${pt(st)}L${pt(edge)}" stroke="var(--acc)" stroke-width="1.6" stroke-linecap="round" fill="none"/>`);
+  S.raw(`<path d="M${pt(edge)}L${pt(tgt)}" stroke="var(--acc)" stroke-opacity=".8" stroke-width="1.6" stroke-dasharray="3 3.5" stroke-linecap="round" fill="none"/>`);
+  S.raw(`<circle cx="${f(tgt[0])}" cy="${f(tgt[1])}" r="3" fill="var(--acc)"/>`);
+  // the bubble: a close-up of the back of the base
+  const cid = S.uid('pc');
+  S.raw(`<clipPath id="${cid}"><circle cx="${f(c[0])}" cy="${f(c[1])}" r="${R0}"/></clipPath>`);
+  S.raw(`<circle cx="${f(c[0])}" cy="${f(c[1])}" r="${R0}" fill="url(#${S.id}bg)"/>`);
+  S.raw(`<g clip-path="url(#${cid})"><g transform="translate(${f(c[0])} ${f(c[1])})">`);
+  // body above, the base band with the button, the bench below
+  S.raw(`<rect x="-50" y="-50" width="100" height="36" fill="rgb(${PAPER} / .16)"/><rect x="-50" y="-50" width="100" height="36" fill="url(#${S.id}cream)"/><rect x="-50" y="-50" width="100" height="36" fill="url(#${S.id}side)"/>`);
+  S.raw(`<path d="M-50 -14H50V26H-50Z" fill="rgb(${PAPER} / .2)"/><path d="M-50 -14H50V26H-50Z" fill="url(#${S.id}cream)"/><path d="M-50 -14H50V26H-50Z" fill="url(#${S.id}under)"/>`);
+  S.raw(`<path d="M-50 -14H50" stroke="rgb(255 255 255 / .45)" stroke-width="1.2"/><path d="M-50 -12.6H50" stroke="rgb(0 0 0 / .25)" stroke-width="1"/>`);
+  S.raw(`<rect x="-50" y="26" width="100" height="30" fill="rgb(0 0 0 / .35)"/><path d="M-50 26H50" stroke="rgb(255 255 255 / .2)" stroke-width="1"/>`);
+  S.raw(`<ellipse cx="0" cy="28" rx="20" ry="3" fill="url(#${S.id}sh)"/>`);
+  S.raw('</g></g>');
+  // the button (round, chrome bezel, dark cap with the power symbol)
+  const b = [c[0], c[1] + 6];
+  S.raw(`<g class="k-btnring fx"${origin(b)}><circle cx="${f(b[0])}" cy="${f(b[1])}" r="17" fill="none" stroke="var(--acc)" stroke-width="2"/></g>`);
+  S.raw(`<circle cx="${f(b[0])}" cy="${f(b[1])}" r="14" fill="url(#${S.id}brushed)" stroke="url(#${S.id}rim)" stroke-width="1"/>`);
+  S.raw(`<g class="k-btn"${origin(b)}>`);
+  S.raw(`<circle cx="${f(b[0])}" cy="${f(b[1])}" r="10.5" fill="url(#${S.id}black)" stroke="rgb(255 255 255 / .3)" stroke-width=".8"/>`);
+  S.raw(`<path d="M${f(b[0] - 3.4)} ${f(b[1] - 6)}A9 9 0 0 0 ${f(b[0] - 7)} ${f(b[1] - 3.2)}" fill="none" stroke="rgb(255 255 255 / .35)" stroke-width="1.2" stroke-linecap="round"/>`);
+  const pw = (col, cls = '') => S.raw(`<path${cls ? ` class="${cls}"` : ''} d="M${f(b[0] - 3.6)} ${f(b[1] - 3.2)}A5 5 0 1 0 ${f(b[0] + 3.6)} ${f(b[1] - 3.2)}M${f(b[0])} ${f(b[1] - 6)}V${f(b[1] - 0.6)}" fill="none" stroke="${col}" stroke-width="1.8" stroke-linecap="round"/>`);
+  pw(`rgb(${PAPER} / .7)`);
+  pw('var(--acc)', 'k-power');
+  S.raw('</g>');
+  // rim, and an accent ring that brightens at the on/off moments
+  S.raw(`<circle cx="${f(c[0])}" cy="${f(c[1])}" r="${R0}" fill="none" stroke="url(#${S.id}rim)" stroke-width="1.2"/>`);
+  S.raw(`<circle class="k-callout" cx="${f(c[0])}" cy="${f(c[1])}" r="${R0 + 1.5}" fill="none" stroke="var(--acc)" stroke-width="2"/>`);
 }
 
+// The IKAPE basket is a tapered cone: seen nearly side-on, it hangs above
+// the holder long enough for the sloped walls to read, then drops in.
 scenes.basket = (S) => {
-  const cam = Cam(YAW, 40, 2.0, 210, 260);
+  const cam = Cam(YAW, 24, 2.0, 210, 260);
   const cx = 0, cz = 0, y0 = 40;
   groundShadow(S, cam, cx, cz, 40, 0, 1.05);
   const pf = portafilter(S, cam, cx, y0, cz, { content: 'none', ang: 104 });
   // bench seen through the bottomless holder
   S.face(pf.holder.ring(y0 - 0.6, 31.4), 'rgb(4 12 14 / .85)');
-  // the convex basket dropping in; hidden behind the holder's wall
-  const sil = pf.holder.sil, hole = pf.holder.ring(y0 - 0.6, 31.4);
+  // the basket is hidden only by the holder's front wall: visible outside
+  // the holder, above the rim's centre line, and through the opening
+  const rim = pf.holder.ell(y0 - 0.6, 36);
   const cid = S.uid('bh');
-  S.raw(`<clipPath id="${cid}"><path clip-rule="evenodd" d="M-2000 -2000H2000V2000H-2000Z${sil}${hole}"/></clipPath>`);
+  S.raw(`<clipPath id="${cid}"><path clip-rule="evenodd" d="M-2000 -2000H2000V2000H-2000Z${pf.holder.sil}"/><path d="M-2000 -2000H2000V${f(rim.cy)}H-2000Z"/><path d="${pf.holder.ring(y0 - 0.6, 31.4)}"/></clipPath>`);
   S.raw(`<g clip-path="url(#${cid})"><g class="k-basket">`);
-  const bk = lathe(cam, cx, cz, [[y0 + 0.8, 31.6], [y0, 31.8, 1], [y0 - 1, 29.2, 1], [y0 - 19, 27.8], [y0 - 22.5, 25.6], [y0 - 25.4, 18], [y0 - 26.8, 8], [y0 - 27.2, 0.01]]);
-  S.solid(bk.sil, 'metal');
-  S.hl(bk.streak(y0 - 3, y0 - 20, 28.6, 145), 0.7);
-  S.face(bk.ring(y0 + 0.8, 31.6), `rgb(${PAPER} / .2)`);
-  S.face(bk.ring(y0 + 0.8, 29), 'hole');
-  const ic = S.uid('bi');
-  S.raw(`<clipPath id="${ic}"><path d="${bk.ring(y0 + 0.8, 29)}"/></clipPath><g clip-path="url(#${ic})">`);
-  // inner wall: lit at the back, then the domed floor
-  S.face(bk.ring(y0 - 4, 28.6), 'rgb(255 255 255 / .06)');
-  domeFloor(S, cam, cx, y0 - 22, cz, 26.4, 3.4);
-  S.raw('</g>');
-  S.line(bk.ring(y0 + 0.8, 31.6), 's');
-  S.line(bk.ring(y0 + 0.8, 29), 's');
+  O.basket(S, cam, cx, y0, cz);
   S.raw('</g></g>');
-  // the holder's front rim in front of the seated basket lip
+  // the holder's front rim in front of the seated basket's wall
   S.line(pf.holder.front(y0 - 0.6, 36), 's');
   // check badge
-  const c = cam.P(cx + 50, y0 + 16, cz - 4);
+  const c = cam.P(cx + 56, y0 + 20, cz - 4);
   S.raw(`<g class="k-check"${origin(c)}><circle cx="${f(c[0])}" cy="${f(c[1])}" r="15" fill="url(#${S.id}glow)"/><circle cx="${f(c[0])}" cy="${f(c[1])}" r="11" fill="rgb(4 14 17 / .6)" stroke="var(--acc)" stroke-width="1.6"/><path d="M${f(c[0] - 5)} ${f(c[1])}l3.4 3.6l6.4 -7" fill="none" stroke="var(--acc)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></g>`);
+  // the lowered position is the static frame; leave room above for the lift
+  return { extra: { top: 52 } };
 };
 
 scenes.funnel = (S) => {
@@ -343,11 +371,15 @@ function invertedPortafilter(S, cam, cx, y0, cz) {
     S.solid(tube(cam, [p0, add3(p0, e, 5), add3(p0, e, 9.5)], 3.4).d, 'metal', { under: false });
   }
   S.face(holder.ring(y0 + 13.6, 34.6), 'rgb(0 0 0 / .4)');
-  const dome = convexLathe(cam, cx, cz, [[y0 + 27.2, 0.01], [y0 + 26.8, 8], [y0 + 25.4, 18], [y0 + 22.5, 25.6], [y0 + 19, 27.8], [y0 + 13, 28.6]]);
-  S.solid(dome.sil, 'metal');
-  S.hl(lathe(cam, cx, cz, [[y0 + 22, 27], [y0 + 14, 28.6]]).streak(y0 + 21, y0 + 15, 27.6, 140), 0.6);
+  // the tapered basket upside down: cone narrowing to its flat floor
+  const cone = convexLathe(cam, cx, cz, [[y0 + 13, 28.6], [y0 + 20, 25.5], [y0 + 28, 21.6], [y0 + 32.2, 19.8], [y0 + 33, 19.2]]);
+  S.solid(cone.sil, 'brushed');
+  for (const [a, op, w] of [[146, 0.7, 2], [58, 0.3, 1.3]]) S.raw(`<path d="M${pt(cam.P(cx + 28 * Math.cos(a * Math.PI / 180), y0 + 14.5, cz + 28 * Math.sin(a * Math.PI / 180)))}L${pt(cam.P(cx + 20 * Math.cos(a * Math.PI / 180), y0 + 31.5, cz + 20 * Math.sin(a * Math.PI / 180)))}" stroke="#fff" stroke-opacity="${op}" stroke-width="${w}" stroke-linecap="round" fill="none"/>`);
+  S.face(cone.ring(y0 + 33, 19.2), 'rgb(150 162 162 / .55)');
+  S.face(cone.ring(y0 + 33, 19.2), 'top');
+  S.line(cone.ring(y0 + 33, 19.2), 's');
   let hd = '';
-  for (let i = 0; i < 30; i++) { const t = (i * 0.618) % 1, r = Math.sqrt(t) * 22, a = i * 2.4; const p = cam.P(cx + r * Math.cos(a), y0 + 27 - t * 4, cz + r * Math.sin(a)); hd += `M${f(p[0] - 0.4)} ${f(p[1])}h.8`; }
+  for (let i = 0; i < 26; i++) { const t = (i * 0.618) % 1, r = Math.sqrt(t) * 16.5, a = i * 2.4; const p = cam.P(cx + r * Math.cos(a), y0 + 33, cz + r * Math.sin(a)); hd += `M${f(p[0] - 0.4)} ${f(p[1])}h.8`; }
   S.raw(`<path d="${hd}" stroke="rgb(0 0 0 / .45)" stroke-width="1.2" stroke-linecap="round"/>`);
   const a0 = [cx + dir[0] * 30, y0 + 7, cz + dir[2] * 30];
   S.solid(tube(cam, [a0, add3(a0, dir, 14), add3(a0, dir, 30)], 5.5).d, 'metal', { under: false });

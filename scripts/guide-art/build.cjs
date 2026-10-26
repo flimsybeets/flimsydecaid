@@ -28,6 +28,8 @@ function Style(sid) {
   lg('dark', [[0, 'rgb(48 68 72 / .8)'], [0.5, 'rgb(8 18 21 / .88)'], [1, 'rgb(2 8 10 / .92)']]);
   lg('black', [[0, 'rgb(58 66 68)'], [0.18, 'rgb(24 29 31)'], [0.6, 'rgb(10 13 14)'], [1, 'rgb(3 5 6)']], 1, 0.15);
   lg('steel', [[0, 'rgb(150 162 162)'], [0.22, 'rgb(70 82 84)'], [0.45, 'rgb(190 200 198)'], [0.7, 'rgb(52 62 64)'], [1, 'rgb(110 122 122)']], 1, 0);
+  // brushed stainless (the basket): cool greys in vertical bands, frosted
+  lg('brushed', [[0, 'rgb(120 134 136 / .9)'], [0.12, 'rgb(214 222 220 / .88)'], [0.26, 'rgb(150 162 162 / .86)'], [0.42, 'rgb(84 98 100 / .88)'], [0.6, 'rgb(196 206 204 / .86)'], [0.74, 'rgb(118 132 134 / .88)'], [0.88, 'rgb(66 80 82 / .9)'], [1, 'rgb(104 118 120 / .9)']], 1, 0);
   lg('smoke', [[0, 'rgb(70 92 96 / .55)'], [0.5, 'rgb(14 26 29 / .72)'], [1, 'rgb(4 10 12 / .8)']]);
   lg('metal', [[0, `rgb(${PAPER} / .40)`], [0.35, `rgb(${PAPER} / .12)`], [0.62, `rgb(${PAPER} / .30)`], [1, `rgb(${PAPER} / .08)`]], 1, 0);
   lg('glass', [[0, `rgb(${PAPER} / .18)`], [0.3, `rgb(${PAPER} / .04)`], [0.8, `rgb(${PAPER} / .06)`], [1, `rgb(${PAPER} / .14)`]], 1, 0);
@@ -53,7 +55,7 @@ function Style(sid) {
     solid(d, tone = 'cream', o = {}) {
       const k = S.uid('s');
       defs.push(`<path id="${k}" d="${d}"/>`);
-      const back = o.back ?? ({ glass: 0, amber: 0.45, white: 0.92, ceramic: 1, metal: 0.95, resin: 0, coffee: 0, latte: 0, smoke: 0.75, black: 1, steel: 1 }[tone] ?? 0.8);
+      const back = o.back ?? ({ glass: 0, amber: 0.45, white: 0.92, ceramic: 1, metal: 0.95, brushed: 0.6, resin: 0, coffee: 0, latte: 0, smoke: 0.75, black: 1, steel: 1 }[tone] ?? 0.8);
       if (back) P(`<use href="#${k}" fill="url(#${id}bg)" fill-opacity="${back}"/>`);
       P(`<use href="#${k}" fill="url(#${id}${tone})"/>`);
       if (o.under !== false) P(`<use href="#${k}" fill="url(#${id}under)"/>`);
