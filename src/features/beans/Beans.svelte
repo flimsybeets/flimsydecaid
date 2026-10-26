@@ -78,11 +78,13 @@
                 {#if b.weightRemaining != null}<span class="sub">{Math.round(b.weightRemaining)} of {Math.round(b.weight ?? b.weightRemaining)} g left</span>{/if}
                 {#if b.frozen}<span class="sub">Frozen</span>{/if}
               </div>
+              <div class="bag-actions">
               <button class="finish glass" aria-label="Shots from this bag" onclick={() => showShots(b.id)}>Shots{shotCounts[b.id] !== undefined ? ` (${shotCounts[b.id]})` : ''}</button>
               <button class="finish glass" onclick={() => (editingBag = b)}>Edit</button>
               {#if !b.archived}
                 <button class="finish glass" onclick={() => app.finishBag(b.id)}>Finished</button>
               {/if}
+              </div>
             </li>
           {/each}
         </ul>
@@ -120,10 +122,12 @@
   .bean-head p { color: var(--paper-dim); }
   .notes { font-size: var(--t-xs); margin-top: 3px; }
   .bags { display: grid; gap: 6px; }
-  .bag { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 16px; }
+  .bag { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 8px; border-radius: 16px; }
   .bag.finished { opacity: 0.55; }
   .bag img { width: 48px; height: 48px; border-radius: 10px; object-fit: cover; box-shadow: 0 3px 9px rgb(0 0 0 / 0.3); }
-  .bag-info { flex: 1; display: grid; }
+  .bag-info { flex: 1 1 120px; min-width: 0; display: grid; }
+  /* On a narrow card the buttons drop to their own row instead of spilling out. */
+  .bag-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; justify-content: flex-end; }
   .sub { color: var(--paper-dim); font-size: var(--t-xs); }
   .finish { min-height: 40px; padding: 0 14px; border-radius: var(--radius-pill); color: var(--paper-dim); font-size: var(--t-xs); }
 </style>
