@@ -3,6 +3,7 @@
   import { resolveGateway } from '../../api/config';
   import Stepper from '../../components/Stepper.svelte';
   import { REFILL_MAX_MM, REFILL_MIN_MM } from '../../lib/water';
+  import { credentialsPatch } from '../../lib/visualizer';
 
   const gw = resolveGateway();
   const version = __APP_VERSION__;
@@ -30,6 +31,78 @@
       saverError = `Couldn't use that image: ${(err as Error).message}`;
     } finally {
       saverBusy = null;
+    }
+  }
+
+  // Visualizer, through Decaid's bundled plugin. The stored password is never
+  // read back: the field stays empty and a blank means "keep what's saved".
+  let vizUser = $state('');
+  let vizPass = $state('');
+  let vizPassSet = $state(false);
+  let vizAuto = $state(true);
+  let vizLoaded = $state(false);
+  let vizBusy = $state(false);
+  let vizOnline = $state<boolean | null>(null);
+  let vizResult = $state<{ ok: boolean; text: string } | null>(null);
+
+  async function loadViz() {
+    await app.loadVisualizer();
+    if (app.visualizer === 'missing') { vizLoaded = true; return; }
+    try {
+      const s = await app.visualizerSettings();
+      vizUser = s.username;
+      vizPassSet = s.passwordSet;
+      vizAuto = s.autoUpload;
+    } catch { /* shown as not set up */ }
+    vizLoaded = true;
+    void checkViz();
+  }
+  async function checkViz() {
+    vizOnline = null;
+    if (app.visualizer !== 'on') return;
+    vizOnline = await app.visualizerCall('status').then(() => true, () => false);
+  }
+  $effect(() => { void loadViz(); });
+
+  async function toggleViz() {
+    vizBusy = true;
+    vizResult = null;
+    try {
+      await app.setVisualizerEnabled(app.visualizer !== 'on');
+      await checkViz();
+    } catch (e) {
+      vizResult = { ok: false, text: `Couldn't change it: ${(e as Error).message}` };
+    } finally {
+      vizBusy = false;
+    }
+  }
+  async function toggleAuto() {
+    const next = !vizAuto;
+    vizAuto = next;
+    try { await app.saveVisualizerSettings({ AutoUpload: next }); } catch (e) {
+      vizAuto = !next;
+      vizResult = { ok: false, text: `Couldn't save: ${(e as Error).message}` };
+    }
+  }
+  async function saveViz(e: Event) {
+    e.preventDefault();
+    vizBusy = true;
+    vizResult = null;
+    const typed = vizPass;
+    try {
+      const s = await app.saveVisualizerSettings(credentialsPatch(vizUser, typed));
+      vizPassSet = s.passwordSet;
+      vizPass = '';
+      if (app.visualizer === 'on' && typed !== '') {
+        const r = await app.visualizerCall<{ valid?: boolean }>('verifyCredentials', { username: vizUser.trim(), password: typed });
+        vizResult = r.valid ? { ok: true, text: 'Signed in to Visualizer.' } : { ok: false, text: 'Visualizer didn’t accept that username and password.' };
+      } else {
+        vizResult = { ok: true, text: 'Saved.' };
+      }
+    } catch (err) {
+      vizResult = { ok: false, text: `Couldn't save: ${(err as Error).message}` };
+    } finally {
+      vizBusy = false;
     }
   }
 
@@ -91,6 +164,35 @@
   </section>
 
   <section class="glass">
+    <h2>Visualizer</h2>
+    {#if !vizLoaded}
+      <p class="small">Checking…</p>
+    {:else if app.visualizer === 'missing'}
+      <p>Decaid's Visualizer plugin isn't installed on this tablet. Install it from Decaid's own settings, then come back.</p>
+    {:else}
+      <p>Decaid uploads each shot to visualizer.coffee for you once this is on and you're signed in.</p>
+      <div class="row">
+        <button class="button glass" class:lit={app.visualizer === 'on'} role="switch" aria-checked={app.visualizer === 'on'} disabled={vizBusy} onclick={toggleViz}>
+          {app.visualizer === 'on' ? 'Plugin on' : 'Plugin off'}
+        </button>
+        <span class="status" class:ok={vizOnline === true} class:bad={vizOnline === false}>
+          {app.visualizer !== 'on' ? 'Not running' : vizOnline === null ? 'Checking…' : vizOnline ? 'Running' : 'Not answering'}
+        </span>
+      </div>
+      <form class="creds" onsubmit={saveViz}>
+        <label>Username<input class="well" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" bind:value={vizUser} /></label>
+        <label>Password<input class="well" type="password" autocomplete="off" placeholder={vizPassSet ? 'Saved. Type to replace.' : ''} bind:value={vizPass} /></label>
+        <button class="button glass solid" type="submit" disabled={vizBusy || vizUser.trim() === ''}>{vizBusy ? 'Working…' : vizPass !== '' ? 'Save and sign in' : 'Save'}</button>
+      </form>
+      <button class="button glass toggle" class:lit={vizAuto} role="switch" aria-checked={vizAuto} onclick={toggleAuto}>
+        Upload shots automatically <b>{vizAuto ? 'On' : 'Off'}</b>
+      </button>
+      {#if vizResult}<p class={vizResult.ok ? 'okmsg' : 'error'} role="status">{vizResult.text}</p>{/if}
+      {#if app.visualizer === 'on' && !vizPassSet}<p class="small">Add your Visualizer username and password to start uploading.</p>{/if}
+    {/if}
+  </section>
+
+  <section class="glass">
     <h2>Connection</h2>
     <dl>
       <dt>Decaid</dt><dd>{app.mock ? 'Demo data (no machine)' : gw.httpBase}</dd>
@@ -102,7 +204,7 @@
 </div>
 
 <style>
-  .page { height: 100%; overflow-y: auto; padding: var(--gutter); display: grid; gap: 21px; align-content: start; max-width: 570px; }
+  .page { height: 100%; overflow-y: auto; padding: var(--gutter); display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr)); gap: 16px; align-content: start; align-items: start; }
   section { display: grid; gap: 9px; padding: 20px 21px; border-radius: 24px; }
   h2 { font-size: var(--t-lg); font-weight: 700; }
   p { color: var(--paper-dim); }
@@ -125,6 +227,18 @@
   .slider input { width: 100%; min-height: var(--touch); accent-color: var(--paper); }
   .water-row { display: grid; grid-template-columns: minmax(0, 200px) 1fr; gap: 12px; align-items: center; }
   .error { color: var(--stop); }
+  .okmsg { color: var(--go); }
+  .row { align-items: center; }
+  .status { color: var(--paper-faint); font-size: var(--t-sm); }
+  .status.ok { color: var(--go); }
+  .status.bad { color: var(--stop); }
+  .creds { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; align-items: end; }
+  .creds label { display: grid; gap: 4px; color: var(--paper-dim); font-size: var(--t-sm); }
+  .creds input { min-height: var(--touch); padding: 0 12px; border-radius: var(--radius-control); color: var(--paper); font-size: var(--t-md); width: 100%; min-width: 0; }
+  .creds .button { grid-column: 1 / -1; }
+  .toggle { display: flex; justify-content: space-between; width: 100%; justify-self: stretch; }
+  .toggle b { color: var(--paper-dim); }
+  .toggle.lit b { color: var(--ink); }
   dl { display: grid; grid-template-columns: max-content 1fr; gap: 8px 18px; margin: 0; }
   dt { color: var(--paper-dim); }
   dd { margin: 0; }

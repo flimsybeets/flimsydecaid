@@ -37,6 +37,15 @@ export interface WaterLevels {
   refillLevel: number;
 }
 
+/** GET /api/v1/plugins item (only the fields the skin uses). */
+export interface PluginInfo {
+  id: string;
+  name?: string;
+  /** Enabled and running. */
+  loaded: boolean;
+  autoLoad?: boolean;
+}
+
 /** GET /api/v1/machine/info */
 export interface MachineInfo {
   version?: string;

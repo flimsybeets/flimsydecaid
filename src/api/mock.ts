@@ -165,7 +165,7 @@ export function createMockGateway(): Gateway {
     shots.unshift({
       id: `shot-${crypto.randomUUID()}`, timestamp: when, createdAt: when, updatedAt: now(),
       workflow: clone({ profile: workflow.profile, context: workflow.context }),
-      annotations: null,
+      annotations: vizLoaded && vizSettings.AutoUpload && vizSignedIn() ? { extras: { visualizerId: `viz-${Math.random().toString(36).slice(2, 8)}` } } : null,
       stopReason,
       measurements: recording,
     });
@@ -190,6 +190,11 @@ export function createMockGateway(): Gateway {
   let pressure = 0;
   let flow = 0;
   let subs: Subscriptions | null = null;
+  // Visualizer plugin: installed but off at first. Password: anything but "wrong" signs in.
+  let vizLoaded = false;
+  let vizSettings: { Username: string; Password: string; AutoUpload: boolean } = { Username: '', Password: '', AutoUpload: true };
+  const vizRedacted = () => ({ Username: vizSettings.Username, Password: { isSet: vizSettings.Password !== '' }, AutoUpload: vizSettings.AutoUpload });
+  const vizSignedIn = () => vizSettings.Username !== '' && vizSettings.Password !== '' && vizSettings.Password !== 'wrong';
   let brightness = 100;
   // Tank: slowly drops (about 1 mm a minute). ?water=<mm> starts it at that level.
   let waterLevel = Number(new URLSearchParams(location.search).get('water') ?? 42);
@@ -440,6 +445,44 @@ export function createMockGateway(): Gateway {
       if (r.isDefault && visibility === 'deleted') throw new Error('400 Cannot delete default profiles, only hide them');
       r.visibility = visibility;
       return clone(r);
+    },
+
+    async getPlugins() { await delay(); return [{ id: 'visualizer.reaplugin', name: 'Visualizer upload', loaded: vizLoaded, autoLoad: vizLoaded }]; },
+    async getPluginSettings(id) {
+      await delay();
+      if (id !== 'visualizer.reaplugin') throw new Error('404 Plugin not found');
+      return vizRedacted();
+    },
+    async savePluginSettings(id, patch) {
+      await delay();
+      if (id !== 'visualizer.reaplugin') throw new Error('404 Plugin not found');
+      for (const [k, v] of Object.entries(patch)) {
+        if (k === 'Username') vizSettings.Username = v === null ? '' : String(v);
+        else if (k === 'Password') vizSettings.Password = v === null ? '' : String(v);
+        else if (k === 'AutoUpload') vizSettings.AutoUpload = v === true;
+      }
+      return vizRedacted();
+    },
+    async setPluginEnabled(id, enabled) {
+      await delay();
+      if (id !== 'visualizer.reaplugin') throw new Error('404 Plugin not found');
+      vizLoaded = enabled;
+    },
+    async callPlugin<T>(id: string, endpoint: string, body?: unknown): Promise<T> {
+      await delay(250);
+      if (id !== 'visualizer.reaplugin' || !vizLoaded) throw new Error('404 Plugin not loaded');
+      const b = (body ?? {}) as Record<string, string>;
+      if (endpoint === 'status') return { status: 'online', timestamp: Date.now() } as T;
+      if (endpoint === 'verifyCredentials') return { valid: b.username !== '' && b.password !== '' && b.password !== 'wrong' } as T;
+      if (endpoint === 'upload') {
+        const shot = shots.find((x) => x.id === b.shotId);
+        if (!shot) throw new Error('400 shotId is required');
+        if (!vizSignedIn()) throw new Error('502 Visualizer upload failed: sign in first');
+        const vid = `viz-${Math.random().toString(36).slice(2, 8)}`;
+        shot.annotations = { ...(shot.annotations ?? {}), extras: { ...(shot.annotations?.extras ?? {}), visualizerId: vid } };
+        return { visualizer_id: vid, tag_sync_pending: true } as T;
+      }
+      throw new Error('404 Unknown plugin endpoint');
     },
 
     async storeGet<T>(key: string) { await delay(40); return (store.has(key) ? clone(store.get(key)) : null) as T | null; },

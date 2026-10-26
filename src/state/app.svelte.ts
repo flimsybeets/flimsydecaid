@@ -15,6 +15,7 @@ import { withDialIn, type DialIn } from '../lib/dialIn';
 import { photoKey, toJpegDataUrl } from '../lib/photo';
 import { clampDim, dimTarget, fitDataUrl, parseDim, SCREENSAVER_BRIGHTNESS, SCREENSAVER_DIM_KEY, SCREENSAVER_KEY } from '../lib/screensaver';
 import { clampRefill, waterState } from '../lib/water';
+import { parseSettings, pluginState, VISUALIZER_ID, type PluginState, type VisualizerSettings } from '../lib/visualizer';
 import { saveProfile, type SaveResult } from '../lib/profileEdit';
 import { GUIDE_KEY, parseGuideSetup, type GuideSetup } from '../lib/guide';
 import { hideOrder, indexProfiles, latestPerLineage, lineageRoot, shiftTemperature } from '../lib/profiles';
@@ -327,6 +328,31 @@ class AppState {
   // Shot history is read straight from Decaid; nothing to keep in memory.
   getShots(query: ShotQuery): Promise<ShotPage> { return gateway.getShots(query); }
   getShot(id: string): Promise<ShotRecord> { return gateway.getShot(id); }
+
+  // ---- Visualizer (Decaid's bundled plugin) --------------------------------
+  /** Whether the plugin is installed, off, or on. Refreshed by `loadVisualizer`. */
+  visualizer = $state<PluginState>('missing');
+
+  async loadVisualizer(): Promise<void> {
+    this.visualizer = pluginState(await gateway.getPlugins().catch(() => []));
+  }
+  async visualizerSettings(): Promise<VisualizerSettings> {
+    return parseSettings(await gateway.getPluginSettings(VISUALIZER_ID));
+  }
+  async saveVisualizerSettings(patch: Record<string, unknown>): Promise<VisualizerSettings> {
+    return parseSettings(await gateway.savePluginSettings(VISUALIZER_ID, patch));
+  }
+  async setVisualizerEnabled(on: boolean): Promise<void> {
+    await gateway.setPluginEnabled(VISUALIZER_ID, on);
+    await this.loadVisualizer();
+  }
+  /** Plugin endpoints: status, verifyCredentials, upload. */
+  visualizerCall<T>(endpoint: string, body?: unknown): Promise<T> { return gateway.callPlugin<T>(VISUALIZER_ID, endpoint, body); }
+  /** Upload one shot through the plugin. Returns the Visualizer id. */
+  async uploadToVisualizer(shotId: string): Promise<string> {
+    const r = await gateway.callPlugin<{ visualizer_id?: string | number }>(VISUALIZER_ID, 'upload', { shotId });
+    return String(r.visualizer_id ?? '');
+  }
 
   async saveGuide(setup: GuideSetup): Promise<void> {
     await gateway.storeSet(GUIDE_KEY, setup);
