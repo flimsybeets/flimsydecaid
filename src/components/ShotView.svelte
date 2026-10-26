@@ -153,7 +153,7 @@
      bar. Hidden when the shot ends, and the graph takes the width. */
   .dials {
     flex: none;
-    width: calc(var(--dial) + 80px);
+    width: calc(var(--dial) + 26px);
     display: grid;
     grid-template-rows: repeat(4, minmax(0, 1fr));
     gap: 8px;
@@ -171,6 +171,7 @@
     .body { flex-direction: column; }
     .dials { width: auto; height: 21vh; grid-template-rows: none; grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .dials :global(.gauge.side) { flex-direction: column; gap: 0; }
+    .dials :global(.gauge.side figcaption) { order: 0; writing-mode: horizontal-tb; transform: none; white-space: normal; }
     .dials :global(.gauge.side .face) { flex: 1; width: 100%; height: auto; aspect-ratio: auto; }
     .dials :global(.gauge.side figcaption) { flex: none; margin-top: 2px; text-align: center; }
   }

@@ -26,7 +26,7 @@
     decimals?: number;
     /** Start of a red zone that runs to max. */
     redline?: number;
-    /** Put the label beside the dial instead of under it (the dial then fills the height and is square). */
+    /** Put the label beside the dial instead of under it (the dial then fills the height and is square); the label runs vertically on its left. */
     side?: boolean;
   } = $props();
 
@@ -122,9 +122,18 @@
   }
   .face { flex: 1; min-height: 0; width: 100%; position: relative; }
   .face > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-  .gauge.side { flex-direction: row; align-items: center; gap: 6px; }
+  .gauge.side { flex-direction: row; align-items: center; gap: 2px; }
   .gauge.side .face { flex: none; width: auto; height: 100%; aspect-ratio: 1; }
-  .gauge.side figcaption { flex: 1; min-width: 0; margin: 0; line-height: 1.2; overflow-wrap: normal; }
+  /* Vertical label left of the dial, reading bottom to top, centred on the dial. */
+  .gauge.side figcaption {
+    order: -1;
+    flex: none;
+    margin: 0;
+    line-height: 1.2;
+    white-space: nowrap;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+  }
   figcaption {
     margin-top: 2px;
     color: var(--paper-dim);
