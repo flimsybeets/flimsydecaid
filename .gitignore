@@ -4,3 +4,4 @@ release/
 *.zip
 .DS_Store
 .env*.local
+.claude/worktrees/
