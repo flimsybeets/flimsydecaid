@@ -43,6 +43,15 @@
   }
   $effect(() => { untrack(() => void load()); });
 
+  // The grind screen's list; the scene loops through the same five beats.
+  const GRIND_STEPS = [
+    'Turn on the grinder',
+    'Add the beans',
+    'Wait for it to finish grinding',
+    'Turn it off',
+    'Tap the bellows to push out the last grounds',
+  ];
+
   // Weighing
   const weigh = $derived(plan ? weighState(app.weight, plan.dose) : { state: 'empty' as const, delta: 0 });
   const tone = $derived(step === 'weigh' && app.scaleConnected ? weigh.state : step === 'done' ? 'ok' : 'idle');
@@ -126,7 +135,7 @@
         {#if !covered}
           {#key step}
             <div class="art-in">
-              <GuideArt {step} weight={step === 'weigh' && app.scaleConnected ? app.weight : null} weighState={step === 'weigh' ? weigh.state : 'empty'} grind={plan.grind} ghc={app.ghc} active={rinse === 'rinsing'} />
+              <GuideArt {step} weight={step === 'weigh' && app.scaleConnected ? app.weight : null} weighState={step === 'weigh' ? weigh.state : 'empty'} grind={plan.grind} active={rinse === 'rinsing'} />
             </div>
           {/key}
         {/if}
@@ -153,25 +162,34 @@
               {#if app.scaleConnected}<button class="tare glass" onclick={() => app.tare()}>Tare</button>{/if}
             {:else if step === 'spray'}
               <h1>Spray the beans</h1>
-              <p class="body">A mist of water and a shake of the cup. Less static, no clumps, no mess.</p>
+              <p class="body">One or two sprays from a distance to gently mist the beans.</p>
             {:else if step === 'dial'}
               <h1>{plan.grind ? `Set the grinder to ${plan.grind}` : 'Set your grind'}</h1>
               <p class="body">{sourceText}.{plan.grind ? '' : ' Use your usual setting; save it in the brew panel afterwards.'}</p>
             {:else if step === 'grind'}
               <h1>Grind</h1>
-              <p class="body">All {plan.dose.toFixed(1)} g, straight back into the cup.</p>
+              <p class="body">All {plan.dose.toFixed(1)} g.</p>
+              <ol class="steps" aria-label="Grinding">
+                {#each GRIND_STEPS as g, i (g)}<li style="--i: {i}">{g}</li>{/each}
+              </ol>
+            {:else if step === 'basket'}
+              <h1>Convex basket in</h1>
+              <p class="body">Check the IKAPE convex basket is in the portafilter.</p>
             {:else if step === 'funnel'}
-              <h1>Funnel on, grounds in</h1>
-              <p class="body">Dosing funnel on the portafilter, then tip the cup in and tap it empty.</p>
+              <h1>Funnel, cup, then tap</h1>
+              <p class="body">Funnel on the portafilter, and sit the dosing cup on the funnel. Pull the bell out so the grounds drop in, then tap the portafilter with the funnel still on.</p>
             {:else if step === 'tamp'}
-              <h1>Settle, then tamp</h1>
-              <p class="body">A couple of taps on the bench to level the bed, funnel off, then tamp straight down.</p>
+              <h1>Tamp</h1>
+              <p class="body">Funnel off, then press the tamper down.</p>
             {:else if step === 'paper'}
               <h1>Paper on top</h1>
               <p class="body">Lay a paper filter flat on the tamped puck.</p>
+            {:else if step === 'minerals'}
+              <h1>One drop of minerals</h1>
+              <p class="body">Shake the bottle, then one drop from the eyedropper into the cup.</p>
             {:else if step === 'start'}
-              <h1>{app.ghc ? 'Lock in, start on the group head' : 'Lock in and start'}</h1>
-              <p class="body">Portafilter in, cup on the scale{plan.yield ? `, ${plan.yield} g out` : ''}. The shot screen takes over while it pulls.</p>
+              <h1>{app.ghc ? 'Lock in and press brew' : 'Lock in and start'}</h1>
+              <p class="body">Lock the portafilter in, and sit the cup on the scales under the portafilter. Then press brew to start.</p>
               {#if !app.ghc}
                 <button class="go-btn start" disabled={starting || loaded === 'loading' || app.shotActive} onclick={startShot}>
                   {app.shotActive ? 'Pulling…' : starting ? 'Starting…' : 'Start shot'}
@@ -289,6 +307,13 @@
   .count { color: rgb(var(--accent)); font-weight: 700; font-size: var(--t-sm); letter-spacing: 0.04em; transition: color 400ms ease; }
   h1 { font-size: clamp(26px, 4.6vw, 44px); font-weight: 800; line-height: 1.02; letter-spacing: -0.02em; }
   .body { color: var(--paper-dim); font-size: var(--t-md); max-width: 30ch; }
+
+  .steps { margin: 2px 0 0; padding: 0; list-style: none; counter-reset: g; display: grid; gap: 7px; max-width: 34ch; }
+  .steps li { counter-increment: g; display: flex; gap: 10px; align-items: baseline; color: var(--paper); font-size: var(--t-md); line-height: 1.2; }
+  .steps li { animation: beat 10s linear infinite; animation-delay: calc(var(--i) * 2s - 10s); }
+  @keyframes beat { 0%, 20% { opacity: 1; } 24%, 96% { opacity: 0.5; } 100% { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .steps li { animation: none; } }
+  .steps li::before { content: counter(g); flex: none; width: 1.5em; height: 1.5em; display: grid; place-items: center; border-radius: 50%; border: 1.5px solid rgb(var(--accent) / 0.7); color: rgb(var(--accent)); font-size: var(--t-xs); font-weight: 700; }
 
   .weigh { display: flex; align-items: center; gap: 16px; margin-top: 4px; --c: 238 243 239; }
   .weigh.under { --c: 242 179 61; }
