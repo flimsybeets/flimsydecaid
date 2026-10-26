@@ -2,7 +2,8 @@
   import { app } from '../../state/app.svelte';
   import Modal from '../../components/Modal.svelte';
   import Stepper from '../../components/Stepper.svelte';
-  import { openFrontCamera, stopStream, toJpegDataUrl } from '../../lib/photo';
+  import PhotoCrop from '../../components/PhotoCrop.svelte';
+  import { frameBlob, openFrontCamera, stopStream } from '../../lib/photo';
 
   let { onClose }: { onClose: () => void } = $props();
 
@@ -15,6 +16,9 @@
 
   // Photo
   let photo = $state<string | null>(null);
+  /** The picture as taken or chosen, kept so it can be cropped again; `cropping` is the one being cropped now. */
+  let raw = $state<Blob | null>(null);
+  let cropping = $state<Blob | null>(null);
   let stream = $state<MediaStream | null>(null);
   let video = $state<HTMLVideoElement>();
   let fileInput: HTMLInputElement;
@@ -44,7 +48,7 @@
 
   async function snap() {
     if (!video) return;
-    photo = await toJpegDataUrl(video);
+    try { raw = cropping = await frameBlob(video); } catch { cameraNote = "That photo couldn't be taken. Try again."; return; }
     stopStream(stream);
     stream = null;
   }
@@ -52,8 +56,9 @@
   async function onFile(e: Event) {
     const file = (e.currentTarget as HTMLInputElement).files?.[0];
     if (!file) return;
-    try { photo = await toJpegDataUrl(file); }
-    catch { cameraNote = "That photo couldn't be read. Try another."; }
+    if (!file.type.startsWith('image/')) { cameraNote = "That photo couldn't be read. Try another."; return; }
+    raw = cropping = file;
+    (e.currentTarget as HTMLInputElement).value = '';
   }
 
   async function save() {
@@ -86,7 +91,10 @@
       <button class="snap glass solid" onclick={snap}>Take photo</button>
     {:else if photo}
       <img src={photo} alt="The bag" />
-      <button class="retake glass" onclick={takePhoto}>Retake</button>
+      <div class="photo-actions">
+        {#if raw}<button class="retake glass" onclick={() => (cropping = raw)}>Crop photo</button>{/if}
+        <button class="retake glass" onclick={takePhoto}>Retake</button>
+      </div>
     {:else}
       <button class="camera glass" onclick={takePhoto}>
         <span class="lens" aria-hidden="true"></span>
@@ -127,6 +135,10 @@
   {/snippet}
 </Modal>
 
+{#if cropping}
+  <PhotoCrop source={cropping} onDone={(url) => { photo = url; cropping = null; }} onCancel={() => { cropping = null; }} />
+{/if}
+
 <style>
   .photo { display: grid; gap: 8px; justify-items: start; }
   .camera {
@@ -143,6 +155,7 @@
   /* Mirrored like a selfie view so it's easy to line the bag up; the saved photo isn't, so its label reads right. */
   video { transform: scaleX(-1); }
   video, img { width: 100%; max-height: 240px; object-fit: cover; border-radius: 16px; background: var(--well); box-shadow: var(--glass-shadow); }
+  .photo-actions { display: flex; gap: 8px; }
   .snap, .retake { min-height: var(--touch); padding: 0 20px; border-radius: var(--radius-pill); font-weight: 650; }
   .note { color: var(--warn); font-size: var(--t-xs); }
 

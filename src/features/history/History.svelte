@@ -363,6 +363,7 @@
   .viz-error { color: var(--stop); font-size: var(--t-sm); }
   .shot-actions button { min-height: 40px; padding: 0 12px; border-radius: var(--radius-pill); color: var(--paper); font-size: var(--t-xs); font-weight: 650; }
   .shot-actions .danger { color: #ffb3ab; }
+  .shot-actions .solid { color: var(--ink); }
   .detail h2 { font-size: var(--t-xl); font-weight: 700; letter-spacing: -0.01em; }
   .detail header p { color: var(--paper-dim); font-size: var(--t-md); }
   .detail .when { font-size: var(--t-sm); color: var(--paper-faint); }
