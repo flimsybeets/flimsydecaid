@@ -153,6 +153,17 @@
   </section>
 
   <section class="glass">
+    <h2>Theme options</h2>
+    <div class="row">
+      <button class="button glass toggle theme-toggle" class:lit={app.halloween} role="switch" aria-checked={app.halloween} onclick={() => app.setHalloween(!app.halloween)}>
+        Halloween screensaver <b>{app.halloween ? 'On' : 'Off'}</b>
+      </button>
+      <button class="button glass" disabled={!app.screensaverImage} onclick={() => (app.screensaverPreview = true)}>Preview</button>
+    </div>
+    <p class="small">Ghosts drift over your screensaver photo instead of the clock.{app.screensaverImage ? '' : ' Choose a screensaver image first.'}</p>
+  </section>
+
+  <section class="glass">
     <h2>Water level warning</h2>
     <p>The machine warns you to refill when the tank drops to this height.</p>
     <div class="water-row">
@@ -237,6 +248,7 @@
   .creds input { min-height: var(--touch); padding: 0 12px; border-radius: var(--radius-control); color: var(--paper); font-size: var(--t-md); width: 100%; min-width: 0; }
   .creds .button { grid-column: 1 / -1; }
   .toggle { display: flex; justify-content: space-between; width: 100%; justify-self: stretch; }
+  .theme-toggle { width: auto; flex: 1 1 260px; gap: 12px; }
   .toggle b { color: var(--paper-dim); }
   .toggle.lit b { color: var(--ink); }
   dl { display: grid; grid-template-columns: max-content 1fr; gap: 8px 18px; margin: 0; }
