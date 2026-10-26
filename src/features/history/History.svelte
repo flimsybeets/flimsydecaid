@@ -4,6 +4,9 @@
   import ShotChart from '../../components/ShotChart.svelte';
   import ConfirmDialog from '../../components/ConfirmDialog.svelte';
   import ShotNotesDialog from './ShotNotesDialog.svelte';
+  import BrewPanel from '../home/BrewPanel.svelte';
+  import { planBrewAgain, type BrewAgainPlan } from '../../lib/brewAgain';
+  import { givebackFor } from '../../lib/bagWeight';
   import { groupByDay, ratioText, shotStats, stopReasonText } from '../../lib/history';
   import { samplesFromMeasurements } from '../../lib/shot';
   import { visualizerIdOf, visualizerUrl } from '../../lib/visualizer';
@@ -14,7 +17,12 @@
   const PAGE = 30;
 
   /** null = every shot; otherwise a bag (batch) id. */
-  let bagFilter = $state<string | null>(null);
+  // Arriving from a bag's "Shots" button on the Beans tab: filtered to that bag, finished or not.
+  // svelte-ignore state_referenced_locally
+  const arrivedBag = app.historyBag;
+  app.historyBag = null;
+  // svelte-ignore state_referenced_locally
+  let bagFilter = $state<string | null>(arrivedBag);
   let shots = $state<ShotSummary[]>([]);
   let total = $state(0);
   let loading = $state(false);
@@ -49,20 +57,20 @@
   function onAnnotated(updated: ShotSummary) {
     shots = shots.map((s) => (s.id === updated.id ? { ...s, annotations: updated.annotations } : s));
   }
-  async function deleteSelected() {
+  async function deleteSelected(giveBack: boolean) {
     const id = selectedId;
     if (!id) return;
-    await app.deleteShot(id);
+    await app.deleteShot(id, giveBack, shots.find((s) => s.id === id)?.workflow?.context?.beanBatchId);
     const i = shots.findIndex((s) => s.id === id);
     shots = shots.filter((s) => s.id !== id);
     total = Math.max(0, total - 1);
     selectedId = shots[Math.min(i, shots.length - 1)]?.id ?? null;
   }
 
-  // Bags worth filtering by: open ones, newest roast first.
+  // Bags worth filtering by: open ones, newest roast first, plus the finished one you came here for.
   const openBags = $derived(
     app.batches
-      .filter((b) => !b.archived)
+      .filter((b) => !b.archived || b.id === arrivedBag)
       .sort((a, b) => (b.roastDate ?? b.createdAt).localeCompare(a.roastDate ?? a.createdAt)),
   );
 
@@ -130,10 +138,26 @@
 
   const groups = $derived(groupByDay(shots));
   const selected = $derived(shots.find((s) => s.id === selectedId) ?? null);
+
+  // Brew this again: the same BrewPanel as the Profiles tab, started with the shot's bag and numbers.
+  let brewing = $state<{ root: string; plan: BrewAgainPlan } | null>(null);
+  const again = $derived(selected ? planBrewAgain(selected, app.profileLineages, app.batches, app.beans) : null);
+  // What deleting this shot can give back to its bag (null when it was never taken off).
+  const giveBack = $derived(
+    selected ? givebackFor(app.batches.find((b) => b.id === selected.workflow?.context?.beanBatchId), selected.id) : null,
+  );
+
   const samples = $derived(detail ? samplesFromMeasurements(detail.measurements ?? []) : []);
   const stats = $derived(shotStats(samples));
 </script>
 
+{#if brewing}
+  {#key brewing.root}
+    <div class="brewing">
+      <BrewPanel profileRoot={brewing.root} initial={{ batchId: brewing.plan.batchId, dialIn: brewing.plan.dialIn, note: brewing.plan.note }} onClose={() => (brewing = null)} />
+    </div>
+  {/key}
+{:else}
 <div class="page">
   <aside class="list glass">
     <div class="filters" role="group" aria-label="Show shots for">
@@ -201,6 +225,7 @@
           <p class="when">{new Date(selected.timestamp).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}{stopReasonText(selected.stopReason) ? ` · ${stopReasonText(selected.stopReason)}` : ''}</p>
         </div>
         <div class="shot-actions">
+          <button class="glass solid" disabled={!again?.profileRoot} title={again?.profileRoot ? undefined : 'That profile is gone'} onclick={() => { if (again?.profileRoot) brewing = { root: again.profileRoot, plan: again }; }}>Brew this again</button>
           {#if visualizerIdOf(selected)}
             <a class="glass" href={visualizerUrl(visualizerIdOf(selected)!)} target="_blank" rel="noreferrer">On Visualizer ↗</a>
           {:else if app.visualizer === 'on'}
@@ -238,6 +263,7 @@
     {/if}
   </section>
 </div>
+{/if}
 
 {#if annotating && selected}
   <ShotNotesDialog shot={selected} onClose={() => (annotating = false)} onSaved={onAnnotated} />
@@ -247,12 +273,14 @@
     title="Delete this shot?"
     message="It's removed from Decaid's shot history for good, with its graph and notes."
     action="Delete shot"
+    option={giveBack !== null ? `Give back ${Number.isInteger(giveBack) ? giveBack : giveBack.toFixed(1)} g to the bag` : undefined}
     onConfirm={deleteSelected}
     onClose={() => (confirmDelete = false)}
   />
 {/if}
 
 <style>
+  .brewing { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); overflow: hidden; }
   .page {
     height: 100%;
     display: grid;
@@ -327,7 +355,7 @@
   }
   .detail header { display: flex; align-items: flex-start; gap: 12px; }
   .detail header > div:first-child { flex: 1; min-width: 0; }
-  .shot-actions { display: flex; gap: 6px; flex: none; }
+  .shot-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: 62%; }
   .shot-actions a { display: inline-flex; align-items: center; min-height: 40px; padding: 0 12px; border-radius: var(--radius-pill); color: var(--go); font-size: var(--t-xs); font-weight: 650; text-decoration: none; }
   .shot-actions button:disabled { opacity: 0.5; }
   .viz { flex: none; color: var(--go); font-size: var(--t-xs); font-weight: 700; }
