@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activityKind, clockText, isPreparing, preheatText, progress } from '../src/lib/activity';
+import { activityKind, atTemp, clockText, isPreparing, preheatText, progress } from '../src/lib/activity';
 
 describe('activity views', () => {
   it('shows flush and steam from the machine state', () => {
@@ -18,9 +18,13 @@ describe('activity views', () => {
     expect(isPreparing('idle', false)).toBe(false);
   });
   it('says preheating while the group is well under target', () => {
-    expect(preheatText(85, 93)).toBe('Preheating…');
-    expect(preheatText(92.5, 93)).toBe('Getting ready…');
-    expect(preheatText(undefined, 93)).toBe('Getting ready…');
+    expect(preheatText(90.4, 93)).toBe('Heating up · 2.6° to go');
+    expect(preheatText(92.5, 93)).toBe('Almost there');
+    expect(preheatText(undefined, 93)).toBe('Heating up');
+    expect(preheatText(85, 93, 'preinfusion')).toBe('Starting');
+    expect(atTemp(91.6, 93)).toBe(true);
+    expect(atTemp(91.4, 93)).toBe(false);
+    expect(atTemp(undefined, 93)).toBe(false);
   });
   it('formats time and progress', () => {
     expect(clockText(0)).toBe('0:00');

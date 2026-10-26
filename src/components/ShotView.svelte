@@ -3,7 +3,7 @@
   import ShotChart from './ShotChart.svelte';
   import Gauge from './Gauge.svelte';
   import { tempDialRange } from '../lib/gauge';
-  import { isPreparing, preheatText } from '../lib/activity';
+  import { atTemp, isPreparing, preheatText } from '../lib/activity';
   import { PumpTracker, type PumpMode } from '../lib/pumpMode';
   import { untrack } from 'svelte';
 
@@ -30,7 +30,18 @@
   // The group-head brew button puts the machine in espresso a few seconds
   // before it pours: show that, with the temperatures it is waiting on.
   const preparing = $derived(isPreparing(m.state?.state, app.shotActive));
-  const heatWord = $derived(preheatText(m.groupTemperature, m.targetGroupTemperature));
+  const heatWord = $derived(preheatText(m.groupTemperature, m.targetGroupTemperature, m.state?.substate));
+  const puckReady = $derived(atTemp(m.groupTemperature, m.targetGroupTemperature));
+  // Heating time, so the clock visibly moves while nothing pours.
+  let heatStart = $state(0);
+  let now = $state(0);
+  $effect(() => {
+    if (!preparing) return;
+    heatStart = now = Date.now();
+    const id = setInterval(() => (now = Date.now()), 250);
+    return () => clearInterval(id);
+  });
+  const heatSecs = $derived(Math.max(0, (now - heatStart) / 1000));
   let sawShot = $state(false);
   $effect(() => { if (app.shotActive) sawShot = true; });
   // Stopped (or timed out) before it ever poured: nothing to look at, so close.
@@ -65,7 +76,7 @@
         <p>{app.workflow.context.coffeeRoaster ? `${app.workflow.context.coffeeRoaster} ` : ''}{app.workflow.context.coffeeName}</p>
       {/if}
     </div>
-    <div class="clock">{preparing ? '0.0' : elapsed.toFixed(1)}<small>s</small></div>
+    <div class="clock" class:heating={preparing}>{preparing ? heatSecs.toFixed(0) : elapsed.toFixed(1)}<small>s</small></div>
     {#if app.shotActive || preparing}
       <button class="stop glass" onclick={stop} disabled={stopping}>{stopping ? 'Stopping…' : 'Stop'}</button>
     {:else}
@@ -76,14 +87,13 @@
   {#if preparing}
     <div class="ready glass thick" role="status">
       <p class="word">{heatWord}</p>
-      <p class="sub">The shot starts by itself. Nothing is flowing yet.</p>
       <div class="temps">
         <div class="t water">
           <span class="lab"><i aria-hidden="true"></i>Water</span>
           <b>{m.mixTemperature?.toFixed(1) ?? '–'}<small>°C</small></b>
           <span class="target">{m.targetMixTemperature ? `target ${m.targetMixTemperature.toFixed(1)}°` : ''}</span>
         </div>
-        <div class="t puck">
+        <div class="t puck" class:ready-temp={puckReady}>
           <span class="lab"><i aria-hidden="true"></i>Puck</span>
           <b>{m.groupTemperature?.toFixed(1) ?? '–'}<small>°C</small></b>
           <span class="target">{m.targetGroupTemperature ? `target ${m.targetGroupTemperature.toFixed(1)}°` : ''}</span>
@@ -154,6 +164,7 @@
   h2 { font-size: var(--t-xl); font-weight: 700; letter-spacing: -0.01em; }
   .what p { color: var(--paper-dim); font-size: var(--t-md); }
   .clock { font-size: var(--t-xxl); font-weight: 700; letter-spacing: -0.02em; }
+  .clock.heating { color: var(--paper-faint); }
   .clock small { font-size: var(--t-md); color: var(--paper-dim); margin-left: 3px; }
 
   .stop, .done {
@@ -193,7 +204,6 @@
   /* Waiting for the pour: one big status line and the two temperatures. */
   .ready { flex: 1; min-height: 0; display: grid; place-content: center; justify-items: center; gap: 12px; padding: 24px; border-radius: 26px; text-align: center; }
   .ready .word { font-size: var(--t-xxl); font-weight: 750; letter-spacing: -0.02em; animation: breathe 1.6s ease-in-out infinite; }
-  .ready .sub { color: var(--paper-dim); font-size: var(--t-md); }
   .ready .temps { display: flex; gap: 48px; margin-top: 14px; }
   .t { display: grid; gap: 2px; justify-items: center; }
   .t .lab { display: flex; align-items: center; gap: 8px; color: var(--paper-dim); font-size: var(--t-sm); }
@@ -202,6 +212,7 @@
   .t.puck i { height: 5px; background: var(--g-puck); }
   .t b { font-size: var(--t-xxl); font-weight: 700; font-variant-numeric: tabular-nums; }
   .t b small { font-size: var(--t-md); color: var(--paper-dim); margin-left: 2px; font-weight: 500; }
+  .t.ready-temp b { color: rgb(76 230 140); transition: color 300ms ease; }
   .t .target { color: var(--paper-faint); font-size: var(--t-sm); min-height: 1.2em; }
   @keyframes breathe { 50% { opacity: 0.55; } }
 
