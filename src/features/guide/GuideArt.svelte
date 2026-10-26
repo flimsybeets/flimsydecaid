@@ -60,7 +60,7 @@
     }
     cols.pop();
     const [cx, cy] = scene?.lcdAt ?? [0, 0];
-    const pitch = Math.min(0.9, 22 / Math.max(1, cols.length - 1));
+    const pitch = Math.min(1.15, 23 / Math.max(1, cols.length - 1));
     const x0 = cx - ((cols.length - 1) * pitch) / 2, y0 = cy - 3 * pitch;
     return { pitch, pts: cols.flatMap((col, i) => col.map((ri) => [x0 + i * pitch, y0 + ri * pitch])) };
   });
@@ -82,7 +82,7 @@
     {@html parts[0]}
     {#if step === 'weigh' && scene.lcd}
       <g transform={scene.lcd} class="lcd {weighState}">
-        {#each lcdDots.pts as [x, y], i (i)}<circle cx={x} cy={y} r={lcdDots.pitch * 0.36} />{/each}
+        {#each lcdDots.pts as [x, y], i (i)}<circle cx={x} cy={y} r={lcdDots.pitch * 0.4} />{/each}
       </g>
     {:else if step === 'dial' && scene.num}
       <g class="dial-num" transform="translate({scene.num[0]} {scene.num[1]})">
@@ -181,6 +181,8 @@
   @keyframes k-cup { 0%, 32% { opacity: 1; translate: 0 0; } 44% { opacity: 0; translate: 0 -50px; } 88% { opacity: 0; translate: 0 -50px; } 96%, 100% { opacity: 1; translate: 0 0; } }
   .art :global(.k-stack) { animation: k-stack 9s ease-in infinite; }
   @keyframes k-stack { 0%, 52%, 57%, 61%, 66%, 100% { translate: 0 0; } 54.5%, 63.5% { translate: 0 -9px; } }
+  .art :global(.k-mound) { animation: k-mound 9s ease-out infinite; }
+  @keyframes k-mound { 0%, 16% { opacity: 0; translate: 0 6px; } 30%, 94% { opacity: 1; translate: 0 0; } 100% { opacity: 0; translate: 0 0; } }
   .art :global(.k-tapline) { opacity: 0; animation: k-tapline 9s linear infinite; }
   @keyframes k-tapline { 0%, 56% { opacity: 0; } 57% { opacity: 1; } 59%, 65% { opacity: 0; } 66% { opacity: 1; } 68%, 100% { opacity: 0; } }
 
@@ -233,7 +235,7 @@
   .art :global(.k-knock) { animation: k-knock 4s cubic-bezier(.6, 0, .4, 1) infinite; }
   @keyframes k-knock { 0%, 8%, 100% { translate: 0 0; } 20% { translate: 0 var(--hit); } 28% { translate: 0 calc(var(--hit) - 14px); } 36% { translate: 0 var(--hit); } 60% { translate: 0 0; } }
   .art :global(.k-puck) { opacity: 0; animation: k-puck 4s cubic-bezier(.5, 0, 1, .6) infinite; }
-  @keyframes k-puck { 0%, 19% { opacity: 0; translate: 0 var(--hit, 51px); } 20% { opacity: 1; translate: 0 var(--hit, 51px); } 44% { opacity: 1; translate: 0 calc(var(--hit, 51px) + 110px); } 45%, 100% { opacity: 0; translate: 0 calc(var(--hit, 51px) + 110px); } }
+  @keyframes k-puck { 0%, 19% { opacity: 0; translate: 0 var(--hit); } 20% { opacity: 1; translate: 0 var(--hit); } 42% { opacity: 1; translate: 0 calc(var(--hit) + var(--fall)); } 46%, 100% { opacity: 0; translate: 0 calc(var(--hit) + var(--fall)); } }
 
   /* enjoy: shake the iced latte, cap off, pour into the glass, foam on top */
   .art :global(.k-shaker) { animation: k-shaker 10s ease-in-out infinite; }

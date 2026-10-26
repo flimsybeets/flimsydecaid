@@ -1,7 +1,7 @@
 {
   "name": "flimsydecaid",
   "private": true,
-  "version": "0.2.5",
+  "version": "0.2.6",
   "type": "module",
   "description": "A category-first Decaid skin for the Decent DE1",
   "license": "AGPL-3.0-or-later",

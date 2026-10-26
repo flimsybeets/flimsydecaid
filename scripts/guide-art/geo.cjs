@@ -154,50 +154,15 @@ function crSample(pts, per = 8) {
 }
 
 // Lathe (vertical axis). prof: [[y, r, corner?], ...] top -> bottom.
+// The outline is exact (stackLathe); this adds the drawing helpers.
 function lathe(cam, cx, cz, prof) {
-  const chains = [];
-  let cur = [];
-  prof.forEach((p, i) => {
-    cur.push([p[0], p[1]]);
-    if (p[2] && i > 0 && i < prof.length - 1) { chains.push(cur); cur = [[p[0], p[1]]]; }
-  });
-  chains.push(cur);
+  return { ...latheHelpers(cam, cx, cz), sil: stackLathe(cam, cx, cz, prof, 5).sil };
+}
+function latheHelpers(cam, cx, cz) {
   const c = cam.P(cx, 0, cz);
-  const L = [], Rr = [];
-  let topSin = 0, botSin = 0;
-  chains.forEach((ch, ci) => {
-    const smp = ch.length > 2 ? crSample(ch, 5) : ch.length === 2 ? crSample(ch, 3) : ch;
-    const l = [], r = [];
-    smp.forEach((p, i) => {
-      const a = smp[Math.max(0, i - 1)], b = smp[Math.min(smp.length - 1, i + 1)];
-      const dy = b[0] - a[0];
-      if (dy >= 0 && i > 0 && i < smp.length - 1) return; // spline overshoot
-      const drdy = Math.abs(dy) < 1e-6 ? (b[1] > a[1] ? 1e3 : -1e3) * Math.sign(dy || -1) : (b[1] - a[1]) / dy;
-      let sn = drdy * cam.tp;
-      if (Math.abs(sn) > 0.97 && i > 0 && i < smp.length - 1) return; // surface faces the camera here: no silhouette
-      const lim = i === 0 || i === smp.length - 1 ? 0.45 : 0.97;
-      sn = Math.max(-lim, Math.min(lim, sn));
-      const cs = Math.sqrt(1 - sn * sn);
-      const X = cam.s * p[1] * cs, Y = c[1] - cam.s * p[0] * cam.cp + cam.s * p[1] * sn * cam.sp;
-      l.push([c[0] - X, Y]); r.push([c[0] + X, Y]);
-      if (ci === 0 && i === 0) topSin = sn;
-      if (ci === chains.length - 1 && i === smp.length - 1) botSin = sn;
-    });
-    L.push(l); Rr.push(r);
-  });
-  const top = prof[0], bot = prof[prof.length - 1];
-  const eT = cam.ell(cx, top[0], cz, top[1]), eB = cam.ell(cx, bot[0], cz, bot[1]);
-  let d = '';
-  L.forEach((l, i) => { d += crD(l, i === 0); });
-  const lb = L[L.length - 1].at(-1), rb = Rr[Rr.length - 1].at(-1);
-  if (bot[1] > 0.01) d += `A${f(eB.rx)} ${f(eB.ry)} 0 ${botSin < 0 ? 1 : 0} 0 ${pt(rb)}`;
-  for (let i = Rr.length - 1; i >= 0; i--) d += crD(Rr[i].slice().reverse(), false);
-  const lt = L[0][0];
-  if (top[1] > 0.01) d += `A${f(eT.rx)} ${f(eT.ry)} 0 ${topSin > 0 ? 1 : 0} 0 ${pt(lt)}`;
-  d += 'Z';
   const ell = (y, r) => cam.ell(cx, y, cz, r);
   return {
-    sil: d, ell,
+    ell,
     ring: (y, r) => ellD(ell(y, r)),
     front: (y, r) => frontArcD(ell(y, r)),
     back: (y, r) => backArcD(ell(y, r)),
@@ -206,7 +171,7 @@ function lathe(cam, cx, cz, prof) {
       let d = '';
       for (let k = 0; k < n; k++) {
         const a = (a0 + (a1 - a0) * (k + 0.5) / n) * R;
-        const p0 = cam.P(cx + r * Math.cos(a) * cam.ca + 0, y0, cz), x = c[0] + cam.s * r * Math.cos(a);
+        const x = c[0] + cam.s * r * Math.cos(a);
         const yy0 = c[1] - cam.s * y0 * cam.cp + cam.s * r * Math.sin(a) * cam.sp;
         const yy1 = c[1] - cam.s * y1 * cam.cp + cam.s * r * Math.sin(a) * cam.sp;
         d += `M${f(x)} ${f(yy0)}V${f(yy1)}`;
@@ -222,7 +187,6 @@ function lathe(cam, cx, cz, prof) {
     },
   };
 }
-
 
 // ---------- extras for the guide scenes ----------
 const polyD = (pts, close = true) => 'M' + pts.map(pt).join('L') + (close ? 'Z' : '');
@@ -253,6 +217,19 @@ function thin(pts, tol = 0.6) {
   for (let i = 1; i < pts.length - 1; i++) { const q = out[out.length - 1]; if (Math.hypot(pts[i][0] - q[0], pts[i][1] - q[1]) >= tol) out.push(pts[i]); }
   out.push(pts[pts.length - 1]);
   return out;
+}
+// Ramer-Douglas-Peucker: drop points within tol px of the simplified line
+function rdp(pts, tol = 0.2) {
+  if (pts.length < 3) return pts;
+  const keep = new Uint8Array(pts.length); keep[0] = keep[pts.length - 1] = 1;
+  const st = [[0, pts.length - 1]];
+  while (st.length) {
+    const [a, b] = st.pop(); const [ax, ay] = pts[a], [bx, by] = pts[b], dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy) || 1e-9;
+    let m = -1, md = tol;
+    for (let i = a + 1; i < b; i++) { const d = Math.abs((pts[i][0] - ax) * dy - (pts[i][1] - ay) * dx) / L; if (d > md) { md = d; m = i; } }
+    if (m > 0) { keep[m] = 1; st.push([a, m], [m, b]); }
+  }
+  return pts.filter((_, i) => keep[i]);
 }
 const add3 = (a, b, k = 1) => [a[0] + b[0] * k, a[1] + b[1] * k, a[2] + b[2] * k];
 const norm3 = (a) => { const l = Math.hypot(...a); return a.map((v) => v / l); };
@@ -332,4 +309,41 @@ function tube(cam, pts3, r, per = 8) {
   return { L, R: Rr, C, smp, cap, d: polyD(thin(L.concat(Rr.slice().reverse()))) };
 }
 
-module.exports = { polyD, smoothClosedD, hull, thin, add3, norm3, cross3, circ3, perp, revolve, tube, crSample,  Cam, ellD, frontArcD, backArcD, roundedPoly, proj, segsD, prism, rbox, rrectTop, crD, lathe, f, pt, lineSeg, R };
+// Convex body of revolution (domes, knobs, discs): the outline is the convex
+// hull of its rings, so no silhouette tracing (and no notches at the poles).
+function convexLathe(cam, cx, cz, prof, n = 72) {
+  const pts = [];
+  for (const [y, r] of prof) for (let i = 0; i < n; i++) { const a = i / n * 2 * Math.PI; pts.push(cam.P(cx + r * Math.cos(a), y, cz + r * Math.sin(a))); }
+  return { ...latheHelpers(cam, cx, cz), sil: polyD(hull(pts)) };
+}
+
+// Exact outline of a body of revolution about a vertical axis: the union of
+// its horizontal ellipses. All share one centre x, so each screen row is one
+// interval [cx - w, cx + w]. Handles wavy profiles (bellows) cleanly.
+// prof: [[y, r], ...] (any order along y).
+function stackLathe(cam, cx, cz, prof, per = 10, step = 0.25) {
+  // split at corner points (third element truthy), spline within each chain
+  const sorted = prof.slice().sort((a, b) => b[0] - a[0]);
+  const chains = [[]];
+  sorted.forEach((p, i) => { chains[chains.length - 1].push(p); if (p[2] && i > 0 && i < sorted.length - 1) chains.push([p]); });
+  const raw = [];
+  chains.forEach((ch, ci) => { const sm = ch.length > 1 ? crSample(ch.map((p) => [p[0], p[1]]), per) : ch; raw.push(...(ci ? sm.slice(1) : sm)); });
+  // resample densely: neighbouring ellipses must be under half a pixel apart
+  const smp = [raw[0]], dy = 0.4 / (cam.s * cam.cp);
+  for (let i = 1; i < raw.length; i++) {
+    const a = raw[i - 1], b = raw[i], k = Math.max(1, Math.ceil(Math.abs(b[0] - a[0]) / dy));
+    for (let j = 1; j <= k; j++) smp.push([a[0] + (b[0] - a[0]) * j / k, a[1] + (b[1] - a[1]) * j / k]);
+  }
+  const E = smp.map(([y, r]) => cam.ell(cx, y, cz, Math.max(0, r)));
+  const y0 = Math.min(...E.map((e) => e.cy - e.ry)), y1 = Math.max(...E.map((e) => e.cy + e.ry));
+  const L = [], Rr = [];
+  const c = E[0].cx;
+  for (let Y = y0; Y <= y1 + 1e-6; Y += step) {
+    let w = 0;
+    for (const e of E) { const t = (Y - e.cy) / (e.ry || 1e-9); if (t > -1 && t < 1) w = Math.max(w, e.rx * Math.sqrt(1 - t * t)); }
+    L.push([c - w, Y]); Rr.push([c + w, Y]);
+  }
+  return { ...latheHelpers(cam, cx, cz), sil: polyD(rdp(L).concat(rdp(Rr.reverse()))) };
+}
+
+module.exports = { stackLathe, convexLathe, polyD, smoothClosedD, hull, thin, add3, norm3, cross3, circ3, perp, revolve, tube, crSample,  Cam, ellD, frontArcD, backArcD, roundedPoly, proj, segsD, prism, rbox, rrectTop, crD, lathe, f, pt, lineSeg, R };
