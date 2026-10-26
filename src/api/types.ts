@@ -31,6 +31,12 @@ export interface MachineSnapshot {
   profileFrame?: number;
 }
 
+/** ws/v1/machine/waterLevels frame: tank water height and the refill-warning threshold, both in mm. */
+export interface WaterLevels {
+  currentLevel: number;
+  refillLevel: number;
+}
+
 /** GET /api/v1/machine/info */
 export interface MachineInfo {
   version?: string;

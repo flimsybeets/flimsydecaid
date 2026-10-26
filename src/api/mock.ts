@@ -191,6 +191,10 @@ export function createMockGateway(): Gateway {
   let flow = 0;
   let subs: Subscriptions | null = null;
   let brightness = 100;
+  // Tank: slowly drops (about 1 mm a minute). ?water=<mm> starts it at that level.
+  let waterLevel = Number(new URLSearchParams(location.search).get('water') ?? 42);
+  let refillLevel = 10;
+  let ticks = 0;
   let timer: ReturnType<typeof setInterval> | null = null;
 
   const devices = (): DevicesState => ({
@@ -271,6 +275,10 @@ export function createMockGateway(): Gateway {
     }
     subs?.onMachine(snapshot);
     if (scaleConnected) subs?.onScale(scaleFrame);
+    if (++ticks % 10 === 0) {
+      waterLevel = Math.max(0, waterLevel - 1 / 60);
+      subs?.onWater({ currentLevel: Math.round(waterLevel * 10) / 10, refillLevel });
+    }
   };
 
   const delay = (ms = 120) => new Promise((r) => setTimeout(r, ms));
@@ -292,6 +300,7 @@ export function createMockGateway(): Gateway {
       s.onSocketStatus('devices', 'open');
       s.onDevices(devices());
       s.onScale({ status: 'connected' });
+      s.onWater({ currentLevel: waterLevel, refillLevel });
       timer = setInterval(tick, 100);
       return () => { if (timer) clearInterval(timer); subs = null; };
     },
@@ -319,6 +328,7 @@ export function createMockGateway(): Gateway {
       await delay();
       return { model: 'DE1+', version: 'mock', GHC: new URLSearchParams(location.search).get('ghc') === '1' };
     },
+    async setWaterRefillLevel(mm) { await delay(); refillLevel = Math.trunc(mm); },
     async tareScale() { await delay(); weight = 0; },
     async keepScreenOn() { await delay(20); },
     async getDisplay() { await delay(20); return { brightness, requestedBrightness: brightness, platformSupported: { brightness: true, wakeLock: true } }; },

@@ -1,6 +1,8 @@
 <script lang="ts">
   import { app } from '../../state/app.svelte';
   import { resolveGateway } from '../../api/config';
+  import Stepper from '../../components/Stepper.svelte';
+  import { REFILL_MAX_MM, REFILL_MIN_MM } from '../../lib/water';
 
   const gw = resolveGateway();
   const version = __APP_VERSION__;
@@ -68,7 +70,24 @@
     </div>
     {#if !app.screensaverImage}<p class="small">Until you choose one, the screen turns off when the machine sleeps, as usual.</p>{/if}
     {#if saverError}<p class="error" role="alert">{saverError}</p>{/if}
+    <label class="slider">
+      <span class="slider-head">Screen brightness while asleep <b>{app.screensaverDim}%</b></span>
+      <input type="range" min="0" max="100" step="1" value={app.screensaverDim}
+        oninput={(e) => app.setScreensaverDim(Number(e.currentTarget.value))} />
+      <span class="small">{app.screensaverDim >= 100 ? 'Not dimmed.' : 'Open Preview to see it as you move the slider.'}</span>
+    </label>
     <input bind:this={picker} class="sr-only" type="file" accept="image/*" onchange={onPick} tabindex="-1" aria-hidden="true" />
+  </section>
+
+  <section class="glass">
+    <h2>Water level warning</h2>
+    <p>The machine warns you to refill when the tank drops to this height.</p>
+    <div class="water-row">
+      <Stepper compact label="Warn at" unit="mm" min={REFILL_MIN_MM} max={REFILL_MAX_MM} step={1}
+        bind:value={() => (app.water && Number.isFinite(app.water.refillLevel) ? app.water.refillLevel : undefined), (v) => { if (v !== undefined) app.setWaterRefill(v); }}
+        placeholder="…" disabled={!app.water || !Number.isFinite(app.water.refillLevel)} />
+      <p class="small">{app.water && Number.isFinite(app.water.currentLevel) ? `Tank is at ${Math.round(app.water.currentLevel)} mm now.` : 'Waiting for the machine.'}</p>
+    </div>
   </section>
 
   <section class="glass">
@@ -100,6 +119,11 @@
   .button:disabled { opacity: 0.5; }
   .saver-preview { width: 100%; max-width: 270px; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 16px; box-shadow: var(--glass-shadow); }
   .small { font-size: var(--t-xs); }
+  .slider { display: grid; gap: 6px; margin-top: 4px; }
+  .slider-head { display: flex; justify-content: space-between; font-weight: 600; }
+  .slider-head b { font-variant-numeric: tabular-nums; }
+  .slider input { width: 100%; min-height: var(--touch); accent-color: var(--paper); }
+  .water-row { display: grid; grid-template-columns: minmax(0, 200px) 1fr; gap: 12px; align-items: center; }
   .error { color: var(--stop); }
   dl { display: grid; grid-template-columns: max-content 1fr; gap: 8px 18px; margin: 0; }
   dt { color: var(--paper-dim); }

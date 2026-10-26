@@ -1,6 +1,7 @@
 <script lang="ts">
   import { app } from '../state/app.svelte';
   import { heaterOn } from '../lib/steam';
+  import { waterFill } from '../lib/water';
 
   let { onSteam }: { onSteam: () => void } = $props();
 
@@ -37,6 +38,18 @@
     <span class="t puck"><i aria-hidden="true"></i>Puck {app.machine.groupTemperature?.toFixed(1) ?? '–'}°</span>
   </div>
 
+  {#if true}
+    <div class="tank {app.waterStatus}" role="status" aria-label={app.waterStatus === 'empty' ? 'Water tank empty' : app.waterStatus === 'low' ? 'Water is low, refill soon' : 'Water level'}>
+      <span class="glass-tank" aria-hidden="true">
+        <i style="transform: scaleY({app.waterStatus === 'empty' ? 0 : waterFill(app.water?.currentLevel)})"></i>
+      </span>
+      <span class="amount">
+        {#if app.waterStatus === 'empty'}Refill{:else}{Number.isFinite(app.water?.currentLevel) ? Math.round(app.water!.currentLevel) : '–'}<small>mm</small>{/if}
+        <small class="word">{app.waterStatus === 'empty' ? 'water' : app.waterStatus === 'low' ? 'low' : 'water'}</small>
+      </span>
+    </div>
+  {/if}
+
   <button class="steam glass" class:solid={steamIsOn} class:on={steamIsOn} onclick={onSteam} aria-haspopup="dialog">
     <span class="label">Steam</span>
     <span class="value">
@@ -57,7 +70,7 @@
 
   footer {
     display: grid;
-    grid-template-columns: minmax(210px, 1fr) auto minmax(165px, auto);
+    grid-template-columns: minmax(210px, 1fr) auto auto minmax(165px, auto);
     align-items: stretch;
     gap: 9px;
     margin: 8px var(--gutter) 10px;
@@ -111,13 +124,33 @@
   .water i { height: 3px; background: var(--g-water); }
   .puck i { height: 4px; background: var(--g-puck); }
 
+  /* Tank: a small glass with a fill that rises and falls. Amber at or below the
+     refill level, coral when the machine reports it needs water. Transform only. */
+  .tank { --c: var(--paper-dim); display: flex; align-items: center; gap: 9px; padding: 0 10px; color: var(--c); }
+  .tank.low { --c: var(--warn); }
+  .tank.empty { --c: var(--stop); }
+  .glass-tank {
+    position: relative; flex: none; display: block; overflow: hidden;
+    width: 20px; height: 30px;
+    border: 2px solid var(--c); border-top-width: 2px; border-radius: 3px 3px 7px 7px;
+  }
+  .glass-tank i {
+    position: absolute; inset: 0; display: block;
+    background: var(--c); opacity: 0.55;
+    transform-origin: bottom; transition: transform 600ms linear;
+  }
+  .amount { display: grid; font-size: var(--t-md); font-weight: 650; line-height: 1.05; font-variant-numeric: tabular-nums; }
+  .amount small { font-size: var(--t-xs); font-weight: 500; margin-left: 2px; color: var(--paper-faint); }
+  .amount .word { margin: 0; }
+  .tank.low .word, .tank.empty .word { color: var(--c); }
+
   .steam { justify-content: space-between; }
   .steam .value { font-size: var(--t-lg); font-weight: 650; color: var(--paper-faint); }
   .steam.on .label, .steam.on .value small { color: #3c5559; }
   .steam.on .value { color: var(--ink); }
 
   @media (max-width: 900px) {
-    footer { grid-template-columns: 1fr auto; }
+    footer { grid-template-columns: 1fr auto auto; }
     .temps { display: none; }
   }
 </style>

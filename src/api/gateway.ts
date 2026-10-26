@@ -6,7 +6,7 @@ import type { GatewayConfig } from './config';
 import { openSocket, type ManagedSocket, type SocketStatus } from './socket';
 import type {
   Bean, BeanBatch, DevicesState, DisplayState, MachineInfo, MachineSnapshot, MachineState, Profile, ProfileRecord,
-  ScaleFrame, ShotAnnotations, ShotPage, ShotQuery, ShotRecord, ShotSummary, Workflow, WorkflowPatch,
+  ScaleFrame, ShotAnnotations, ShotPage, ShotQuery, ShotRecord, ShotSummary, WaterLevels, Workflow, WorkflowPatch,
 } from './types';
 
 /** Our namespace in Decaid's shared key-value store. Not scoped per owner, so keep it unique. */
@@ -16,6 +16,8 @@ export interface Subscriptions {
   onMachine(frame: MachineSnapshot): void;
   onScale(frame: ScaleFrame): void;
   onDevices(state: DevicesState): void;
+  /** Tank level and refill threshold (mm), sent when either changes. */
+  onWater(levels: WaterLevels): void;
   onSocketStatus(channel: 'machine' | 'scale' | 'devices', status: SocketStatus): void;
 }
 
@@ -27,6 +29,8 @@ export interface Gateway {
   scanDevices(): void;
 
   getMachineInfo(): Promise<MachineInfo>;
+  /** POST /machine/waterLevels: the tank level (mm) at which the machine warns to refill. */
+  setWaterRefillLevel(mm: number): Promise<void>;
   requestState(state: MachineState): Promise<void>;
   tareScale(): Promise<void>;
   /**
@@ -116,9 +120,15 @@ export function createHttpGateway(config: GatewayConfig): Gateway {
         onMessage: (m) => { if ('devices' in m) subs.onDevices(m as DevicesState); },
         onStatus: (s) => subs.onSocketStatus('devices', s),
       });
+      const water = openSocket<Partial<WaterLevels>>({
+        url: ws('machine/waterLevels'),
+        onMessage: (m) => {
+          if (typeof m.currentLevel === 'number') subs.onWater({ currentLevel: m.currentLevel, refillLevel: m.refillLevel ?? NaN });
+        },
+      });
       devicesSocket = devices;
       return () => {
-        machine.close(); scale.close(); devices.close();
+        machine.close(); scale.close(); devices.close(); water.close();
         devicesSocket = null;
       };
     },
@@ -130,6 +140,7 @@ export function createHttpGateway(config: GatewayConfig): Gateway {
     },
 
     getMachineInfo: () => call('GET', '/machine/info'),
+    setWaterRefillLevel: (mm) => call('POST', '/machine/waterLevels', { refillLevel: Math.trunc(mm) }),
     requestState: (state) => call('PUT', `/machine/state/${state}`),
     tareScale: () => call('PUT', '/scale/tare'),
     keepScreenOn: (on) => call(on ? 'POST' : 'DELETE', '/display/wakelock'),

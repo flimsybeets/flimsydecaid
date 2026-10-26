@@ -1,5 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { clockText, fitDataUrl, SCREENSAVER_ATTEMPTS } from '../src/lib/screensaver';
+import { clampDim, clockText, dimTarget, fitDataUrl, parseDim, SCREENSAVER_ATTEMPTS } from '../src/lib/screensaver';
+
+describe('screensaver dim level', () => {
+  it('defaults to 12 when nothing valid is stored', () => {
+    expect(parseDim(null)).toBe(12);
+    expect(parseDim('x')).toBe(12);
+    expect(parseDim(NaN)).toBe(12);
+  });
+  it('keeps stored numbers, clamped to 0-100', () => {
+    expect(parseDim(0)).toBe(0);
+    expect(parseDim(35.4)).toBe(35);
+    expect(parseDim(250)).toBe(100);
+    expect(clampDim(-4)).toBe(0);
+  });
+  it('100 leaves the previous brightness alone', () => {
+    expect(dimTarget(100, 70)).toBe(70);
+    expect(dimTarget(20, 70)).toBe(20);
+  });
+});
 
 describe('screensaver clock', () => {
   const evening = new Date(2026, 9, 25, 21, 7);
