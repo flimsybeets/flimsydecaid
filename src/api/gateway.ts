@@ -5,8 +5,8 @@
 import type { GatewayConfig } from './config';
 import { openSocket, type ManagedSocket, type SocketStatus } from './socket';
 import type {
-  Bean, BeanBatch, DevicesState, DisplayState, MachineInfo, MachineSnapshot, MachineState, Profile, ProfileRecord,
-  ScaleFrame, ShotAnnotations, ShotPage, ShotQuery, ShotRecord, ShotSummary, Workflow, WorkflowPatch,
+  Bean, BeanBatch, DevicesState, DisplayState, MachineInfo, MachineSnapshot, MachineState, PluginInfo, Profile, ProfileRecord,
+  ScaleFrame, ShotAnnotations, ShotPage, ShotQuery, ShotRecord, ShotSummary, WaterLevels, Workflow, WorkflowPatch,
 } from './types';
 
 /** Our namespace in Decaid's shared key-value store. Not scoped per owner, so keep it unique. */
@@ -16,6 +16,8 @@ export interface Subscriptions {
   onMachine(frame: MachineSnapshot): void;
   onScale(frame: ScaleFrame): void;
   onDevices(state: DevicesState): void;
+  /** Tank level and refill threshold (mm), sent when either changes. */
+  onWater(levels: WaterLevels): void;
   onSocketStatus(channel: 'machine' | 'scale' | 'devices', status: SocketStatus): void;
 }
 
@@ -27,6 +29,8 @@ export interface Gateway {
   scanDevices(): void;
 
   getMachineInfo(): Promise<MachineInfo>;
+  /** POST /machine/waterLevels: the tank level (mm) at which the machine warns to refill. */
+  setWaterRefillLevel(mm: number): Promise<void>;
   requestState(state: MachineState): Promise<void>;
   tareScale(): Promise<void>;
   /**
@@ -68,6 +72,17 @@ export interface Gateway {
   deleteShot(id: string): Promise<void>;
   /** hidden: out of lists, reversible in Decaid. (deleted is refused for Decaid's defaults.) */
   setProfileVisibility(id: string, visibility: ProfileRecord['visibility']): Promise<ProfileRecord>;
+
+  /** GET /plugins */
+  getPlugins(): Promise<PluginInfo[]>;
+  /** GET /plugins/{id}/settings. Secure values come back as { isSet }. */
+  getPluginSettings(id: string): Promise<Record<string, unknown>>;
+  /** POST /plugins/{id}/settings: omitted fields are kept, null clears. Reloads a loaded plugin. */
+  savePluginSettings(id: string, patch: Record<string, unknown>): Promise<Record<string, unknown>>;
+  /** POST /plugins/{id}/enable or /disable. */
+  setPluginEnabled(id: string, enabled: boolean): Promise<void>;
+  /** A plugin's declared HTTP endpoint: GET without a body, POST with one. Throws HttpError on non-2xx. */
+  callPlugin<T>(id: string, endpoint: string, body?: unknown): Promise<T>;
 
   storeGet<T>(key: string): Promise<T | null>;
   storeSet(key: string, value: unknown): Promise<void>;
@@ -116,9 +131,15 @@ export function createHttpGateway(config: GatewayConfig): Gateway {
         onMessage: (m) => { if ('devices' in m) subs.onDevices(m as DevicesState); },
         onStatus: (s) => subs.onSocketStatus('devices', s),
       });
+      const water = openSocket<Partial<WaterLevels>>({
+        url: ws('machine/waterLevels'),
+        onMessage: (m) => {
+          if (typeof m.currentLevel === 'number') subs.onWater({ currentLevel: m.currentLevel, refillLevel: m.refillLevel ?? NaN });
+        },
+      });
       devicesSocket = devices;
       return () => {
-        machine.close(); scale.close(); devices.close();
+        machine.close(); scale.close(); devices.close(); water.close();
         devicesSocket = null;
       };
     },
@@ -130,6 +151,7 @@ export function createHttpGateway(config: GatewayConfig): Gateway {
     },
 
     getMachineInfo: () => call('GET', '/machine/info'),
+    setWaterRefillLevel: (mm) => call('POST', '/machine/waterLevels', { refillLevel: Math.trunc(mm) }),
     requestState: (state) => call('PUT', `/machine/state/${state}`),
     tareScale: () => call('PUT', '/scale/tare'),
     keepScreenOn: (on) => call(on ? 'POST' : 'DELETE', '/display/wakelock'),
@@ -163,6 +185,14 @@ export function createHttpGateway(config: GatewayConfig): Gateway {
     updateShot: (id, annotations) => call('PUT', `/shots/${encodeURIComponent(id)}`, { annotations }),
     deleteShot: (id) => call('DELETE', `/shots/${encodeURIComponent(id)}`),
     setProfileVisibility: (id, visibility) => call('PUT', `/profiles/${encodeURIComponent(id)}/visibility`, { visibility }),
+
+    getPlugins: () => call('GET', '/plugins'),
+    getPluginSettings: (id) => call('GET', `/plugins/${encodeURIComponent(id)}/settings`),
+    savePluginSettings: (id, patch) => call('POST', `/plugins/${encodeURIComponent(id)}/settings`, patch),
+    async setPluginEnabled(id, enabled) {
+      await call('POST', `/plugins/${encodeURIComponent(id)}/${enabled ? 'enable' : 'disable'}`);
+    },
+    callPlugin: (id, endpoint, body) => call(body === undefined ? 'GET' : 'POST', `/plugins/${encodeURIComponent(id)}/${encodeURIComponent(endpoint)}`, body),
 
     async storeGet<T>(key: string) {
       try {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { BeanBatch, ProfileRecord } from '../src/api/types';
-import { canGoBack, doseCheck, parseGuideSetup, pickBag, planBrew, rinseProgress, weighState } from '../src/lib/guide';
+import { canGoBack, GUIDE_STEPS, STEP_LABELS, doseCheck, parseGuideSetup, pickBag, planBrew, rinseProgress, weighState } from '../src/lib/guide';
 
 const bag = (id: string, beanId: string, roastDate: string, archived = false, extras?: BeanBatch['extras']): BeanBatch => ({
   id, beanId, roastDate, archived, frozen: false, createdAt: roastDate, updatedAt: roastDate, extras,
@@ -62,9 +62,23 @@ describe('weighing', () => {
 });
 
 describe('guide flow', () => {
+  it('runs in the agreed order, with a label for each step', () => {
+    expect([...GUIDE_STEPS]).toEqual(['weigh', 'spray', 'dial', 'grind', 'basket', 'funnel', 'tamp', 'paper', 'minerals', 'start', 'knock', 'rinse', 'done']);
+    expect(GUIDE_STEPS).toHaveLength(13);
+    expect(STEP_LABELS.basket).toBe('Basket');
+    expect(STEP_LABELS.minerals).toBe('Minerals');
+    for (const s of GUIDE_STEPS) expect(STEP_LABELS[s]).toBeTruthy();
+  });
+
+  it('lets you go back through every prep step up to Pull', () => {
+    for (const s of GUIDE_STEPS.slice(1, GUIDE_STEPS.indexOf('start') + 1)) expect(canGoBack(s)).toBe(true);
+    for (const s of GUIDE_STEPS.slice(GUIDE_STEPS.indexOf('start') + 1)) expect(canGoBack(s)).toBe(false);
+  });
+
   it('lets you go back during prep, not after the shot', () => {
     expect(canGoBack('weigh')).toBe(false);
     expect(canGoBack('tamp')).toBe(true);
+    expect(canGoBack('minerals')).toBe(true);
     expect(canGoBack('start')).toBe(true);
     expect(canGoBack('knock')).toBe(false);
   });

@@ -170,9 +170,9 @@
 
 <aside class="panel glass thick" aria-label="Brew settings">
   <div class="head">
+    <button class="back glass" onclick={onClose}>‹ Profiles</button>
     <h2>{record?.profile.title ?? 'Profile'}</h2>
     {#if record}<button class="edit glass" onclick={() => (app.editing = record)}>Edit</button>{/if}
-    <button class="close glass" onclick={onClose} aria-label="Close brew settings">✕</button>
   </div>
 
   <div class="body">
@@ -246,29 +246,38 @@
 </aside>
 
 <style>
-  /* Title and Load / Start stay put; only the middle scrolls. (A glass
-     element must not scroll itself: its rim would scroll away too.) */
+  /* Fills the Home area: back / title / edit on top, then two columns.
+     Left = the bag list (scrolls inside itself if there are many); right =
+     dial-in with the sync note and Start shot pinned under it. `.body` has
+     display: contents so its two sections are grid items of the panel.
+     (A glass element must not scroll itself: its rim would scroll away too.) */
   .panel {
     display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr) auto;
-    gap: 14px;
+    grid-template-areas: 'head head' 'bags dial' 'bags go';
+    column-gap: calc(var(--gutter) * 1.4);
+    row-gap: 10px;
     min-height: 0;
     overflow: hidden;
-    margin: 3px var(--gutter) 3px 0;
+    margin: var(--gutter) var(--gutter) calc(var(--gutter) + var(--kb));
     padding: var(--gutter);
     border-radius: 27px;
     animation: slide 200ms cubic-bezier(.2,.8,.2,1);
   }
-  @keyframes slide { from { transform: translateX(22px); opacity: 0; } }
+  @keyframes slide { from { transform: translateY(14px); opacity: 0; } }
 
-  .body { display: grid; gap: 14px; align-content: start; min-height: 0; overflow-y: auto; margin: 0 -8px; padding: 3px 6px; }
-  .head { display: flex; align-items: flex-start; justify-content: space-between; gap: 9px; }
-  h2 { font-size: var(--t-lg); font-weight: 700; line-height: 1.1; letter-spacing: -0.01em; }
+  .body { display: contents; }
+  .head { grid-area: head; display: flex; align-items: center; gap: 12px; }
+  .bags { grid-area: bags; display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; }
+  .dial { grid-area: dial; min-height: 0; }
+  .go { grid-area: go; }
+  h2 { font-size: var(--t-lg); font-weight: 700; line-height: 1.1; letter-spacing: -0.01em; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   h3 { font-size: var(--t-sm); font-weight: 500; color: var(--paper-dim); margin-bottom: 6px; }
+  .back { flex: none; min-height: 42px; padding: 0 15px 0 10px; border-radius: var(--radius-pill); color: var(--paper-dim); font-size: var(--t-sm); }
   .edit { flex: none; height: 42px; padding: 0 14px; margin-left: auto; border-radius: var(--radius-pill); color: var(--paper); font-size: var(--t-xs); font-weight: 650; }
-  .close { width: 42px; height: 42px; flex: none; border-radius: 50%; color: var(--paper-dim); font-size: var(--t-md); }
 
-  .bag-list { display: grid; gap: 6px; max-height: 201px; overflow-y: auto; padding: 3px; margin: -4px; }
+  .bag-list { display: grid; gap: 6px; align-content: start; min-height: 0; overflow-y: auto; padding: 3px; margin: -3px; }
   .bag {
     display: flex;
     align-items: center;
@@ -298,7 +307,7 @@
 
   .dial { display: grid; gap: 10px; align-content: start; }
   .source { color: var(--paper-dim); font-size: var(--t-xs); }
-  .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px 10px; }
   /* Beans on the scale vs the dose: amber under, green spot on, coral over. */
   .weigh { --c: 242 179 61; display: grid; gap: 6px; }
   .weigh.ok { --c: 76 230 140; }
@@ -315,7 +324,7 @@
   .dose.over :global(.row) { box-shadow: 0 0 0 2px rgb(255 111 97 / 0.8), var(--well-shadow); }
   .offset { color: var(--paper-dim); font-size: var(--t-xs); }
 
-  .go { display: grid; gap: 9px; }
+  .go { display: grid; gap: 7px; }
   .sync { display: flex; align-items: center; gap: 8px; color: var(--paper-faint); font-size: var(--t-xs); min-height: 20px; }
   .sync::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--paper-faint); flex: none; }
   .sync.ok { color: var(--go); }
@@ -343,4 +352,12 @@
     box-shadow: 0 12px 26px -12px color-mix(in srgb, var(--tile) 70%, transparent), inset 0 1px 0 rgb(255 255 255 / 0.7);
   }
   .start:disabled { opacity: 0.5; }
+
+  /* Narrow: one column; the bag list and dial-in scroll, Start shot stays pinned. */
+  @media (max-width: 760px) {
+    .panel { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'head' 'body' 'go'; }
+    .body { display: grid; grid-area: body; gap: 14px; align-content: start; min-height: 0; overflow-y: auto; margin: 0 -8px; padding: 3px 6px; }
+    .bags, .dial { grid-area: auto; }
+    .bag-list { overflow: visible; }
+  }
 </style>

@@ -74,14 +74,16 @@ export function weighState(weight: number | null | undefined, target: number, to
 }
 
 export type GuideStepId =
-  | 'weigh' | 'spray' | 'dial' | 'grind' | 'funnel' | 'tamp' | 'paper' | 'start' | 'knock' | 'rinse' | 'done';
+  | 'weigh' | 'spray' | 'dial' | 'grind' | 'basket' | 'funnel' | 'tamp' | 'paper' | 'minerals' | 'start' | 'knock' | 'rinse' | 'done';
 
-export const GUIDE_STEPS: readonly GuideStepId[] = ['weigh', 'spray', 'dial', 'grind', 'funnel', 'tamp', 'paper', 'start', 'knock', 'rinse', 'done'];
+export const GUIDE_STEPS: readonly GuideStepId[] = [
+  'weigh', 'spray', 'dial', 'grind', 'basket', 'funnel', 'tamp', 'paper', 'minerals', 'start', 'knock', 'rinse', 'done',
+];
 
 /** Short labels for the progress rail. */
 export const STEP_LABELS: Record<GuideStepId, string> = {
-  weigh: 'Weigh', spray: 'Spray', dial: 'Grinder', grind: 'Grind', funnel: 'Funnel', tamp: 'Tamp',
-  paper: 'Paper', start: 'Pull', knock: 'Knock', rinse: 'Rinse', done: 'Enjoy',
+  weigh: 'Weigh', spray: 'Spray', dial: 'Grinder', grind: 'Grind', basket: 'Basket', funnel: 'Funnel', tamp: 'Tamp',
+  paper: 'Paper', minerals: 'Minerals', start: 'Pull', knock: 'Knock', rinse: 'Rinse', done: 'Enjoy',
 };
 
 /** Steps before the shot can be stepped through freely; after it, the order follows the machine. */

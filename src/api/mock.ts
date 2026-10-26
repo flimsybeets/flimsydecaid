@@ -165,7 +165,7 @@ export function createMockGateway(): Gateway {
     shots.unshift({
       id: `shot-${crypto.randomUUID()}`, timestamp: when, createdAt: when, updatedAt: now(),
       workflow: clone({ profile: workflow.profile, context: workflow.context }),
-      annotations: null,
+      annotations: vizLoaded && vizSettings.AutoUpload && vizSignedIn() ? { extras: { visualizerId: `viz-${Math.random().toString(36).slice(2, 8)}` } } : null,
       stopReason,
       measurements: recording,
     });
@@ -187,10 +187,21 @@ export function createMockGateway(): Gateway {
   let weight = 0.0;
   let scaleConnected = true;
   let shotT = 0;
+  /** Seconds of warm-up left before an espresso pours (set by pressBrew). */
+  let preheat = 0;
   let pressure = 0;
   let flow = 0;
   let subs: Subscriptions | null = null;
+  // Visualizer plugin: installed but off at first. Password: anything but "wrong" signs in.
+  let vizLoaded = false;
+  let vizSettings: { Username: string; Password: string; AutoUpload: boolean } = { Username: '', Password: '', AutoUpload: true };
+  const vizRedacted = () => ({ Username: vizSettings.Username, Password: { isSet: vizSettings.Password !== '' }, AutoUpload: vizSettings.AutoUpload });
+  const vizSignedIn = () => vizSettings.Username !== '' && vizSettings.Password !== '' && vizSettings.Password !== 'wrong';
   let brightness = 100;
+  // Tank: slowly drops (about 1 mm a minute). ?water=<mm> starts it at that level.
+  let waterLevel = Number(new URLSearchParams(location.search).get('water') ?? 42);
+  let refillLevel = 10;
+  let ticks = 0;
   let timer: ReturnType<typeof setInterval> | null = null;
 
   const devices = (): DevicesState => ({
@@ -213,7 +224,14 @@ export function createMockGateway(): Gateway {
     let targetFlow = 0;
     let targetTemp = p?.steps[0]?.temperature ?? 93;
 
-    if (state === 'espresso' && p) {
+    if (state === 'espresso' && p && preheat > 0) {
+      // Group-head brew button: the machine warms up before it pours.
+      preheat -= 0.1;
+      substate = 'preparingForShot';
+      targetTemp = p.steps[0]?.temperature ?? 93;
+      mix += (targetTemp - mix) * 0.06;
+      group += (targetTemp - group) * 0.05;
+    } else if (state === 'espresso' && p) {
       shotT += 0.1;
       let acc = 0;
       frame = p.steps.length - 1;
@@ -245,7 +263,7 @@ export function createMockGateway(): Gateway {
       }
     } else {
       pressure *= 0.7;
-      flow *= 0.7;
+      flow = state === 'flush' ? flow + (6 - flow) * 0.2 : flow * 0.7;
       mix += (targetTemp - 1.5 - mix) * 0.01;
       group += (targetTemp - group) * 0.01;
     }
@@ -271,6 +289,10 @@ export function createMockGateway(): Gateway {
     }
     subs?.onMachine(snapshot);
     if (scaleConnected) subs?.onScale(scaleFrame);
+    if (++ticks % 10 === 0) {
+      waterLevel = Math.max(0, waterLevel - 1 / 60);
+      subs?.onWater({ currentLevel: Math.round(waterLevel * 10) / 10, refillLevel });
+    }
   };
 
   const delay = (ms = 120) => new Promise((r) => setTimeout(r, ms));
@@ -285,6 +307,10 @@ export function createMockGateway(): Gateway {
       (globalThis as { __flimsyMock?: unknown }).__flimsyMock = {
         setWeight: (g: number) => { weight = g; },
         pressFlush: () => { void this.requestState('flush'); },
+        // Steam button on the machine: runs for the steam duration (at most 20 s here).
+        pressSteam: () => { void this.requestState('steam'); },
+        // Group-head brew button: a few seconds of preheat before the shot pours.
+        pressBrew: () => { preheat = 5; mix -= 3; group -= 6; void this.requestState('espresso'); },
       };
       subs = s;
       s.onSocketStatus('machine', 'open');
@@ -292,6 +318,7 @@ export function createMockGateway(): Gateway {
       s.onSocketStatus('devices', 'open');
       s.onDevices(devices());
       s.onScale({ status: 'connected' });
+      s.onWater({ currentLevel: waterLevel, refillLevel });
       timer = setInterval(tick, 100);
       return () => { if (timer) clearInterval(timer); subs = null; };
     },
@@ -304,6 +331,7 @@ export function createMockGateway(): Gateway {
 
     async requestState(next) {
       await delay();
+      if (next !== 'espresso') preheat = 0;
       if (next === 'espresso') { shotT = 0; weight = 0; pressure = 0; flow = 0; recording = []; stopReason = null; }
       else if (state === 'espresso') stopReason = 'apiStop';
       state = next;
@@ -313,12 +341,18 @@ export function createMockGateway(): Gateway {
         const secs = Math.min(8, workflow.rinseData?.duration ?? 5);
         setTimeout(() => { if (state === 'flush') state = 'idle'; }, secs * 1000);
       }
+      // Steam runs for its max run time, then stops (Stop ends it sooner).
+      if (next === 'steam') {
+        const secs = Math.min(20, workflow.steamSettings?.duration ?? 20);
+        setTimeout(() => { if (state === 'steam') state = 'idle'; }, secs * 1000);
+      }
     },
     // ?mock=1&ghc=1 pretends a Group Head Controller is fitted.
     async getMachineInfo() {
       await delay();
       return { model: 'DE1+', version: 'mock', GHC: new URLSearchParams(location.search).get('ghc') === '1' };
     },
+    async setWaterRefillLevel(mm) { await delay(); refillLevel = Math.trunc(mm); },
     async tareScale() { await delay(); weight = 0; },
     async keepScreenOn() { await delay(20); },
     async getDisplay() { await delay(20); return { brightness, requestedBrightness: brightness, platformSupported: { brightness: true, wakeLock: true } }; },
@@ -430,6 +464,44 @@ export function createMockGateway(): Gateway {
       if (r.isDefault && visibility === 'deleted') throw new Error('400 Cannot delete default profiles, only hide them');
       r.visibility = visibility;
       return clone(r);
+    },
+
+    async getPlugins() { await delay(); return [{ id: 'visualizer.reaplugin', name: 'Visualizer upload', loaded: vizLoaded, autoLoad: vizLoaded }]; },
+    async getPluginSettings(id) {
+      await delay();
+      if (id !== 'visualizer.reaplugin') throw new Error('404 Plugin not found');
+      return vizRedacted();
+    },
+    async savePluginSettings(id, patch) {
+      await delay();
+      if (id !== 'visualizer.reaplugin') throw new Error('404 Plugin not found');
+      for (const [k, v] of Object.entries(patch)) {
+        if (k === 'Username') vizSettings.Username = v === null ? '' : String(v);
+        else if (k === 'Password') vizSettings.Password = v === null ? '' : String(v);
+        else if (k === 'AutoUpload') vizSettings.AutoUpload = v === true;
+      }
+      return vizRedacted();
+    },
+    async setPluginEnabled(id, enabled) {
+      await delay();
+      if (id !== 'visualizer.reaplugin') throw new Error('404 Plugin not found');
+      vizLoaded = enabled;
+    },
+    async callPlugin<T>(id: string, endpoint: string, body?: unknown): Promise<T> {
+      await delay(250);
+      if (id !== 'visualizer.reaplugin' || !vizLoaded) throw new Error('404 Plugin not loaded');
+      const b = (body ?? {}) as Record<string, string>;
+      if (endpoint === 'status') return { status: 'online', timestamp: Date.now() } as T;
+      if (endpoint === 'verifyCredentials') return { valid: b.username !== '' && b.password !== '' && b.password !== 'wrong' } as T;
+      if (endpoint === 'upload') {
+        const shot = shots.find((x) => x.id === b.shotId);
+        if (!shot) throw new Error('400 shotId is required');
+        if (!vizSignedIn()) throw new Error('502 Visualizer upload failed: sign in first');
+        const vid = `viz-${Math.random().toString(36).slice(2, 8)}`;
+        shot.annotations = { ...(shot.annotations ?? {}), extras: { ...(shot.annotations?.extras ?? {}), visualizerId: vid } };
+        return { visualizer_id: vid, tag_sync_pending: true } as T;
+      }
+      throw new Error('404 Unknown plugin endpoint');
     },
 
     async storeGet<T>(key: string) { await delay(40); return (store.has(key) ? clone(store.get(key)) : null) as T | null; },

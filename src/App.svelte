@@ -4,6 +4,8 @@
   import SteamModal from './components/SteamModal.svelte';
   import ShotView from './components/ShotView.svelte';
   import Screensaver from './components/Screensaver.svelte';
+  import ActivityView from './components/ActivityView.svelte';
+  import { activityKind } from './lib/activity';
   import ProfileEditor from './features/profiles/ProfileEditor.svelte';
   import Guide from './features/guide/Guide.svelte';
   import Home from './features/home/Home.svelte';
@@ -24,10 +26,15 @@
   // The shot view takes over while pulling and stays until dismissed,
   // so you can read the finished graph.
   let shotOpen = $state(false);
-  $effect(() => { if (app.shotActive) shotOpen = true; });
+  // It also opens as soon as the machine enters espresso (the group-head brew
+  // button), while it is still getting ready, and closes itself if the shot
+  // is stopped before it ever pours.
+  $effect(() => { if (app.shotActive || app.machine.state?.state === 'espresso') shotOpen = true; });
+  // Flush and steam get their own view while the machine is in that state.
+  const activity = $derived(activityKind(app.machine.state?.state, app.guiding && app.guide !== null));
   // Full-screen views are opaque, so what sits under them is hidden: no
   // painting, no animating, no touches, until they close.
-  const covered = $derived((app.guiding && app.guide !== null) || shotOpen || app.editing !== undefined);
+  const covered = $derived((app.guiding && app.guide !== null) || shotOpen || app.editing !== undefined || activity !== null);
 
   // Screensaver: up while the machine sleeps, once a photo is chosen.
   // Tapping asks the machine to wake. If it stays asleep (say the wake
@@ -132,6 +139,10 @@
 
 {#if shotOpen}
   <ShotView onClose={() => (shotOpen = false)} />
+{/if}
+
+{#if activity}
+  <ActivityView kind={activity} />
 {/if}
 
 {#if app.screensaverPreview}

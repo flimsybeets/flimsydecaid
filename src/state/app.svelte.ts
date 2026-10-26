@@ -8,12 +8,14 @@ import { createMockGateway } from '../api/mock';
 import type { SocketStatus } from '../api/socket';
 import type {
   Bean, BeanBatch, DeviceInfo, MachineSnapshot, Profile, ProfileRecord, ScaleFrame, ShotAnnotations, ShotPage, ShotQuery, ShotRecord, ShotSummary,
-  SteamSettings, Workflow,
+  SteamSettings, WaterLevels, Workflow,
 } from '../api/types';
 import { CATEGORIES_KEY, parseCategories, removeProfileEverywhere, type CategoryDoc } from '../lib/categories';
 import { withDialIn, type DialIn } from '../lib/dialIn';
 import { photoKey, toJpegDataUrl } from '../lib/photo';
-import { fitDataUrl, SCREENSAVER_BRIGHTNESS, SCREENSAVER_KEY } from '../lib/screensaver';
+import { clampDim, dimTarget, fitDataUrl, parseDim, SCREENSAVER_BRIGHTNESS, SCREENSAVER_DIM_KEY, SCREENSAVER_KEY } from '../lib/screensaver';
+import { clampRefill, waterState } from '../lib/water';
+import { parseSettings, pluginState, VISUALIZER_ID, type PluginState, type VisualizerSettings } from '../lib/visualizer';
 import { saveProfile, type SaveResult } from '../lib/profileEdit';
 import { GUIDE_KEY, parseGuideSetup, type GuideSetup } from '../lib/guide';
 import { hideOrder, indexProfiles, latestPerLineage, lineageRoot, shiftTemperature } from '../lib/profiles';
@@ -77,6 +79,12 @@ class AppState {
   guide = $state<GuideSetup | null>(null);
   guiding = $state(false);
 
+  /** Screen brightness (0-100) while the screensaver shows. 100 = don't dim. */
+  screensaverDim = $state(SCREENSAVER_BRIGHTNESS);
+  /** Tank water level and refill threshold (mm), null until Decaid reports. */
+  water = $state.raw<WaterLevels | null>(null);
+  waterStatus = $derived(waterState(this.water, this.machine.state?.state === 'needsWater'));
+
   /** Settings' "Preview" shows the screensaver without the machine asleep. */
   screensaverPreview = $state(false);
 
@@ -96,6 +104,11 @@ class AppState {
         this.scanning = d.scanning;
         // Machine info (GHC) is read once at connect, so ask each time the machine connects.
         if (!wasConnected && this.machineConnected) void this.loadMachineInfo();
+      },
+      onWater: (w) => {
+        // Keep the last known threshold if a frame lacks it, and skip identical frames.
+        const next = { currentLevel: w.currentLevel, refillLevel: Number.isFinite(w.refillLevel) ? w.refillLevel : (this.water?.refillLevel ?? NaN) };
+        if (this.water?.currentLevel !== next.currentLevel || this.water?.refillLevel !== next.refillLevel) this.water = next;
       },
       onSocketStatus: (ch, s) => { this.sockets[ch] = s; },
     });
@@ -316,6 +329,31 @@ class AppState {
   getShots(query: ShotQuery): Promise<ShotPage> { return gateway.getShots(query); }
   getShot(id: string): Promise<ShotRecord> { return gateway.getShot(id); }
 
+  // ---- Visualizer (Decaid's bundled plugin) --------------------------------
+  /** Whether the plugin is installed, off, or on. Refreshed by `loadVisualizer`. */
+  visualizer = $state<PluginState>('missing');
+
+  async loadVisualizer(): Promise<void> {
+    this.visualizer = pluginState(await gateway.getPlugins().catch(() => []));
+  }
+  async visualizerSettings(): Promise<VisualizerSettings> {
+    return parseSettings(await gateway.getPluginSettings(VISUALIZER_ID));
+  }
+  async saveVisualizerSettings(patch: Record<string, unknown>): Promise<VisualizerSettings> {
+    return parseSettings(await gateway.savePluginSettings(VISUALIZER_ID, patch));
+  }
+  async setVisualizerEnabled(on: boolean): Promise<void> {
+    await gateway.setPluginEnabled(VISUALIZER_ID, on);
+    await this.loadVisualizer();
+  }
+  /** Plugin endpoints: status, verifyCredentials, upload. */
+  visualizerCall<T>(endpoint: string, body?: unknown): Promise<T> { return gateway.callPlugin<T>(VISUALIZER_ID, endpoint, body); }
+  /** Upload one shot through the plugin. Returns the Visualizer id. */
+  async uploadToVisualizer(shotId: string): Promise<string> {
+    const r = await gateway.callPlugin<{ visualizer_id?: string | number }>(VISUALIZER_ID, 'upload', { shotId });
+    return String(r.visualizer_id ?? '');
+  }
+
   async saveGuide(setup: GuideSetup): Promise<void> {
     await gateway.storeSet(GUIDE_KEY, setup);
     this.guide = setup;
@@ -334,6 +372,40 @@ class AppState {
   async loadScreensaver(): Promise<void> {
     const url = await gateway.storeGet<string>(SCREENSAVER_KEY).catch(() => null);
     this.screensaverImage = typeof url === 'string' && url.startsWith('data:image/') ? url : null;
+    this.screensaverDim = parseDim(await gateway.storeGet(SCREENSAVER_DIM_KEY).catch(() => null));
+  }
+
+  private dimSaveTimer: ReturnType<typeof setTimeout> | null = null;
+  private refillTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Brightness while the screensaver shows. Applies to an open screensaver at
+   * once; the save to the store waits 400 ms after the last change.
+   */
+  setScreensaverDim(value: number): void {
+    this.screensaverDim = clampDim(value);
+    this.dimQueue = this.dimQueue.then(() => this.retuneDim());
+    if (this.dimSaveTimer) clearTimeout(this.dimSaveTimer);
+    this.dimSaveTimer = setTimeout(() => {
+      this.dimSaveTimer = null;
+      void gateway.storeSet(SCREENSAVER_DIM_KEY, this.screensaverDim).catch(() => {});
+    }, 400);
+  }
+
+  /** Move the refill warning (mm). Updates the display now, sends to Decaid 400 ms after the last change. */
+  setWaterRefill(mm: number): void {
+    const level = clampRefill(mm);
+    this.water = { currentLevel: this.water?.currentLevel ?? NaN, refillLevel: level };
+    if (this.refillTimer) clearTimeout(this.refillTimer);
+    this.refillTimer = setTimeout(() => {
+      this.refillTimer = null;
+      void gateway.setWaterRefillLevel(level).catch(() => {});
+    }, 400);
+  }
+
+  private async retuneDim(): Promise<void> {
+    if (this.brightnessBeforeDim === null) return;
+    try { await gateway.setBrightness(dimTarget(this.screensaverDim, this.brightnessBeforeDim)); } catch { /* nicety */ }
   }
 
   /** Shrink a picked photo to fit the store, save it, and use it. */
@@ -374,7 +446,7 @@ class AppState {
         const display = await gateway.getDisplay();
         if (display.platformSupported?.brightness === false) return;
         this.brightnessBeforeDim = display.requestedBrightness ?? 100;
-        await gateway.setBrightness(SCREENSAVER_BRIGHTNESS);
+        await gateway.setBrightness(dimTarget(this.screensaverDim, this.brightnessBeforeDim));
       } else if (this.brightnessBeforeDim !== null) {
         const back = this.brightnessBeforeDim;
         this.brightnessBeforeDim = null;
