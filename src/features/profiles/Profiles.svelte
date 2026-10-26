@@ -2,6 +2,12 @@
   import { app } from '../../state/app.svelte';
   import { toggleProfile } from '../../lib/categories';
   import { baseTemperature } from '../../lib/profiles';
+  import BrewPanel from '../home/BrewPanel.svelte';
+
+  // Brew opens the same BrewPanel Home uses, over this list. Back returns here.
+  let brewing = $state<string | null>(null);
+  // A profile deleted from its editor closes its brew panel.
+  $effect(() => { if (brewing && !app.profileLineages.has(brewing)) brewing = null; });
 
   // Every profile, newest version of each. Tap a category chip to add or
   // remove the profile from that category on the Home screen.
@@ -29,6 +35,11 @@
   }
 </script>
 
+{#if brewing}
+  {#key brewing}
+    <div class="brewing"><BrewPanel profileRoot={brewing} onClose={() => (brewing = null)} /></div>
+  {/key}
+{:else}
 <div class="page">
   <div class="bar glass">
     <input class="well" type="search" placeholder="Search {all.length} profiles" bind:value={query} aria-label="Search profiles" />
@@ -69,14 +80,18 @@
           {/each}
         </div>
         <button class="edit glass" onclick={() => (app.editing = record)}>Edit</button>
+        <button class="brew glass solid" onclick={() => (brewing = root)}>Brew</button>
       </li>
     {:else}
       <li class="nothing glass">{query ? `No profiles match “${query}”` : 'Every profile is in a category'}</li>
     {/each}
   </ul>
 </div>
+{/if}
 
 <style>
+  .brewing { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); overflow: hidden; }
+  .brew { flex: none; min-height: 44px; padding: 0 20px; border-radius: var(--radius-pill); font-size: var(--t-sm); font-weight: 700; }
   .page { height: 100%; overflow-y: auto; padding: var(--gutter); }
   .bar { display: flex; gap: 9px; align-items: center; margin-bottom: 14px; position: sticky; top: calc(-1 * var(--gutter) + 4px); padding: 6px; border-radius: var(--radius-pill); z-index: 2; }
   input {

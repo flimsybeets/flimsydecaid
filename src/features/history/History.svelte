@@ -232,7 +232,7 @@
         {:else if samples.length === 0}
           <p class="note">This shot has no graph data.</p>
         {:else}
-          <ShotChart {samples} yieldTarget={ctx?.targetYield || null} />
+          <ShotChart scrub {samples} yieldTarget={ctx?.targetYield || null} />
         {/if}
       </div>
     {/if}
