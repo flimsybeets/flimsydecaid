@@ -1,6 +1,6 @@
 // The thirteen Guide me scenes. Each gets a Style (S) and returns meta.
 const G = require('./geo.cjs');
-const { Cam, ellD, frontArcD, backArcD, rbox, rrectTop, lathe, f, pt, crD, polyD, smoothClosedD, hull, revolve, tube, circ3, add3, norm3 } = G;
+const { convexLathe, Cam, ellD, frontArcD, backArcD, rbox, rrectTop, lathe, f, pt, crD, polyD, smoothClosedD, hull, revolve, tube, circ3, add3, norm3 } = G;
 const O = require('./objects.cjs');
 const { circle, ellipseD, groundShadow, drop, scale, dosingCup, bean, espressoCup, portafilter, de1, DE, grinder, GR, dialFace, catchCup, bell, funnel, tamper, knockBox, sprayBottle, mineralBottle, dropper, shaker, glass, paperDisc, groundsMound, PAPER } = O;
 const px = (v) => `${f(v)}px`;
@@ -9,7 +9,7 @@ const YAW = -32;
 const scenes = {};
 
 scenes.weigh = (S) => {
-  const cam = Cam(YAW, 34, 3.0, 212, 300);
+  const cam = Cam(YAW, 40, 3.0, 212, 300);
   const sc = scale(S, cam, 0, 0, 0, { right: true });
   // cup shadow on the panel
   const e = cam.ell(3, sc.top, 4, 26);
@@ -19,7 +19,7 @@ scenes.weigh = (S) => {
   S.open('k-fall fx');
   for (let i = 0; i < 5; i++) bean(S, foot[0] - 30 + i * 15, foot[1] - 250, i * 47, 1.4, `k-drop d${i}`);
   S.close();
-  dosingCup(S, foot[0], foot[1] + 3, 1.42, { beansCls: 'k-beans' });
+  dosingCup(S, foot[0], foot[1] + 20, 1.36, { beansCls: 'k-beans' });
   S.slot(); // live weight on the left display
   return { lcd: sc.lcd, lcdAt: sc.lcdAt };
 };
@@ -31,17 +31,19 @@ const inEll = (e, p) => ((p[0] - e.cx) / e.rx) ** 2 + ((p[1] - e.cy) / e.ry) ** 
 const lens = (a, b) => hull(ellPts(a).filter((p) => inEll(b, p)).concat(ellPts(b).filter((p) => inEll(a, p))));
 // region above an ellipse's centre line, plus the ellipse: where something
 // rising out of (or settling into) an opening stays visible
-const aboveClip = (S, e, cls = '') => { const id = S.uid('ac'); S.raw(`<clipPath id="${id}"><path d="M-2000 -2000H2000V${f(e.cy)}H-2000Z${ellD(e)}"/></clipPath>`); return id; };
+// (two paths: a clipPath is the union of its children; one path with both
+// would cancel where they overlap under nonzero winding)
+const aboveClip = (S, e, cls = '') => { const id = S.uid('ac'); S.raw(`<clipPath id="${id}"><path d="M-2000 -2000H2000V${f(e.cy)}H-2000Z"/><path d="${ellD(e)}"/></clipPath>`); return id; };
 
 // funnel drawn as a ring: you look through it into the basket
 function funnelRing(S, cam, cx, y0, cz, cls = '') {
   S.open(cls);
-  const fn = lathe(cam, cx, cz, [[y0 + 20, 40], [y0 + 19, 40.5, 1], [y0 + 6, 37.5, 1], [y0 + 1, 37.5], [y0 - 1, 36]]);
+  const fn = G.stackLathe(cam, cx, cz, [[y0 + 20, 40], [y0 + 19, 40.5], [y0 + 7, 38.4], [y0 + 5, 37.5], [y0 + 1, 37.5], [y0 - 1, 36]], 4);
   const top = fn.ell(y0 + 20, 38), bot = fn.ell(y0 - 1, 30);
   const l = polyD(lens(top, bot));
   const k = S.uid('fr');
   S.defs.push(`<path id="${k}" d="${fn.sil}${l}" fill-rule="evenodd"/>`);
-  S.raw(`<use href="#${k}" fill="url(#${S.id}bg)" fill-opacity=".8" fill-rule="evenodd"/><use href="#${k}" fill="url(#${S.id}metal)" fill-rule="evenodd"/><use href="#${k}" fill="url(#${S.id}under)" fill-rule="evenodd"/><use href="#${k}" fill="none" stroke="url(#${S.id}rim)" stroke-width="1.1"/>`);
+  S.raw(`<use href="#${k}" fill="url(#${S.id}bg)" fill-opacity="1" fill-rule="evenodd"/><use href="#${k}" fill="url(#${S.id}metal)" fill-rule="evenodd"/><use href="#${k}" fill="url(#${S.id}under)" fill-rule="evenodd"/><use href="#${k}" fill="none" stroke="url(#${S.id}rim)" stroke-width="1.1"/>`);
   S.fill(ellD(top) + l, 'rgb(0 0 0 / .32)', ' fill-rule="evenodd"');
   S.face(fn.ring(y0 + 20, 40) + ellD(top), `rgb(${PAPER} / .14)`);
   S.line(fn.ring(y0 + 20, 40), 's');
@@ -51,21 +53,26 @@ function funnelRing(S, cam, cx, y0, cz, cls = '') {
 }
 
 scenes.spray = (S) => {
-  const cam = Cam(YAW, 20, 1.9, 160, 300);
-  const sp = sprayBottle(S, cam, -50, -40, { pumpCls: 'k-pump' });
-  const foot = cam.P(70, 0, 36);
-  groundShadow(S, cam, 66, 40, 34, 0, 1.1);
-  dosingCup(S, foot[0], foot[1] + 2, 0.9);
-  // mist: soft puffs drifting from the nozzle down onto the beans
+  // spray from a distance: the bottle stands well back, the mist drifts
+  // across onto the beans
+  const cam = Cam(YAW, 20, 1.75, 150, 300);
+  const sp = sprayBottle(S, cam, -95, -50, { pumpCls: 'k-pump' });
+  const foot = cam.P(80, 0, 40);
+  groundShadow(S, cam, 76, 44, 34, 0, 1.1);
+  dosingCup(S, foot[0], foot[1] + 2, 0.82);
+  const tgt = [foot[0] - 4, foot[1] - 62];
+  // mist: soft puffs fanning out from the nozzle and settling on the beans
   S.open('k-mist fx');
-  for (let i = 0; i < 9; i++) {
-    const t = i / 8, dx = 30 + t * 80 + (i % 3) * 9, dy = 34 + t * 64 + ((i * 7) % 5) * 7, r = 7 + (i % 4) * 2.8;
+  for (let i = 0; i < 11; i++) {
+    const t = (i % 4) / 3, spread = (i * 37 % 11) - 5;
+    const dx = (tgt[0] - sp.nozzle[0]) * (0.55 + 0.45 * t) + spread * 2, dy = (tgt[1] - sp.nozzle[1]) * (0.5 + 0.5 * t) + spread * 2.5;
+    const r = 6 + (i % 4) * 2.6;
     S.raw(`<circle class="m${i}" cx="${f(sp.nozzle[0])}" cy="${f(sp.nozzle[1])}" r="${f(r)}" fill="url(#${S.id}mist)" style="--dx:${px(dx)};--dy:${px(dy)};--i:${i}"/>`);
   }
   S.close();
   // a few droplets resting on the beans
   S.open('k-dew');
-  for (const [x, y] of [[-10, -76], [10, -70], [28, -74], [-26, -68]]) S.fill(circle([foot[0] + x, foot[1] + y], 1.8), 'rgb(220 240 255 / .85)');
+  for (const [x, y] of [[-12, -64], [8, -58], [24, -63], [-26, -58], [14, -68]]) S.fill(circle([foot[0] + x * 0.9, foot[1] + y], 1.6), 'rgb(220 240 255 / .85)');
   S.close();
 };
 
@@ -130,8 +137,26 @@ scenes.grind = (S) => {
   return { extra: { top: 30 } };
 };
 
+// the convex basket's domed floor, seen from above: shaded so the dome reads,
+// with rings of holes that ride up over it
+function domeFloor(S, cam, cx, yEdge, cz, R = 26, rise = 3.2) {
+  const fl = cam.ell(cx, yEdge, cz, R);
+  const gid = S.uid('df'), top = cam.P(cx - 5, yEdge + rise, cz - 4);
+  S.raw(`<radialGradient id="${gid}" gradientUnits="userSpaceOnUse" cx="${f(top[0])}" cy="${f(top[1])}" r="${f(fl.rx * 1.05)}" gradientTransform="translate(${f(top[0])} ${f(top[1])}) scale(1 ${f(cam.sp)}) translate(${f(-top[0])} ${f(-top[1])})"><stop offset="0" stop-color="#eef3ef" stop-opacity=".42"/><stop offset=".45" stop-color="#eef3ef" stop-opacity=".16"/><stop offset=".85" stop-color="#000" stop-opacity=".2"/><stop offset="1" stop-color="#000" stop-opacity=".45"/></radialGradient>`);
+  S.fill(ellD(fl), 'rgb(120 134 134 / .55)');
+  S.fill(ellD(fl), `url(#${gid})`);
+  let hd = '';
+  for (const [rk, n] of [[4.5, 7], [9, 13], [13.5, 19], [18, 25], [22.5, 31]]) {
+    const yk = yEdge + rise * (1 - (rk / R) ** 2);
+    for (let i = 0; i < n; i++) { const a = (i + (rk % 2) * 0.5) / n * 2 * Math.PI; const p = cam.P(cx + rk * Math.cos(a), yk, cz + rk * Math.sin(a)); hd += `M${f(p[0] - 0.35)} ${f(p[1])}h.7`; }
+  }
+  S.raw(`<path d="${hd}" stroke="rgb(10 18 20 / .7)" stroke-width="${f(Math.max(1, cam.s * 0.65))}" stroke-linecap="round"/>`);
+  // the crown catches a soft highlight
+  S.fill(ellD({ cx: top[0] - 2, cy: top[1] - 1, rx: fl.rx * 0.32, ry: fl.ry * 0.26 }), 'rgb(255 255 255 / .1)');
+}
+
 scenes.basket = (S) => {
-  const cam = Cam(YAW, 26, 2.0, 210, 260);
+  const cam = Cam(YAW, 40, 2.0, 210, 260);
   const cx = 0, cz = 0, y0 = 40;
   groundShadow(S, cam, cx, cz, 40, 0, 1.05);
   const pf = portafilter(S, cam, cx, y0, cz, { content: 'none', ang: 104 });
@@ -145,16 +170,16 @@ scenes.basket = (S) => {
   const bk = lathe(cam, cx, cz, [[y0 + 0.8, 31.6], [y0, 31.8, 1], [y0 - 1, 29.2, 1], [y0 - 19, 27.8], [y0 - 22.5, 25.6], [y0 - 25.4, 18], [y0 - 26.8, 8], [y0 - 27.2, 0.01]]);
   S.solid(bk.sil, 'metal');
   S.hl(bk.streak(y0 - 3, y0 - 20, 28.6, 145), 0.7);
-  S.face(bk.ring(y0 + 0.8, 31.6), `rgb(${PAPER} / .18)`);
+  S.face(bk.ring(y0 + 0.8, 31.6), `rgb(${PAPER} / .2)`);
   S.face(bk.ring(y0 + 0.8, 29), 'hole');
-  // domed floor inside, with its holes
-  const fl = cam.ell(cx, y0 - 20, cz, 26);
-  S.fill(ellD(fl), `rgb(${PAPER} / .1)`);
-  S.fill(ellD({ ...fl, cy: fl.cy - 2, rx: fl.rx * 0.55, ry: fl.ry * 0.5 }), 'rgb(255 255 255 / .1)');
-  let hd = '';
-  for (let i = 0; i < 40; i++) { const t = (i * 0.618) % 1, r = Math.sqrt(t) * 23, a = i * 2.4; const p = cam.P(cx + r * Math.cos(a), y0 - 19 + (1 - t) * 3, cz + r * Math.sin(a)); hd += `M${f(p[0] - 0.4)} ${f(p[1])}h.8`; }
-  S.raw(`<path d="${hd}" stroke="rgb(${PAPER} / .4)" stroke-width="1.2" stroke-linecap="round"/>`);
+  const ic = S.uid('bi');
+  S.raw(`<clipPath id="${ic}"><path d="${bk.ring(y0 + 0.8, 29)}"/></clipPath><g clip-path="url(#${ic})">`);
+  // inner wall: lit at the back, then the domed floor
+  S.face(bk.ring(y0 - 4, 28.6), 'rgb(255 255 255 / .06)');
+  domeFloor(S, cam, cx, y0 - 22, cz, 26.4, 3.4);
+  S.raw('</g>');
   S.line(bk.ring(y0 + 0.8, 31.6), 's');
+  S.line(bk.ring(y0 + 0.8, 29), 's');
   S.raw('</g></g>');
   // the holder's front rim in front of the seated basket lip
   S.line(pf.holder.front(y0 - 0.6, 36), 's');
@@ -215,7 +240,7 @@ scenes.minerals = (S) => {
   const bx = -60, bz = -14, cx = 30, cz = 26;
   const capY = 78;
   // dropper rest pose: above the cup; the animation starts it in the bottle
-  const restY = 56 + 64 + 14;
+  const restY = O.CUP_H + 64 + 12;
   const inB = cam.P(bx, capY, bz), atC = cam.P(cx - 4, restY, cz);
   S.open('k-shake', origin(cam.P(bx, 0, bz)));
   mineralBottle(S, cam, bx, bz, {
@@ -229,27 +254,47 @@ scenes.minerals = (S) => {
   S.close();
   const cup = espressoCup(S, cam, cx, 0, cz);
   const t = S.tip;
-  const dc = aboveClip(S, cup.ell(55.6, 27.4));
+  const dc = aboveClip(S, cup.ell(cup.rimY, cup.rimR));
   S.raw(`<g clip-path="url(#${dc})"><path class="k-drip" d="${drop(t[0], t[1] + 7, 2.6)}" style="fill:var(--acc)"/></g>`);
 };
 
+// Pull and Rinse are framed close on the group head: the top-facing
+// controller disc, the portafilter, the cup and scale; the machine body runs
+// off the panel edge.
+const W = 420, H = 390;
+function frameAround(pts, pad = 0.06) {
+  let x0 = Math.min(...pts.map((p) => p[0])), x1 = Math.max(...pts.map((p) => p[0]));
+  let y0 = Math.min(...pts.map((p) => p[1])), y1 = Math.max(...pts.map((p) => p[1]));
+  let w = x1 - x0, h = y1 - y0; const p = Math.max(w, h) * pad;
+  x0 -= p; y0 -= p; w += 2 * p; h += 2 * p;
+  if (w / h > W / H) { const nh = w * H / W; y0 -= (nh - h) / 2; h = nh; } else { const nw = h * W / H; x0 -= (nw - w) / 2; w = nw; }
+  return [x0, y0, w, h].map((v) => +v.toFixed(1)).join(' ');
+}
+const GH_CAM = () => Cam(YAW, 30, 1, 0, 0);
+function groupFrame(cam, lowY) {
+  const { gx, gz, gTop, gR } = DE;
+  const e = cam.ell(gx, gTop, gz, gR);
+  return frameAround([[e.cx - e.rx - 70, e.cy - e.ry - 6], [e.cx + e.rx + 62, e.cy - e.ry - 6], cam.P(gx - 10, lowY, gz + 70), cam.P(gx + 40, lowY, gz + 60)], 0.03);
+}
+
 scenes.start = (S) => {
-  const cam = Cam(YAW, 20, 0.82, 170, 380);
+  const cam = GH_CAM();
   const { gx, gz } = DE;
   let sc;
   de1(S, cam, {
-    lit: 'brew',
+    lit: 'brew', tablet: false,
     under: () => { sc = scale(S, cam, gx, gz + 4, DE.FY - 2, {}); espressoCup(S, cam, gx, sc.top, gz + 4); },
-    pf: () => portafilter(S, cam, gx, DE.pf, gz, { content: 'none', ang: 150, tilt: -2 }),
+    pf: () => portafilter(S, cam, gx, DE.pf, gz, { content: 'tamped', ang: 150, tilt: -2 }),
   });
+  return { vb: groupFrame(cam, DE.FY - 12) };
 };
 
 scenes.rinse = (S) => {
-  const cam = Cam(YAW, 20, 0.82, 170, 380);
+  const cam = GH_CAM();
   const { gx, gz } = DE;
   const y0 = 196;
   de1(S, cam, {
-    lit: 'flush',
+    lit: 'flush', tablet: false,
     pf: () => portafilter(S, cam, gx, y0, gz, { content: 'empty', ang: 150, tilt: 3, inside: (h) => { S.raw(`<path class="k-pool" d="${h.ring(y0 - 14, 27.5)}" style="fill:var(--acc)" fill-opacity=".3"/>`); } }),
     water: () => {
       let d = '';
@@ -257,48 +302,50 @@ scenes.rinse = (S) => {
       S.raw(`<path class="k-water" d="${d}" fill="none" stroke="var(--acc)" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="7 6"/>`);
     },
   });
+  return { vb: groupFrame(cam, 150) };
 };
 
 scenes.knock = (S) => {
   const cam = Cam(YAW, 26, 1.3, 210, 330);
-  const py = 160;
-  let kb;
-  kb = knockBox(S, cam, 0, 0, {
-    inside: ({ cut, inner }) => {
-      // the puck (with its paper) drops in: visible above the box and through the openings
+  const { by, br, bz } = O.KB;
+  // the upturned portafilter's rim strikes the bar just behind its centre;
+  // the puck (paper side down) drops in front of the bar
+  const pz = bz + 26, hitY = by + br, restY = hitY + 30;
+  const hit = (restY - hitY) * cam.s * cam.cp;
+  const fall = (hitY + 8 - 14) * cam.s * cam.cp;
+  knockBox(S, cam, 0, 0, {
+    front: ({ cut, inner, sil }) => {
       const cid = S.uid('kc');
-      const topY = cam.P(0, 128, -60)[1];
-      S.raw(`<clipPath id="${cid}"><path d="M-2000 -2000H2000V${f(topY)}H-2000Z${inner}"/><path d="${cut}"/></clipPath>`);
-      S.raw(`<g clip-path="url(#${cid})"><g class="k-puck">`);
-      const pk = lathe(cam, 2, -2, [[py + 10, 28.4], [py + 1.5, 28.4], [py, 27.6]]);
-      S.solid(pk.sil, 'coffee', { under: false });
-      S.face(pk.ring(py + 10, 28.4), 'rgb(0 0 0 / .2)');
-      S.raw(`<path d="${pk.front(py + 1, 28)}" stroke="#f4f5f1" stroke-width="2.2" fill="none"/>`);
+      S.raw(`<clipPath id="${cid}"><path clip-rule="evenodd" d="M-2000 -2000H2000V2000H-2000Z${sil}"/><path d="${inner}"/><path d="${cut}"/></clipPath>`);
+      S.raw(`<g clip-path="url(#${cid})"><g class="k-puck fx" style="--hit:${px(hit)};--fall:${px(fall)}">`);
+      const py = restY + 8;
+      const pk = lathe(cam, 2, pz, [[py + 11, 28.2], [py + 1.2, 28.4], [py, 27.8]]);
+      S.solid(pk.sil, 'coffee', { under: false, rim: 0.6 });
+      S.face(pk.ring(py + 11, 28.2), 'rgb(0 0 0 / .22)');
+      S.hl(pk.streak(py + 10, py + 2, 28.3, 150), 0.25);
+      S.raw(`<path d="${pk.front(py + 0.8, 28)}" stroke="#f4f5f1" stroke-width="2.4" fill="none"/>`);
       S.raw('</g></g>');
     },
   });
-  // upturned portafilter knocking on the bar
-  const y0 = py + 10;
-  const hit = (y0 - (kb.by + 8)) * cam.s * cam.cp;
   S.open('k-knock', ` style="--hit:${px(hit)}"`);
-  invertedPortafilter(S, cam, 2, y0, -2);
+  invertedPortafilter(S, cam, 2, restY, pz);
   S.close();
 };
 function invertedPortafilter(S, cam, cx, y0, cz) {
   const ang = 150 * Math.PI / 180;
   const dir = norm3([Math.cos(ang), 0.05, Math.sin(ang)]);
-  const holder = lathe(cam, cx, cz, [[y0 + 13.6, 34.6], [y0 + 12, 36.2], [y0 + 1.4, 36.5, 1], [y0 + 0.6, 36]]);
+  const holder = G.stackLathe(cam, cx, cz, [[y0 + 13.6, 34.6], [y0 + 12, 36.2], [y0 + 1.4, 36.5], [y0 + 0.6, 36]], 3);
   S.solid(holder.sil, 'metal');
-  S.hl(holder.streak(y0 + 11, y0 + 3, 36.3, 148), 0.55);
+  S.hl(lathe(cam, cx, cz, [[y0 + 12, 36.3], [y0 + 2, 36.3]]).streak(y0 + 11, y0 + 3, 36.3, 148), 0.55);
   for (const s of [-1, 1]) {
     const e = [Math.cos(ang + s * Math.PI / 2), 0, Math.sin(ang + s * Math.PI / 2)];
     const p0 = [cx + e[0] * 33, y0 + 6, cz + e[2] * 33];
     S.solid(tube(cam, [p0, add3(p0, e, 5), add3(p0, e, 9.5)], 3.4).d, 'metal', { under: false });
   }
   S.face(holder.ring(y0 + 13.6, 34.6), 'rgb(0 0 0 / .4)');
-  const dome = lathe(cam, cx, cz, [[y0 + 27.2, 0.01], [y0 + 26.8, 8], [y0 + 25.4, 18], [y0 + 22.5, 25.6], [y0 + 19, 27.8], [y0 + 13, 28.6]]);
+  const dome = convexLathe(cam, cx, cz, [[y0 + 27.2, 0.01], [y0 + 26.8, 8], [y0 + 25.4, 18], [y0 + 22.5, 25.6], [y0 + 19, 27.8], [y0 + 13, 28.6]]);
   S.solid(dome.sil, 'metal');
-  S.hl(dome.streak(y0 + 24, y0 + 15, 26, 140), 0.6);
+  S.hl(lathe(cam, cx, cz, [[y0 + 22, 27], [y0 + 14, 28.6]]).streak(y0 + 21, y0 + 15, 27.6, 140), 0.6);
   let hd = '';
   for (let i = 0; i < 30; i++) { const t = (i * 0.618) % 1, r = Math.sqrt(t) * 22, a = i * 2.4; const p = cam.P(cx + r * Math.cos(a), y0 + 27 - t * 4, cz + r * Math.sin(a)); hd += `M${f(p[0] - 0.4)} ${f(p[1])}h.8`; }
   S.raw(`<path d="${hd}" stroke="rgb(0 0 0 / .45)" stroke-width="1.2" stroke-linecap="round"/>`);
@@ -327,7 +374,9 @@ scenes.done = (S) => {
       const fm = lathe(cam, gx, gz, [[68, 32.4], [58, 31.6]]);
       S.fill(fm.sil, 'rgb(246 236 220 / .95)');
       S.fill(fm.ring(68, 32.4), 'rgb(255 250 240)');
-      S.fill(ellD({ ...fm.ell(68, 32.4), rx: fm.ell(68, 32.4).rx * 0.5, ry: fm.ell(68, 32.4).ry * 0.45, cx: fm.ell(68, 32.4).cx - 6, cy: fm.ell(68, 32.4).cy - 1 }), 'rgb(222 196 160 / .5)');
+      const ft = fm.ell(68, 32.4);
+      S.fill(ellD({ ...ft, rx: ft.rx * 0.55, ry: ft.ry * 0.5, cx: ft.cx - ft.rx * 0.18, cy: ft.cy - ft.ry * 0.12 }), 'rgb(255 255 255 / .45)');
+      S.raw(`<path d="${fm.front(66.5, 32.3)}" fill="none" stroke="rgb(200 170 130 / .35)" stroke-width="1"/>`);
       S.close();
     },
   });
