@@ -181,7 +181,7 @@
       </div>
       <form class="creds" onsubmit={saveViz}>
         <label>Username<input class="well" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" bind:value={vizUser} /></label>
-        <label>Password<input class="well" type="password" autocomplete="off" placeholder={vizPassSet ? 'Saved. Type to replace.' : ''} bind:value={vizPass} /></label>
+        <label>Password<input class="well" type="password" autocomplete="off" placeholder={vizPassSet ? 'Saved' : ''} bind:value={vizPass} /></label>
         <button class="button glass solid" type="submit" disabled={vizBusy || vizUser.trim() === ''}>{vizBusy ? 'Working…' : vizPass !== '' ? 'Save and sign in' : 'Save'}</button>
       </form>
       <button class="button glass toggle" class:lit={vizAuto} role="switch" aria-checked={vizAuto} onclick={toggleAuto}>

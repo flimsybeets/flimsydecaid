@@ -3,6 +3,7 @@
   import ShotChart from './ShotChart.svelte';
   import Gauge from './Gauge.svelte';
   import { tempDialRange } from '../lib/gauge';
+  import { isPreparing, preheatText } from '../lib/activity';
 
   let { onClose }: { onClose: () => void } = $props();
 
@@ -24,7 +25,16 @@
   const activeTarget = (v: number | undefined) => (v ? v : null);
   const tempRange = $derived(tempDialRange(steps.map((s) => s.temperature)));
 
-  $effect(() => { if (!app.shotActive) stopping = false; });
+  // The group-head brew button puts the machine in espresso a few seconds
+  // before it pours: show that, with the temperatures it is waiting on.
+  const preparing = $derived(isPreparing(m.state?.state, app.shotActive));
+  const heatWord = $derived(preheatText(m.groupTemperature, m.targetGroupTemperature));
+  let sawShot = $state(false);
+  $effect(() => { if (app.shotActive) sawShot = true; });
+  // Stopped (or timed out) before it ever poured: nothing to look at, so close.
+  $effect(() => { if (!preparing && !app.shotActive && !sawShot) onClose(); });
+
+  $effect(() => { if (!app.shotActive && !preparing) stopping = false; });
 
   async function stop() {
     stopping = true;
@@ -40,14 +50,32 @@
         <p>{app.workflow.context.coffeeRoaster ? `${app.workflow.context.coffeeRoaster} ` : ''}{app.workflow.context.coffeeName}</p>
       {/if}
     </div>
-    <div class="clock">{elapsed.toFixed(1)}<small>s</small></div>
-    {#if app.shotActive}
+    <div class="clock">{preparing ? '0.0' : elapsed.toFixed(1)}<small>s</small></div>
+    {#if app.shotActive || preparing}
       <button class="stop glass" onclick={stop} disabled={stopping}>{stopping ? 'Stopping…' : 'Stop'}</button>
     {:else}
       <button class="done glass solid" onclick={onClose}>Done</button>
     {/if}
   </header>
 
+  {#if preparing}
+    <div class="ready glass thick" role="status">
+      <p class="word">{heatWord}</p>
+      <p class="sub">The shot starts by itself. Nothing is flowing yet.</p>
+      <div class="temps">
+        <div class="t water">
+          <span class="lab"><i aria-hidden="true"></i>Water</span>
+          <b>{m.mixTemperature?.toFixed(1) ?? '–'}<small>°C</small></b>
+          <span class="target">{m.targetMixTemperature ? `target ${m.targetMixTemperature.toFixed(1)}°` : ''}</span>
+        </div>
+        <div class="t puck">
+          <span class="lab"><i aria-hidden="true"></i>Puck</span>
+          <b>{m.groupTemperature?.toFixed(1) ?? '–'}<small>°C</small></b>
+          <span class="target">{m.targetGroupTemperature ? `target ${m.targetGroupTemperature.toFixed(1)}°` : ''}</span>
+        </div>
+      </div>
+    </div>
+  {:else}
   <div class="body">
     {#if app.shotActive}
       <div class="dials" aria-label="Live readings" bind:clientHeight={colH} style="--dial: {dial}px">
@@ -84,6 +112,7 @@
     </div>
     </div>
   </div>
+  {/if}
 </section>
 
 <style>
@@ -145,6 +174,21 @@
   }
   .steps li.past { color: var(--paper-dim); }
   .steps li.current { background: linear-gradient(170deg, #fff, #dde9e5); color: var(--ink); font-weight: 650; box-shadow: 0 4px 12px -6px rgb(0 0 0 / 0.5); }
+
+  /* Waiting for the pour: one big status line and the two temperatures. */
+  .ready { flex: 1; min-height: 0; display: grid; place-content: center; justify-items: center; gap: 12px; padding: 24px; border-radius: 26px; text-align: center; }
+  .ready .word { font-size: var(--t-xxl); font-weight: 750; letter-spacing: -0.02em; animation: breathe 1.6s ease-in-out infinite; }
+  .ready .sub { color: var(--paper-dim); font-size: var(--t-md); }
+  .ready .temps { display: flex; gap: 48px; margin-top: 14px; }
+  .t { display: grid; gap: 2px; justify-items: center; }
+  .t .lab { display: flex; align-items: center; gap: 8px; color: var(--paper-dim); font-size: var(--t-sm); }
+  .t i { display: block; width: 18px; border-radius: 2px; }
+  .t.water i { height: 3px; background: var(--g-water); }
+  .t.puck i { height: 5px; background: var(--g-puck); }
+  .t b { font-size: var(--t-xxl); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .t b small { font-size: var(--t-md); color: var(--paper-dim); margin-left: 2px; font-weight: 500; }
+  .t .target { color: var(--paper-faint); font-size: var(--t-sm); min-height: 1.2em; }
+  @keyframes breathe { 50% { opacity: 0.55; } }
 
   .body { flex: 1; min-height: 0; display: flex; gap: 12px; }
   .main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 9px; }

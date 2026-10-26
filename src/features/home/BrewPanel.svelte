@@ -260,7 +260,7 @@
     row-gap: 10px;
     min-height: 0;
     overflow: hidden;
-    margin: var(--gutter);
+    margin: var(--gutter) var(--gutter) calc(var(--gutter) + var(--kb));
     padding: var(--gutter);
     border-radius: 27px;
     animation: slide 200ms cubic-bezier(.2,.8,.2,1);

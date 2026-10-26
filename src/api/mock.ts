@@ -187,6 +187,8 @@ export function createMockGateway(): Gateway {
   let weight = 0.0;
   let scaleConnected = true;
   let shotT = 0;
+  /** Seconds of warm-up left before an espresso pours (set by pressBrew). */
+  let preheat = 0;
   let pressure = 0;
   let flow = 0;
   let subs: Subscriptions | null = null;
@@ -222,7 +224,14 @@ export function createMockGateway(): Gateway {
     let targetFlow = 0;
     let targetTemp = p?.steps[0]?.temperature ?? 93;
 
-    if (state === 'espresso' && p) {
+    if (state === 'espresso' && p && preheat > 0) {
+      // Group-head brew button: the machine warms up before it pours.
+      preheat -= 0.1;
+      substate = 'preparingForShot';
+      targetTemp = p.steps[0]?.temperature ?? 93;
+      mix += (targetTemp - mix) * 0.06;
+      group += (targetTemp - group) * 0.05;
+    } else if (state === 'espresso' && p) {
       shotT += 0.1;
       let acc = 0;
       frame = p.steps.length - 1;
@@ -254,7 +263,7 @@ export function createMockGateway(): Gateway {
       }
     } else {
       pressure *= 0.7;
-      flow *= 0.7;
+      flow = state === 'flush' ? flow + (6 - flow) * 0.2 : flow * 0.7;
       mix += (targetTemp - 1.5 - mix) * 0.01;
       group += (targetTemp - group) * 0.01;
     }
@@ -298,6 +307,10 @@ export function createMockGateway(): Gateway {
       (globalThis as { __flimsyMock?: unknown }).__flimsyMock = {
         setWeight: (g: number) => { weight = g; },
         pressFlush: () => { void this.requestState('flush'); },
+        // Steam button on the machine: runs for the steam duration (at most 20 s here).
+        pressSteam: () => { void this.requestState('steam'); },
+        // Group-head brew button: a few seconds of preheat before the shot pours.
+        pressBrew: () => { preheat = 5; mix -= 3; group -= 6; void this.requestState('espresso'); },
       };
       subs = s;
       s.onSocketStatus('machine', 'open');
@@ -318,6 +331,7 @@ export function createMockGateway(): Gateway {
 
     async requestState(next) {
       await delay();
+      if (next !== 'espresso') preheat = 0;
       if (next === 'espresso') { shotT = 0; weight = 0; pressure = 0; flow = 0; recording = []; stopReason = null; }
       else if (state === 'espresso') stopReason = 'apiStop';
       state = next;
@@ -326,6 +340,11 @@ export function createMockGateway(): Gateway {
       if (next === 'flush') {
         const secs = Math.min(8, workflow.rinseData?.duration ?? 5);
         setTimeout(() => { if (state === 'flush') state = 'idle'; }, secs * 1000);
+      }
+      // Steam runs for its max run time, then stops (Stop ends it sooner).
+      if (next === 'steam') {
+        const secs = Math.min(20, workflow.steamSettings?.duration ?? 20);
+        setTimeout(() => { if (state === 'steam') state = 'idle'; }, secs * 1000);
       }
     },
     // ?mock=1&ghc=1 pretends a Group Head Controller is fitted.

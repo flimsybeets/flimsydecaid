@@ -38,7 +38,6 @@
     <span class="t puck"><i aria-hidden="true"></i>Puck {app.machine.groupTemperature?.toFixed(1) ?? '–'}°</span>
   </div>
 
-  {#if true}
     <div class="tank {app.waterStatus}" role="status" aria-label={app.waterStatus === 'empty' ? 'Water tank empty' : app.waterStatus === 'low' ? 'Water is low, refill soon' : 'Water level'}>
       <span class="glass-tank" aria-hidden="true">
         <i style="transform: scaleY({app.waterStatus === 'empty' ? 0 : waterFill(app.water?.currentLevel)})"></i>
@@ -48,7 +47,6 @@
         <small class="word">{app.waterStatus === 'empty' ? 'water' : app.waterStatus === 'low' ? 'low' : 'water'}</small>
       </span>
     </div>
-  {/if}
 
   <button class="steam glass" class:solid={steamIsOn} class:on={steamIsOn} onclick={onSteam} aria-haspopup="dialog">
     <span class="label">Steam</span>
