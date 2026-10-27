@@ -302,3 +302,10 @@ export async function saveProfile(api: ProfileApi, draft: Profile, original: Pro
 }
 
 const metaSame = (a: Profile, b: Profile) => !metaChanged(a, b);
+
+/** Starting point for Duplicate: the same profile, titled "… copy", as a new draft. */
+export function copyProfile(p: Profile): Profile {
+  const copy = JSON.parse(JSON.stringify(p)) as Profile;
+  copy.title = `${(p.title ?? 'Profile').trim()} copy`;
+  return copy;
+}
