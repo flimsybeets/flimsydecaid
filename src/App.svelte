@@ -134,7 +134,7 @@
 {/if}
 
 {#if app.editing !== undefined}
-  <ProfileEditor record={app.editing} onclose={() => (app.editing = undefined)} />
+  <ProfileEditor record={app.editing} seed={app.editSeed} onclose={() => { app.editing = undefined; app.editSeed = null; }} />
 {/if}
 
 {#if shotOpen}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Profile, ProfileRecord, ProfileStep } from '../src/api/types';
-import {
+import { copyProfile,
   blankProfile, duplicateStep, EditHistory, moveStep, newStep, normalizeProfile, profileCurve,
   removeStep, saveProfile, setPump, stepTarget, validateProfile, type ProfileApi,
 } from '../src/lib/profileEdit';
@@ -182,5 +182,16 @@ describe('saving onto content-hashed profiles', () => {
     const res = await saveProfile(api, base, original);
     expect(res.kind).toBe('unchanged');
     expect(calls.filter((c) => c.startsWith('update'))).toEqual([]);
+  });
+});
+
+describe('copyProfile', () => {
+  it('copies the steps and names it as a copy, without touching the original', () => {
+    const p = { title: 'Blooming', steps: [{ name: 'a' }] } as unknown as Profile;
+    const c = copyProfile(p);
+    expect(c.title).toBe('Blooming copy');
+    expect(c.steps).toEqual(p.steps);
+    expect(c.steps).not.toBe(p.steps);
+    expect(p.title).toBe('Blooming');
   });
 });

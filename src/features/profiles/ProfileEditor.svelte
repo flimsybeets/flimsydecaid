@@ -18,14 +18,14 @@
   // (categories and dial-ins follow it); "Save as new" makes an independent
   // copy. Undo/redo cover every change, including a held stepper as one step.
 
-  let { record, onclose }: { record: ProfileRecord | null; onclose: () => void } = $props();
+  let { record, seed = null, onclose }: { record: ProfileRecord | null; seed?: Profile | null; onclose: () => void } = $props();
 
   const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
   const key = (p: Profile) => JSON.stringify(normalizeProfile(p));
 
   // The editor works on its own copy, taken once when it opens.
   // svelte-ignore state_referenced_locally
-  const initial: Profile = record ? clone(record.profile) : blankProfile();
+  const initial: Profile = record ? clone(record.profile) : seed ? clone(seed) : blankProfile();
   // svelte-ignore state_referenced_locally
   let original = $state<ProfileRecord | null>(record);
   let draft = $state<Profile>(clone(initial));

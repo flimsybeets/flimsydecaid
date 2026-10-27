@@ -3,6 +3,15 @@
   import { toggleProfile } from '../../lib/categories';
   import { baseTemperature } from '../../lib/profiles';
   import BrewPanel from '../home/BrewPanel.svelte';
+  import { copyProfile } from '../../lib/profileEdit';
+  import type { ProfileRecord } from '../../api/types';
+
+  // Duplicate opens the editor on a new, unsaved copy (Decaid needs a changed
+  // step or target before it will store it as a different profile).
+  function duplicate(record: ProfileRecord) {
+    app.editSeed = copyProfile(record.profile);
+    app.editing = null;
+  }
 
   // Brew opens the same BrewPanel Home uses, over this list. Back returns here.
   let brewing = $state<string | null>(null);
@@ -80,6 +89,7 @@
           {/each}
         </div>
         <button class="edit glass" onclick={() => (app.editing = record)}>Edit</button>
+        <button class="edit glass" onclick={() => duplicate(record)}>Duplicate</button>
         <button class="brew glass solid" onclick={() => (brewing = root)}>Brew</button>
       </li>
     {:else}
