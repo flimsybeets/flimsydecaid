@@ -2,6 +2,7 @@
   import { app } from '../../state/app.svelte';
   import type { Category } from '../../lib/categories';
   import { baseTemperature } from '../../lib/profiles';
+  import { longpress } from '../../actions/longpress';
   import BrewPanel from './BrewPanel.svelte';
   import CategoryDialog from './CategoryDialog.svelte';
   import GuideSetup from '../guide/GuideSetup.svelte';
@@ -99,7 +100,8 @@
           {#each profilesInCategory as p (p.root)}
             {@const temp = baseTemperature(p.record!.profile)}
             <li>
-              <button class="profile glass" class:lit={profileRoot === p.root} class:selected={profileRoot === p.root} aria-pressed={profileRoot === p.root} onclick={() => (profileRoot = p.root)}>
+              <button class="profile glass" class:lit={profileRoot === p.root} class:selected={profileRoot === p.root} aria-pressed={profileRoot === p.root} title="Hold to edit"
+                use:longpress={{ onhold: () => (app.editing = p.record!) }} onclick={() => (profileRoot = p.root)}>
                 <span class="title">{p.record!.profile.title}</span>
                 <span class="meta">
                   {#if temp !== null}<span>{temp}°C</span>{/if}
@@ -291,7 +293,11 @@
     padding: 15px 16px;
     border-radius: 20px;
     text-align: left;
+    transition: transform 500ms ease;
+    -webkit-touch-callout: none;
   }
+  /* Hold to edit: the tile sinks a little while the finger stays down. */
+  .profile:global(.holding) { transform: scale(0.96); }
   .profile.selected { box-shadow: 0 0 0 3px var(--tile), 0 14px 30px -12px color-mix(in srgb, var(--tile) 45%, transparent), var(--glass-sheen); }
   .title { font-size: var(--t-md); font-weight: 650; line-height: 1.15; }
   .meta { display: flex; flex-wrap: wrap; gap: 4px 10px; color: var(--paper-dim); font-size: var(--t-xs); }
