@@ -108,6 +108,7 @@ class AppState {
 
   start(): void {
     if (this.unsubscribe) return;
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') this.restartScaleHunt(); });
     this.unsubscribe = gateway.subscribe({
       onMachine: (f) => this.onMachine(f),
       onScale: (f) => this.onScale(f),
@@ -577,16 +578,20 @@ class AppState {
     if (want) this.scheduleHunt();
   }
   private scheduleHunt(): void {
-    const delay = huntDelay(this.huntAttempt);
-    if (delay === null) return;
     this.huntTimer = setTimeout(() => {
       if (!this.hunting) return;
       this.huntAttempt++;
       this.scanForScale();
       this.scheduleHunt();
-    }, delay);
+    }, huntDelay(this.huntAttempt));
   }
-
+  /** Back to a quick scan when the tablet's screen comes back on. */
+  private restartScaleHunt(): void {
+    if (!this.hunting) return;
+    clearTimeout(this.huntTimer);
+    this.huntAttempt = 0;
+    this.scheduleHunt();
+  }
   async setSteam(patch: { on?: boolean; temperature?: number; flow?: number }): Promise<void> {
     const current = this.workflow.steamSettings;
     const next: Partial<SteamSettings> = {};

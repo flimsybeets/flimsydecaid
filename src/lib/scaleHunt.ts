@@ -1,17 +1,18 @@
 // Finding the scale without a tap. Decaid connects a remembered scale by
 // itself, but its background watch can stall on Android (scan throttling),
-// leaving the scale unconnected until someone scans. So once the machine is
-// up and awake with no scale, the skin asks for one quick "connect the
-// preferred scale as soon as it's seen" scan, then a few more, spaced out,
-// and then stops. Android swallows more than 5 scan starts in 30 s, so these
-// stay far apart.
+// leaving the scale unconnected until someone scans. So while the machine is
+// up and awake with no scale, the skin keeps asking for a "connect the
+// preferred scale as soon as it's seen" scan: 5 s, then doubling, capped at
+// 5 minutes, for as long as it takes (Bestpresso does the same and connects
+// reliably). Android swallows more than 5 scan starts in 30 s, so the early
+// ones stay spaced out too.
 
-/** Waits before each automatic scan, ms. The first leaves Decaid's own watch time to work. */
-export const HUNT_DELAYS = [8_000, 30_000, 60_000, 120_000, 300_000] as const;
+export const HUNT_FIRST_MS = 5_000;
+export const HUNT_MAX_MS = 5 * 60_000;
 
-/** Delay before automatic scan number `attempt` (0-based), or null to stop trying. */
-export function huntDelay(attempt: number): number | null {
-  return HUNT_DELAYS[attempt] ?? null;
+/** Delay before automatic scan number `attempt` (0-based): 5 s, 10 s, 20 s … then every 5 min. */
+export function huntDelay(attempt: number): number {
+  return Math.min(HUNT_MAX_MS, HUNT_FIRST_MS * 2 ** Math.min(16, Math.max(0, Math.floor(attempt))));
 }
 
 /** Whether the skin should be looking for the scale at all. */
