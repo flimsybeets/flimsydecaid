@@ -11,6 +11,7 @@ import type {
   SteamSettings, WaterLevels, Workflow,
 } from '../api/types';
 import { CATEGORIES_KEY, parseCategories, removeProfileEverywhere, type CategoryDoc } from '../lib/categories';
+import { huntDelay, shouldHunt } from '../lib/scaleHunt';
 import { applyDecrement, applyGiveback, doseOf, shouldDecrement } from '../lib/bagWeight';
 import { withDialIn, type DialIn } from '../lib/dialIn';
 import { shotStats } from '../lib/history';
@@ -116,6 +117,7 @@ class AppState {
         this.scanning = d.scanning;
         // Machine info (GHC) is read once at connect, so ask each time the machine connects.
         if (!wasConnected && this.machineConnected) void this.loadMachineInfo();
+        this.updateScaleHunt();
       },
       onWater: (w) => {
         // Keep the last known threshold if a frame lacks it, and skip identical frames.
@@ -154,6 +156,7 @@ class AppState {
 
   private onMachine(f: MachineSnapshot): void {
     this.machine = f;
+    this.updateScaleHunt();
     const wasActive = this.recorder.active;
     if (this.recorder.onMachine(f)) {
       this.shot = this.recorder.samples.slice();
@@ -175,6 +178,7 @@ class AppState {
       // A status frame is not a reading: don't show 0 g on connect.
       this.scaleConnected = f.status === 'connected';
       if (!this.scaleConnected) { this.weight = null; this.weightFlow = null; }
+      this.updateScaleHunt();
       return;
     }
     this.scaleConnected = true;
@@ -552,7 +556,36 @@ class AppState {
   async startEspresso(): Promise<void> { await gateway.requestState('espresso'); }
   async stop(): Promise<void> { await gateway.requestState('idle'); }
   async tare(): Promise<void> { await gateway.tareScale(); }
-  scanForScale(): void { gateway.scanDevices(); }
+  scanForScale(): void {
+    // A scan is already running: another would only supersede it.
+    if (this.scanning) return;
+    gateway.scanDevices();
+  }
+
+  // Automatic scale search (lib/scaleHunt): a few spaced-out scans while the
+  // machine is up and awake with no scale, reset each time that changes.
+  private huntTimer: ReturnType<typeof setTimeout> | undefined;
+  private huntAttempt = 0;
+  private hunting = false;
+  private updateScaleHunt(): void {
+    const want = shouldHunt({ machineConnected: this.machineConnected && !this.mock, asleep: this.asleep, scaleConnected: this.scaleConnected, shotActive: this.shotActive });
+    if (want === this.hunting) return;
+    this.hunting = want;
+    clearTimeout(this.huntTimer);
+    this.huntTimer = undefined;
+    this.huntAttempt = 0;
+    if (want) this.scheduleHunt();
+  }
+  private scheduleHunt(): void {
+    const delay = huntDelay(this.huntAttempt);
+    if (delay === null) return;
+    this.huntTimer = setTimeout(() => {
+      if (!this.hunting) return;
+      this.huntAttempt++;
+      this.scanForScale();
+      this.scheduleHunt();
+    }, delay);
+  }
 
   async setSteam(patch: { on?: boolean; temperature?: number; flow?: number }): Promise<void> {
     const current = this.workflow.steamSettings;
