@@ -147,8 +147,10 @@ export function createHttpGateway(config: GatewayConfig): Gateway {
     },
 
     scanDevices() {
-      if (!devicesSocket?.send({ command: 'scan' })) {
-        void call('GET', '/devices/scan').catch(() => {});
+      // Connect the remembered scale the moment it's seen, instead of after the
+      // whole scan (Decaid's plain scan waits out full discovery first).
+      if (!devicesSocket?.send({ command: 'scan', connect: true, connectPreferredScaleEarly: true })) {
+        void call('GET', '/devices/scan?connect=true&connectPreferredScaleEarly=true').catch(() => {});
       }
     },
 
