@@ -83,7 +83,7 @@
   <header>
     <nav class="glass" aria-label="Sections">
       {#each tabs as t (t.id)}
-        <button class="tab" class:active={app.tab === t.id} aria-current={app.tab === t.id ? 'page' : undefined} onclick={() => (app.tab = t.id)}>
+        <button class="tab" class:active={app.tab === t.id} aria-current={app.tab === t.id ? 'page' : undefined} onclick={() => { if (t.id === 'home' && app.tab === 'home') app.homeReset++; app.tab = t.id; }}>
           {t.label}
         </button>
       {/each}

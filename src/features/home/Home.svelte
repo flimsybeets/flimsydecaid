@@ -41,6 +41,12 @@
     profileRoot = null;
   }
 
+  // Tapping the Home tab while on a category or brew panel goes back to the tiles.
+  let seenReset = app.homeReset;
+  $effect(() => {
+    if (app.homeReset !== seenReset) { seenReset = app.homeReset; back(); }
+  });
+
   const profileCount = (c: Category) => c.profiles.filter((r) => app.profileLineages.has(r)).length;
 </script>
 
