@@ -80,6 +80,8 @@ class AppState {
   screensaverImage = $state<string | null>(null);
   /** Profile editor: the record being edited, `null` for a new profile, undefined when closed. */
   editing = $state<ProfileRecord | null | undefined>(undefined);
+  /** Bumped when the Home tab is tapped while already on Home: back to the category tiles. */
+  homeReset = $state(0);
   /** Starting point for a new profile (Duplicate on Profiles); null = blank. */
   editSeed = $state<Profile | null>(null);
 
