@@ -1,12 +1,14 @@
-# Push a tag like v0.2.0 to publish a GitHub Release with the installable zip,
-# or run this workflow by hand on main: that tags the commit v<package.json
-# version> and publishes the same release (it refuses if the tag exists).
+# Publishes a GitHub Release with the installable zip:
+# - on every push to main whose package.json version has no v<version> tag
+#   yet (so merging a version bump releases it; other merges just build),
+# - on a pushed tag like v0.2.0, or a manual run on main.
 # Then on the tablet: Launcher → Skins → cog → Install skin → GitHub Release
 # → flimsybeets/flimsydecaid. "Check for updates" picks up later releases.
 name: Release
 
 on:
   push:
+    branches: [main]
     tags: ['v*']
   pull_request:
   workflow_dispatch:
@@ -31,12 +33,13 @@ jobs:
         run: |
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             echo "name=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
-          elif [[ "$GITHUB_EVENT_NAME" == workflow_dispatch && "$GITHUB_REF" == refs/heads/main ]]; then
+          elif [[ "$GITHUB_REF" == refs/heads/main ]]; then
             tag="v$(node -p "require('./package.json').version")"
             if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
-              echo "::error::$tag already exists. Bump the version in package.json first."; exit 1
+              echo "$tag is already released; nothing to publish."
+            else
+              echo "name=$tag" >> "$GITHUB_OUTPUT"
             fi
-            echo "name=$tag" >> "$GITHUB_OUTPUT"
           fi
       - name: Package
         run: npm run package
