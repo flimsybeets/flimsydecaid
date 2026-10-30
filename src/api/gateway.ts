@@ -29,6 +29,10 @@ export interface Gateway {
   scanDevices(): void;
 
   getMachineInfo(): Promise<MachineInfo>;
+  /** POST /webui/skins/update: Decaid re-fetches installed skins from their sources. */
+  checkSkinUpdates(): Promise<void>;
+  /** GET /webui/skins/{id}: the version Decaid has installed for a skin, or null. */
+  installedSkinVersion(id: string): Promise<string | null>;
   /** POST /machine/waterLevels: the tank level (mm) at which the machine warns to refill. */
   setWaterRefillLevel(mm: number): Promise<void>;
   requestState(state: MachineState): Promise<void>;
@@ -155,6 +159,11 @@ export function createHttpGateway(config: GatewayConfig): Gateway {
     },
 
     getMachineInfo: () => call('GET', '/machine/info'),
+    checkSkinUpdates: () => call('POST', '/webui/skins/update'),
+    async installedSkinVersion(id) {
+      const skin = await call<{ version?: string | null } | null>('GET', `/webui/skins/${encodeURIComponent(id)}`);
+      return skin?.version ?? null;
+    },
     setWaterRefillLevel: (mm) => call('POST', '/machine/waterLevels', { refillLevel: Math.trunc(mm) }),
     requestState: (state) => call('PUT', `/machine/state/${state}`),
     tareScale: () => call('PUT', '/scale/tare'),

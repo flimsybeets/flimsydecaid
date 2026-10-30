@@ -361,6 +361,8 @@ export function createMockGateway(): Gateway {
       await delay();
       return { model: 'DE1+', version: 'mock', GHC: new URLSearchParams(location.search).get('ghc') === '1' };
     },
+    async checkSkinUpdates() { await delay(1500); },
+    async installedSkinVersion() { await delay(); return __APP_VERSION__; },
     async setWaterRefillLevel(mm) { await delay(); refillLevel = Math.trunc(mm); },
     async tareScale() { await delay(); weight = 0; },
     async keepScreenOn() { await delay(20); },

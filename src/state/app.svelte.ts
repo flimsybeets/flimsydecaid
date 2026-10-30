@@ -3,7 +3,7 @@
 // loaded over REST on boot and refreshed after every write.
 
 import { resolveGateway } from '../api/config';
-import { createHttpGateway, type Gateway } from '../api/gateway';
+import { createHttpGateway, HttpError, type Gateway } from '../api/gateway';
 import { createMockGateway } from '../api/mock';
 import type { SocketStatus } from '../api/socket';
 import type {
@@ -12,6 +12,7 @@ import type {
 } from '../api/types';
 import { CATEGORIES_KEY, parseCategories, removeProfileEverywhere, type CategoryDoc } from '../lib/categories';
 import { huntDelay, shouldHunt } from '../lib/scaleHunt';
+import { skinUpdateResult, updateErrorText, type SkinUpdateResult } from '../lib/skinUpdate';
 import { applyDecrement, applyGiveback, doseOf, shouldDecrement } from '../lib/bagWeight';
 import { withDialIn, type DialIn } from '../lib/dialIn';
 import { shotStats } from '../lib/history';
@@ -559,6 +560,16 @@ class AppState {
   async startEspresso(): Promise<void> { await gateway.requestState('espresso'); }
   async stop(): Promise<void> { await gateway.requestState('idle'); }
   async tare(): Promise<void> { await gateway.tareScale(); }
+  /** Settings → Check for skin updates. */
+  async checkSkinUpdates(): Promise<SkinUpdateResult> {
+    try {
+      await gateway.checkSkinUpdates();
+      return skinUpdateResult(__APP_VERSION__, await gateway.installedSkinVersion('flimsydecaid').catch(() => null));
+    } catch (e) {
+      return { kind: 'failed', message: updateErrorText(e instanceof HttpError ? e.body : (e as Error).message) };
+    }
+  }
+
   scanForScale(): void {
     // A scan is already running: another would only supersede it.
     if (this.scanning) return;
