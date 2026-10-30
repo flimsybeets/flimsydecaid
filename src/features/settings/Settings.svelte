@@ -4,9 +4,20 @@
   import Stepper from '../../components/Stepper.svelte';
   import { REFILL_MAX_MM, REFILL_MIN_MM } from '../../lib/water';
   import { credentialsPatch } from '../../lib/visualizer';
+  import type { SkinUpdateResult } from '../../lib/skinUpdate';
 
   const gw = resolveGateway();
   const version = __APP_VERSION__;
+
+  // Check for skin updates: Decaid fetches any newer release and installs it;
+  // the new version runs after a reload.
+  let updating = $state(false);
+  let update = $state<SkinUpdateResult | null>(null);
+  async function checkUpdates() {
+    updating = true;
+    update = null;
+    try { update = await app.checkSkinUpdates(); } finally { updating = false; }
+  }
 
   // Decaid's bundled settings plugin covers machine, scale and app settings,
   // so we hand off to it rather than rebuilding them.
@@ -211,6 +222,15 @@
       <dt>Scale</dt><dd>{app.scaleDevice ? `${app.scaleDevice.name}, ${app.scaleDevice.state}` : 'Not found'}</dd>
       <dt>Skin version</dt><dd>{version}</dd>
     </dl>
+    <button class="button glass" disabled={updating} onclick={checkUpdates}>{updating ? 'Checking…' : 'Check for skin updates'}</button>
+    {#if update?.kind === 'updated'}
+      <p class="okmsg" role="status">Version {update.installed} is installed.</p>
+      <button class="button glass solid" onclick={() => location.reload()}>Reload to use it</button>
+    {:else if update?.kind === 'current'}
+      <p class="okmsg" role="status">You're on the latest version ({update.installed}).</p>
+    {:else if update?.kind === 'failed'}
+      <p class="error" role="alert">{update.message}</p>
+    {/if}
   </section>
 </div>
 
