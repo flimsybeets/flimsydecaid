@@ -1,4 +1,6 @@
-# Push a tag like v0.2.0 to publish a GitHub Release with the installable zip.
+# Push a tag like v0.2.0 to publish a GitHub Release with the installable zip,
+# or run this workflow by hand on main: that tags the commit v<package.json
+# version> and publishes the same release (it refuses if the tag exists).
 # Then on the tablet: Launcher → Skins → cog → Install skin → GitHub Release
 # → flimsybeets/flimsydecaid. "Check for updates" picks up later releases.
 name: Release
@@ -24,6 +26,18 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm test
+      - name: Release tag
+        id: tag
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "name=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+          elif [[ "$GITHUB_EVENT_NAME" == workflow_dispatch && "$GITHUB_REF" == refs/heads/main ]]; then
+            tag="v$(node -p "require('./package.json').version")"
+            if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
+              echo "::error::$tag already exists. Bump the version in package.json first."; exit 1
+            fi
+            echo "name=$tag" >> "$GITHUB_OUTPUT"
+          fi
       - name: Package
         run: npm run package
         env:
@@ -33,8 +47,10 @@ jobs:
           name: skin-zip
           path: release/*.zip
       - name: Publish release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: steps.tag.outputs.name != ''
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.tag.outputs.name }}
+          target_commitish: ${{ github.sha }}
           files: release/*.zip
           generate_release_notes: true
