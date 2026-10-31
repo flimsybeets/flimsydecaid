@@ -7,6 +7,7 @@
   import { doseCheck } from '../../lib/guide';
   import Stepper from '../../components/Stepper.svelte';
   import type { BeanBatch } from '../../api/types';
+  import { startBag } from '../../lib/defaultBag';
 
     let { profileRoot, onClose, initial }: { profileRoot: string; onClose: () => void; initial?: BrewStart } = $props();
 
@@ -21,14 +22,23 @@
       .sort((a, b) => (b.batch.roastDate ?? b.batch.createdAt).localeCompare(a.batch.roastDate ?? a.batch.createdAt)),
   );
 
-  // Default to the bag currently on the machine, if it's still open.
+  // Start on: the bag asked for, this profile's default, the bag last used with
+  // it, the bag on the machine, then the newest (lib/defaultBag).
   let batchId = $state<string | null>(null);
   $effect.pre(() => {
     if (batchId === null) {
-      const current = initial?.batchId ?? app.workflow.context?.beanBatchId;
-      batchId = bags.some((b) => b.batch.id === current) ? current! : (bags[0]?.batch.id ?? null);
+      batchId = startBag({
+        open: bags.map((b) => b.batch), profileRoot, requested: initial?.batchId,
+        defaults: app.defaultBags, onMachine: app.workflow.context?.beanBatchId,
+      });
     }
   });
+  const defaultId = $derived(app.defaultBags[profileRoot] ?? null);
+  let defaultError = $state(false);
+  async function toggleDefault() {
+    defaultError = false;
+    try { await app.setDefaultBag(profileRoot, defaultId === batchId ? null : batchId); } catch { defaultError = true; }
+  }
   const batch = $derived<BeanBatch | null>(app.batches.find((b) => b.id === batchId) ?? null);
 
   let grind = $state<number | undefined>();
@@ -183,7 +193,15 @@
 
   <div class="body">
   <section class="bags" aria-label="Bag">
-    <h3>Bag</h3>
+    <div class="bag-head">
+      <h3>Bag</h3>
+      {#if batchId && bags.length > 1}
+        <button class="default glass" class:on={defaultId === batchId} aria-pressed={defaultId === batchId} onclick={toggleDefault}>
+          {defaultId === batchId ? '★ Default' : 'Set as default'}
+        </button>
+      {/if}
+    </div>
+    {#if defaultError}<p class="none">Couldn't save the default. Try again.</p>{/if}
     {#if bags.length === 0}
       <p class="none">No open bags. Add one in the Beans tab.</p>
     {:else}
@@ -198,6 +216,7 @@
             <span class="bag-text">
               <span class="bean">{bean?.name ?? 'Unknown bean'}</span>
               <span class="sub">{bean?.roaster ?? ''}</span>
+              {#if b.id === defaultId}<span class="tag">Default</span>{/if}
               <span class="sub">{roastAge(b)}{b.weightRemaining != null ? `, ${Math.round(b.weightRemaining)} g left` : ''}</span>
             </span>
           </button>
@@ -281,6 +300,11 @@
   .go { grid-area: go; }
   h2 { font-size: var(--t-lg); font-weight: 700; line-height: 1.1; letter-spacing: -0.01em; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   h3 { font-size: var(--t-sm); font-weight: 500; color: var(--paper-dim); margin-bottom: 6px; }
+  .bag-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .bag-head h3 { margin-bottom: 0; }
+  .default { min-height: 40px; padding: 0 14px; border-radius: var(--radius-pill); font-size: var(--t-xs); font-weight: 650; color: var(--paper-dim); }
+  .default.on { color: var(--paper); }
+  .tag { justify-self: start; padding: 1px 8px; border-radius: var(--radius-pill); background: rgb(255 255 255 / 0.14); color: var(--paper); font-size: var(--t-xs); font-weight: 650; }
   .back { flex: none; min-height: 42px; padding: 0 15px 0 10px; border-radius: var(--radius-pill); color: var(--paper-dim); font-size: var(--t-sm); }
   .edit { flex: none; height: 42px; padding: 0 14px; margin-left: auto; border-radius: var(--radius-pill); color: var(--paper); font-size: var(--t-xs); font-weight: 650; }
 
