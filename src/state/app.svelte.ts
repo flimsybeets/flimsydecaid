@@ -12,6 +12,7 @@ import type {
 } from '../api/types';
 import { CATEGORIES_KEY, parseCategories, removeProfileEverywhere, type CategoryDoc } from '../lib/categories';
 import { huntDelay, shouldHunt } from '../lib/scaleHunt';
+import { DEFAULT_BAGS_KEY, parseDefaultBags, type DefaultBags } from '../lib/defaultBag';
 import { skinUpdateResult, updateErrorText, type SkinUpdateResult } from '../lib/skinUpdate';
 import { applyDecrement, applyGiveback, doseOf, shouldDecrement } from '../lib/bagWeight';
 import { withDialIn, type DialIn } from '../lib/dialIn';
@@ -83,6 +84,8 @@ class AppState {
   editing = $state<ProfileRecord | null | undefined>(undefined);
   /** Bumped when the Home tab is tapped while already on Home: back to the category tiles. */
   homeReset = $state(0);
+  /** Profile lineage root → the bag its brew panel starts on (Set as default). */
+  defaultBags = $state<DefaultBags>({});
   /** Starting point for a new profile (Duplicate on Profiles); null = blank. */
   editSeed = $state<Profile | null>(null);
 
@@ -135,15 +138,17 @@ class AppState {
 
   async reload(): Promise<void> {
     try {
-      const [profiles, workflow, categories, beans, batches, guide] = await Promise.all([
+      const [profiles, workflow, categories, beans, batches, guide, defaultBags] = await Promise.all([
         gateway.getProfiles(),
         gateway.getWorkflow(),
         gateway.storeGet(CATEGORIES_KEY),
         gateway.getBeans(),
         gateway.getBatches(),
         gateway.storeGet(GUIDE_KEY).catch(() => null),
+        gateway.storeGet(DEFAULT_BAGS_KEY).catch(() => null),
       ]);
       this.guide = parseGuideSetup(guide);
+      this.defaultBags = parseDefaultBags(defaultBags);
       this.profiles = profiles;
       this.workflow = workflow;
       this.categories = parseCategories(categories);
@@ -560,6 +565,15 @@ class AppState {
   async startEspresso(): Promise<void> { await gateway.requestState('espresso'); }
   async stop(): Promise<void> { await gateway.requestState('idle'); }
   async tare(): Promise<void> { await gateway.tareScale(); }
+  /** Set (or with null, clear) the bag a profile's brew panel starts on. */
+  async setDefaultBag(profileRoot: string, batchId: string | null): Promise<void> {
+    const before = this.defaultBags;
+    const next = { ...before };
+    if (batchId) next[profileRoot] = batchId; else delete next[profileRoot];
+    this.defaultBags = next;
+    try { await gateway.storeSet(DEFAULT_BAGS_KEY, next); } catch (e) { this.defaultBags = before; throw e; }
+  }
+
   /** Settings → Check for skin updates. */
   async checkSkinUpdates(): Promise<SkinUpdateResult> {
     try {
