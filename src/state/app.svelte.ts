@@ -13,6 +13,7 @@ import type {
 import { CATEGORIES_KEY, parseCategories, removeProfileEverywhere, type CategoryDoc } from '../lib/categories';
 import { huntDelay, shouldHunt } from '../lib/scaleHunt';
 import type { TilePreview } from '../lib/miniGraph';
+import { APP_BACKGROUND_KEY, clampTone, DEFAULT_TONE } from '../lib/background';
 import { DEFAULT_BAGS_KEY, parseDefaultBags, type DefaultBags } from '../lib/defaultBag';
 import { skinUpdateResult, updateErrorText, type SkinUpdateResult } from '../lib/skinUpdate';
 import { applyDecrement, applyGiveback, doseOf, shouldDecrement } from '../lib/bagWeight';
@@ -106,6 +107,10 @@ class AppState {
   screensaverClock = $state(true);
   /** Graph on each profile tile on Home (theme.tilePreview). */
   tilePreview = $state<TilePreview>('shot');
+  /** Photo behind the whole app, or null for the usual colour pools. */
+  appBackground = $state<string | null>(null);
+  /** −100 darken … 100 lighten over that photo. */
+  bgTone = $state(DEFAULT_TONE);
 
   /** Settings' "Preview" shows the screensaver without the machine asleep. */
   screensaverPreview = $state(false);
@@ -161,8 +166,8 @@ class AppState {
       this.batches = batches;
       this.error = null;
       this.loaded = true;
-      // Big, and only needed once the machine sleeps, so it loads after everything else.
-      void this.loadScreensaver();
+      // Big, so they load after everything else (the background first: it's on screen).
+      void this.loadAppBackground().then(() => this.loadScreensaver());
     } catch (e) {
       this.error = `Couldn't reach Decaid: ${(e as Error).message}`;
     }
@@ -465,6 +470,7 @@ class AppState {
     this.halloween = theme.halloween;
     this.screensaverClock = theme.clock;
     this.tilePreview = theme.tilePreview;
+    this.bgTone = theme.bgTone;
   }
 
   async setHalloween(on: boolean): Promise<void> {
@@ -511,7 +517,7 @@ class AppState {
   }
 
   private saveTheme(): Promise<void> {
-    return gateway.storeSet(THEME_KEY, { halloween: this.halloween, clock: this.screensaverClock, tilePreview: this.tilePreview }).catch(() => {});
+    return gateway.storeSet(THEME_KEY, { halloween: this.halloween, clock: this.screensaverClock, tilePreview: this.tilePreview, bgTone: this.bgTone }).catch(() => {});
   }
 
   private dimSaveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -552,6 +558,31 @@ class AppState {
     const url = await fitDataUrl((edge, quality) => toJpegDataUrl(file, edge, quality));
     await gateway.storeSet(SCREENSAVER_KEY, url);
     this.screensaverImage = url;
+  }
+
+  /** Photo behind the whole app (KV appBackground), shrunk like the screensaver. */
+  async setAppBackground(file: Blob): Promise<void> {
+    const url = await fitDataUrl((edge, quality) => toJpegDataUrl(file, edge, quality));
+    await gateway.storeSet(APP_BACKGROUND_KEY, url);
+    this.appBackground = url;
+  }
+
+  async removeAppBackground(): Promise<void> {
+    await gateway.storeDelete(APP_BACKGROUND_KEY);
+    this.appBackground = null;
+  }
+
+  async loadAppBackground(): Promise<void> {
+    const url = await gateway.storeGet<string>(APP_BACKGROUND_KEY).catch(() => null);
+    this.appBackground = typeof url === 'string' && url.startsWith('data:image/') ? url : null;
+  }
+
+  /** Darken/lighten slider: applied at once, saved 400 ms after the last move. */
+  private toneTimer: ReturnType<typeof setTimeout> | null = null;
+  setBgTone(value: number): void {
+    this.bgTone = clampTone(value);
+    if (this.toneTimer) clearTimeout(this.toneTimer);
+    this.toneTimer = setTimeout(() => { this.toneTimer = null; void this.saveTheme(); }, 400);
   }
 
   async removeScreensaver(): Promise<void> {
