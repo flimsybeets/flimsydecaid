@@ -559,6 +559,13 @@ class AppState {
     return id ? gateway.getShot(id).catch(() => null) : null;
   }
 
+  /** The newest shot pulled with this profile (by title) and this bag, with its graph. */
+  async lastShotWith(profileTitle: string, batchId: string): Promise<ShotRecord | null> {
+    const page = await gateway.getShots({ profileTitle, beanBatchId: batchId, limit: 1 });
+    const id = page.items[0]?.id;
+    return id ? gateway.getShot(id) : null;
+  }
+
   async wake(): Promise<void> { await gateway.requestState('idle'); }
   async sleep(): Promise<void> { await gateway.requestState('sleeping'); }
 
