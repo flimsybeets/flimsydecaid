@@ -101,6 +101,8 @@ class AppState {
 
   /** Theme option: ghosts instead of the clock on the screensaver. */
   halloween = $state(false);
+  /** Show the big clock on the screensaver (Settings → Screensaver). */
+  screensaverClock = $state(true);
 
   /** Settings' "Preview" shows the screensaver without the machine asleep. */
   screensaverPreview = $state(false);
@@ -454,12 +456,23 @@ class AppState {
     const url = await gateway.storeGet<string>(SCREENSAVER_KEY).catch(() => null);
     this.screensaverImage = typeof url === 'string' && url.startsWith('data:image/') ? url : null;
     this.screensaverDim = parseDim(await gateway.storeGet(SCREENSAVER_DIM_KEY).catch(() => null));
-    this.halloween = parseTheme(await gateway.storeGet(THEME_KEY).catch(() => null)).halloween;
+    const theme = parseTheme(await gateway.storeGet(THEME_KEY).catch(() => null));
+    this.halloween = theme.halloween;
+    this.screensaverClock = theme.clock;
   }
 
   async setHalloween(on: boolean): Promise<void> {
     this.halloween = on;
-    await gateway.storeSet(THEME_KEY, { halloween: on }).catch(() => {});
+    await this.saveTheme();
+  }
+
+  async setScreensaverClock(on: boolean): Promise<void> {
+    this.screensaverClock = on;
+    await this.saveTheme();
+  }
+
+  private saveTheme(): Promise<void> {
+    return gateway.storeSet(THEME_KEY, { halloween: this.halloween, clock: this.screensaverClock }).catch(() => {});
   }
 
   private dimSaveTimer: ReturnType<typeof setTimeout> | null = null;

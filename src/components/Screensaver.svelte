@@ -100,7 +100,7 @@
         {/each}
       </span>
     {/if}
-  {:else}
+  {:else if app.screensaverClock}
     <span class="clock" aria-hidden="true">{time}</span>
   {/if}
   {#if preview}<span class="hint">Preview. Tap to close.</span>{/if}
