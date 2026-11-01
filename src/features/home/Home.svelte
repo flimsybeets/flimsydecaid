@@ -3,6 +3,9 @@
   import type { Category } from '../../lib/categories';
   import { baseTemperature } from '../../lib/profiles';
   import { longpress } from '../../actions/longpress';
+  import MiniGraph from '../../components/MiniGraph.svelte';
+  import Segmented from '../../components/Segmented.svelte';
+  import { planLines, shotLines, type MiniLines, type TilePreview } from '../../lib/miniGraph';
   import BrewPanel from './BrewPanel.svelte';
   import CategoryDialog from './CategoryDialog.svelte';
   import GuideSetup from '../guide/GuideSetup.svelte';
@@ -46,6 +49,20 @@
   $effect(() => {
     if (app.homeReset !== seenReset) { seenReset = app.homeReset; back(); }
   });
+
+  // Tile previews: the last shot (falling back to the plan), the plan, or nothing.
+  const PREVIEW_OPTIONS: { value: TilePreview; label: string }[] = [
+    { value: 'shot', label: 'Last shot' }, { value: 'plan', label: 'Plan' }, { value: 'none', label: 'None' },
+  ];
+  $effect(() => {
+    if (app.tilePreview !== 'shot') return;
+    for (const p of profilesInCategory) app.wantPreviewShot(p.record!.profile.title);
+  });
+  function preview(p: (typeof profilesInCategory)[number]): { lines: MiniLines; kind: 'plan' | 'shot' } | null {
+    if (app.tilePreview === 'none') return null;
+    const shot = app.tilePreview === 'shot' ? app.previewShots[p.record!.profile.title] : null;
+    return shot ? { lines: shotLines(shot), kind: 'shot' } : { lines: planLines(p.record!.profile.steps), kind: 'plan' };
+  }
 
   const profileCount = (c: Category) => c.profiles.filter((r) => app.profileLineages.has(r)).length;
 </script>
@@ -92,6 +109,7 @@
       <div class="crumb">
         <button class="back glass" onclick={back}>‹ Categories</button>
         <h1>{category.name}</h1>
+        <div class="preview-pick"><Segmented label="Tile graphs" value={app.tilePreview} options={PREVIEW_OPTIONS} onchange={(v) => app.setTilePreview(v)} /></div>
         <button class="edit-cat glass" onclick={() => (editingCategory = category)}>Edit</button>
       </div>
 
@@ -105,10 +123,12 @@
         <ul class="profiles">
           {#each profilesInCategory as p (p.root)}
             {@const temp = baseTemperature(p.record!.profile)}
+            {@const mini = preview(p)}
             <li>
               <button class="profile glass" class:lit={profileRoot === p.root} class:selected={profileRoot === p.root} aria-pressed={profileRoot === p.root} title="Hold to edit"
                 use:longpress={{ onhold: () => (app.editing = p.record!) }} onclick={() => (profileRoot = p.root)}>
                 <span class="title">{p.record!.profile.title}</span>
+                {#if mini}<MiniGraph lines={mini.lines} kind={mini.kind} />{/if}
                 <span class="meta">
                   {#if temp !== null}<span>{temp}°C</span>{/if}
                   <span>{p.record!.profile.steps.length} steps</span>
@@ -272,7 +292,8 @@
     color: var(--paper-dim);
     font-size: var(--t-sm);
   }
-  .edit-cat { margin-left: auto; min-height: 40px; padding: 0 14px; border-radius: var(--radius-pill); color: var(--paper); font-size: var(--t-xs); font-weight: 650; }
+  .edit-cat { min-height: 40px; padding: 0 14px; border-radius: var(--radius-pill); color: var(--paper); font-size: var(--t-xs); font-weight: 650; }
+  .preview-pick { margin-left: auto; }
   .crumb h1 {
     font-size: var(--t-xl);
     font-weight: 750;
