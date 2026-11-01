@@ -12,6 +12,7 @@ import type {
 } from '../api/types';
 import { CATEGORIES_KEY, parseCategories, removeProfileEverywhere, type CategoryDoc } from '../lib/categories';
 import { huntDelay, shouldHunt } from '../lib/scaleHunt';
+import type { TilePreview } from '../lib/miniGraph';
 import { DEFAULT_BAGS_KEY, parseDefaultBags, type DefaultBags } from '../lib/defaultBag';
 import { skinUpdateResult, updateErrorText, type SkinUpdateResult } from '../lib/skinUpdate';
 import { applyDecrement, applyGiveback, doseOf, shouldDecrement } from '../lib/bagWeight';
@@ -103,6 +104,8 @@ class AppState {
   halloween = $state(false);
   /** Show the big clock on the screensaver (Settings → Screensaver). */
   screensaverClock = $state(true);
+  /** Graph on each profile tile on Home (theme.tilePreview). */
+  tilePreview = $state<TilePreview>('shot');
 
   /** Settings' "Preview" shows the screensaver without the machine asleep. */
   screensaverPreview = $state(false);
@@ -175,6 +178,8 @@ class AppState {
     this.shotActive = this.recorder.active;
     if (wasActive && !this.recorder.active) {
       this.shotsFinished++;
+      // The pulled profile's tile preview should show this shot now.
+      this.previewAsked.clear();
       void this.settleShot(this.shotStartedAt);
     }
     if (!wasActive && this.recorder.active) this.shotStartedAt = Date.now();
@@ -459,11 +464,45 @@ class AppState {
     const theme = parseTheme(await gateway.storeGet(THEME_KEY).catch(() => null));
     this.halloween = theme.halloween;
     this.screensaverClock = theme.clock;
+    this.tilePreview = theme.tilePreview;
   }
 
   async setHalloween(on: boolean): Promise<void> {
     this.halloween = on;
     await this.saveTheme();
+  }
+
+  async setTilePreview(mode: TilePreview): Promise<void> {
+    this.tilePreview = mode;
+    await this.saveTheme();
+  }
+
+  /**
+   * Last-shot samples per profile title, for the tile previews: null = no shot
+   * (or not loaded yet). Fetched one at a time (Decaid doesn't like bursts),
+   * once per title per session, and again after a pull.
+   */
+  previewShots = $state.raw<Record<string, ShotSample[] | null>>({});
+  private previewQueue: string[] = [];
+  private previewBusy = false;
+  private previewAsked = new Set<string>();
+  wantPreviewShot(title: string): void {
+    if (this.previewAsked.has(title)) return;
+    this.previewAsked.add(title);
+    this.previewQueue.push(title);
+    void this.drainPreviews();
+  }
+  private async drainPreviews(): Promise<void> {
+    if (this.previewBusy) return;
+    this.previewBusy = true;
+    try {
+      while (this.previewQueue.length) {
+        const title = this.previewQueue.shift()!;
+        const shot = await this.lastShotFor(title).catch(() => null);
+        const samples = shot ? samplesFromMeasurements(shot.measurements ?? []) : [];
+        this.previewShots = { ...this.previewShots, [title]: samples.length ? samples : null };
+      }
+    } finally { this.previewBusy = false; }
   }
 
   async setScreensaverClock(on: boolean): Promise<void> {
@@ -472,7 +511,7 @@ class AppState {
   }
 
   private saveTheme(): Promise<void> {
-    return gateway.storeSet(THEME_KEY, { halloween: this.halloween, clock: this.screensaverClock }).catch(() => {});
+    return gateway.storeSet(THEME_KEY, { halloween: this.halloween, clock: this.screensaverClock, tilePreview: this.tilePreview }).catch(() => {});
   }
 
   private dimSaveTimer: ReturnType<typeof setTimeout> | null = null;
