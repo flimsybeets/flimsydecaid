@@ -1,8 +1,10 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
 
-  let { title, onClose, children, actions }: {
+  let { title, onClose, children, actions, wide = false }: {
     title: string;
+    /** Room for a graph: nearly the full width of the screen. */
+    wide?: boolean;
     onClose: () => void;
     children: Snippet;
     actions?: Snippet;
@@ -43,7 +45,7 @@
 <svelte:window onkeydown={(e) => { if (e.key === 'Escape') onClose(); }} />
 
 <div class="backdrop" role="presentation" onclick={onClose}></div>
-<div class="dialog glass thick" role="dialog" aria-modal="true" aria-label={title} tabindex="-1" bind:this={dialog} onfocusin={onFocusIn} onkeydown={onKeyDown}>
+<div class="dialog glass thick" class:wide role="dialog" aria-modal="true" aria-label={title} tabindex="-1" bind:this={dialog} onfocusin={onFocusIn} onkeydown={onKeyDown}>
   <div class="head">
     <h2>{title}</h2>
     <button class="close glass" onclick={onClose} aria-label="Close">✕</button>
@@ -53,6 +55,7 @@
 </div>
 
 <style>
+  .dialog.wide { width: min(920px, calc(100% - 21px)); }
   .backdrop {
     position: fixed; inset: 0;
     background: rgb(5 12 14 / 0.38);

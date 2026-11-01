@@ -8,6 +8,7 @@
   import Stepper from '../../components/Stepper.svelte';
   import type { BeanBatch } from '../../api/types';
   import { startBag } from '../../lib/defaultBag';
+  import LastShotDialog from './LastShotDialog.svelte';
 
     let { profileRoot, onClose, initial }: { profileRoot: string; onClose: () => void; initial?: BrewStart } = $props();
 
@@ -78,6 +79,17 @@
     temp = base !== null ? base + (d.tempOffset ?? 0) : undefined;
     loadedKey = JSON.stringify(currentDialIn());
     savedOnBag = !fromShot && resolved.source === 'this-bag';
+  }
+
+  // Last shot with this profile and bag: look at it, and optionally take its settings.
+  let showingLast = $state(false);
+  function useLastShot(d: DialIn) {
+    const g = d.grind !== undefined ? Number.parseFloat(d.grind) : NaN;
+    if (Number.isFinite(g)) grind = g;
+    if (d.dose) dose = d.dose;
+    if (d.yield) yieldG = d.yield;
+    // The dialog passes the shot's absolute temperature in tempOffset.
+    if (d.tempOffset !== undefined && base !== null) temp = d.tempOffset;
   }
 
   function currentDialIn(): DialIn {
@@ -226,7 +238,10 @@
   </section>
 
   <section class="dial" aria-label="Dial-in">
-    <p class="source">{source === 'shot' ? 'From the shot you picked' : SOURCE_TEXT[source]}</p>
+    <div class="source-row">
+      <p class="source">{source === 'shot' ? 'From the shot you picked' : SOURCE_TEXT[source]}</p>
+      {#if batch && record}<button class="last glass" onclick={() => (showingLast = true)}>Last shot</button>{/if}
+    </div>
     {#if source === 'shot' && initial?.note}<p class="source note">{initial.note}</p>{/if}
     <div class="grid">
       <Stepper compact label="Grind" bind:value={grind} min={0} max={100} step={0.5} decimals={1} placeholder="Not set" />
@@ -270,6 +285,12 @@
     {/if}
   </div>
 </aside>
+
+{#if showingLast && batch && record}
+  <LastShotDialog profileTitle={record.profile.title} batchId={batch.id}
+    bagName={app.beans.find((x) => x.id === batch.beanId)?.name ?? 'this bag'}
+    onClose={() => (showingLast = false)} onUse={useLastShot} />
+{/if}
 
 <style>
   /* Fills the Home area: back / title / edit on top, then two columns.
@@ -338,6 +359,8 @@
 
   .dial { display: grid; gap: 10px; align-content: start; }
   .source { color: var(--paper-dim); font-size: var(--t-xs); }
+  .source-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .last { flex: none; min-height: 40px; padding: 0 14px; border-radius: var(--radius-pill); font-size: var(--t-xs); font-weight: 650; color: var(--paper); }
   .source.note { color: var(--warn); margin-top: -6px; }
   .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px 10px; }
   /* Beans on the scale vs the dose: amber under, green spot on, coral over. */
