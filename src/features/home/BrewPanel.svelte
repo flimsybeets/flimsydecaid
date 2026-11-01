@@ -329,6 +329,24 @@
   }
   @keyframes slide { from { transform: translateY(14px); opacity: 0; } }
 
+  /* Typing a number: the keyboard leaves too little height for both columns,
+     so only the dial-in steppers stay, scrolling if they must; the bag list,
+     title and Start shot come back when the keyboard closes. */
+  :global(html.kb-open) .panel {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-areas: 'dial';
+    margin-top: 6px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+  :global(html.kb-open) .head,
+  :global(html.kb-open) .bags,
+  :global(html.kb-open) .go,
+  :global(html.kb-open) .source-row,
+  :global(html.kb-open) .source.note { display: none; }
+  :global(html.kb-open) .dial { overflow-y: auto; align-content: start; }
+
   .body { display: contents; }
   .head { grid-area: head; display: flex; align-items: center; gap: 12px; }
   .bags { grid-area: bags; display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; }
