@@ -294,6 +294,8 @@
   }
   .edit-cat { min-height: 40px; padding: 0 14px; border-radius: var(--radius-pill); color: var(--paper); font-size: var(--t-xs); font-weight: 650; }
   .preview-pick { margin-left: auto; }
+  /* Room around each label: the shared Segmented is sized for tighter spots. */
+  .preview-pick :global(.seg button) { flex: 1 0 auto; padding: 0 16px; }
   .crumb h1 {
     font-size: var(--t-xl);
     font-weight: 750;
