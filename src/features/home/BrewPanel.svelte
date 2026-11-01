@@ -83,6 +83,21 @@
 
   // Last shot with this profile and bag: look at it, and optionally take its settings.
   let showingLast = $state(false);
+  // The button only shows when there is such a shot. Asked once per profile + bag
+  // (and again after a pull), a moment after the bag settles.
+  let hasLast = $state(false);
+  $effect(() => {
+    const title = record?.profile.title;
+    const id = batch?.id;
+    void app.shotsFinished;
+    hasLast = false;
+    if (!title || !id) return;
+    let live = true;
+    const t = setTimeout(() => {
+      app.lastShotIdWith(title, id).then((s) => { if (live) hasLast = s !== null; }, () => {});
+    }, 300);
+    return () => { live = false; clearTimeout(t); };
+  });
   function useLastShot(d: DialIn) {
     const g = d.grind !== undefined ? Number.parseFloat(d.grind) : NaN;
     if (Number.isFinite(g)) grind = g;
@@ -240,7 +255,7 @@
   <section class="dial" aria-label="Dial-in">
     <div class="source-row">
       <p class="source">{source === 'shot' ? 'From the shot you picked' : SOURCE_TEXT[source]}</p>
-      {#if batch && record}<button class="last glass" onclick={() => (showingLast = true)}>Last shot</button>{/if}
+      {#if batch && record && hasLast}<button class="last glass" onclick={() => (showingLast = true)}>Last shot</button>{/if}
     </div>
     {#if source === 'shot' && initial?.note}<p class="source note">{initial.note}</p>{/if}
     <div class="grid">
