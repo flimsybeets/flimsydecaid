@@ -6,12 +6,15 @@ export const THEME_KEY = 'theme';
 export interface ThemeOptions {
   /** Ghosts instead of the clock on the screensaver. */
   halloween: boolean;
+  /** The big clock on the screensaver (on unless turned off). */
+  clock: boolean;
 }
 
-export const DEFAULT_THEME: ThemeOptions = { halloween: false };
+export const DEFAULT_THEME: ThemeOptions = { halloween: false, clock: true };
 
-/** A stored value → options; a missing or odd value means everything off. */
+/** A stored value → options; a missing or odd value means the defaults (Halloween off, clock on). */
 export function parseTheme(raw: unknown): ThemeOptions {
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return { ...DEFAULT_THEME };
-  return { halloween: (raw as { halloween?: unknown }).halloween === true };
+  const r = raw as { halloween?: unknown; clock?: unknown };
+  return { halloween: r.halloween === true, clock: r.clock !== false };
 }

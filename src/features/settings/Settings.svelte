@@ -139,7 +139,7 @@
 
   <section class="glass">
     <h2>Screensaver</h2>
-    <p>Shown while the machine is asleep, with a clock floating over it. Tap it to wake the machine.</p>
+    <p>Shown while the machine is asleep{app.screensaverClock ? ', with a big clock over it' : ''}. Tap it to wake the machine.</p>
     {#if app.screensaverImage}
       <img class="saver-preview" src={app.screensaverImage} alt="Your screensaver" />
     {/if}
@@ -151,6 +151,11 @@
         <button class="button glass" disabled={saverBusy !== null} onclick={() => (app.screensaverPreview = true)}>Preview</button>
         <button class="button glass" disabled={saverBusy !== null} onclick={removeSaver}>{saverBusy === 'removing' ? 'Removing…' : 'Remove'}</button>
       {/if}
+    </div>
+    <div class="row">
+      <button class="button glass toggle" class:lit={app.screensaverClock} role="switch" aria-checked={app.screensaverClock} onclick={() => app.setScreensaverClock(!app.screensaverClock)}>
+        Show the clock <b>{app.screensaverClock ? 'On' : 'Off'}</b>
+      </button>
     </div>
     {#if !app.screensaverImage}<p class="small">Until you choose one, the screen turns off when the machine sleeps, as usual.</p>{/if}
     {#if saverError}<p class="error" role="alert">{saverError}</p>{/if}
