@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { toneOverlay } from './lib/background';
   import { app, type Tab } from './state/app.svelte';
   import BottomBar from './components/BottomBar.svelte';
   import SteamModal from './components/SteamModal.svelte';
@@ -79,6 +80,12 @@
   });
 </script>
 
+{#if app.appBackground}
+  <div class="app-bg" aria-hidden="true" style="background-image: url({app.appBackground})">
+    <div class="tone" style="background: {toneOverlay(app.bgTone)}"></div>
+  </div>
+{/if}
+
 <div class="shell" class:covered inert={covered}>
   <header>
     <nav class="glass" aria-label="Sections">
@@ -152,6 +159,10 @@
 {/if}
 
 <style>
+  /* Optional photo behind everything (Settings → Theme options), with the
+     darken/lighten layer over it. Fixed and static, so it costs nothing per frame. */
+  .app-bg { position: fixed; inset: 0; z-index: -1; background-size: cover; background-position: center; pointer-events: none; }
+  .tone { position: absolute; inset: 0; }
   /* Under a full-screen view: hidden, and nothing under it animates (Home's guide tile spins forever). */
   .shell.covered { visibility: hidden; }
   .shell.covered, .shell.covered :global(*) { animation: none !important; transition: none !important; }

@@ -5,6 +5,7 @@
   import { REFILL_MAX_MM, REFILL_MIN_MM } from '../../lib/water';
   import { credentialsPatch } from '../../lib/visualizer';
   import type { SkinUpdateResult } from '../../lib/skinUpdate';
+  import { toneLabel } from '../../lib/background';
 
   const gw = resolveGateway();
   const version = __APP_VERSION__;
@@ -43,6 +44,29 @@
     } finally {
       saverBusy = null;
     }
+  }
+
+  // App background: same picking and shrinking as the screensaver photo.
+  let bgPicker: HTMLInputElement;
+  let bgBusy = $state<'saving' | 'removing' | null>(null);
+  let bgError = $state<string | null>(null);
+  async function onPickBg(e: Event) {
+    const input = e.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    bgBusy = 'saving';
+    bgError = null;
+    try { await app.setAppBackground(file); }
+    catch (err) { bgError = `Couldn't use that image: ${(err as Error).message}`; }
+    finally { bgBusy = null; }
+  }
+  async function removeBg() {
+    bgBusy = 'removing';
+    bgError = null;
+    try { await app.removeAppBackground(); }
+    catch (err) { bgError = `Couldn't remove it: ${(err as Error).message}`; }
+    finally { bgBusy = null; }
   }
 
   // Visualizer, through Decaid's bundled plugin. The stored password is never
@@ -177,6 +201,28 @@
       <button class="button glass" disabled={!app.screensaverImage} onclick={() => (app.screensaverPreview = true)}>Preview</button>
     </div>
     <p class="small">Ghosts drift over your screensaver photo instead of the clock.{app.screensaverImage ? '' : ' Choose a screensaver image first.'}</p>
+
+    <h3>App background</h3>
+    <p class="small">A photo behind the whole skin. Darken or lighten it so everything stays easy to read.</p>
+    <div class="row">
+      <button class="button glass solid" disabled={bgBusy !== null} onclick={() => bgPicker.click()}>
+        {bgBusy === 'saving' ? 'Saving…' : app.appBackground ? 'Choose another image' : 'Choose an image'}
+      </button>
+      {#if app.appBackground}
+        <button class="button glass" disabled={bgBusy !== null} onclick={removeBg}>{bgBusy === 'removing' ? 'Removing…' : 'Remove'}</button>
+      {/if}
+    </div>
+    {#if app.appBackground}
+      <label class="slider">
+        <span class="slider-head">Darken or lighten <b>{toneLabel(app.bgTone)}</b></span>
+        <input type="range" min="-100" max="100" step="1" value={app.bgTone}
+          oninput={(e) => app.setBgTone(Number(e.currentTarget.value))} />
+        <span class="ends small"><span>Darker</span><span>Lighter</span></span>
+        {#if app.bgTone > 30}<span class="small">The skin's text is light, so a lot of lightening makes it harder to read.</span>{/if}
+      </label>
+    {/if}
+    {#if bgError}<p class="error" role="alert">{bgError}</p>{/if}
+    <input bind:this={bgPicker} class="sr-only" type="file" accept="image/*" onchange={onPickBg} tabindex="-1" aria-hidden="true" />
   </section>
 
   <section class="glass">
@@ -258,6 +304,8 @@
   .saver-preview { width: 100%; max-width: 270px; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 16px; box-shadow: var(--glass-shadow); }
   .small { font-size: var(--t-xs); }
   .slider { display: grid; gap: 6px; margin-top: 4px; }
+  h3 { font-size: var(--t-md); font-weight: 700; margin-top: 10px; }
+  .ends { display: flex; justify-content: space-between; margin-top: -6px; }
   .slider-head { display: flex; justify-content: space-between; font-weight: 600; }
   .slider-head b { font-variant-numeric: tabular-nums; }
   .slider input { width: 100%; min-height: var(--touch); accent-color: var(--paper); }
