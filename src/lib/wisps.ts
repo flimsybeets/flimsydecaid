@@ -1,22 +1,30 @@
-// Steam wisps for the screensaver's sleep / wake transition: a deterministic
-// layout (no Math.random, so frames are reproducible and tests stable).
+// Steam / fog puffs for the screensaver's sleep / wake transition: a
+// deterministic layout (no Math.random, so frames are reproducible and tests
+// stable). Each puff is one big soft radial-gradient ellipse.
 
 export type WispMode = 'rise' | 'clear';
 
-export interface Wisp {
+export interface Puff {
   /** Centre, % of the width. */
   x: number;
+  /** Starting centre, % of the height (below 100 = off the bottom edge). */
+  y: number;
+  /** Width, % of the screen width. */
+  size: number;
+  /** Height as a fraction of the width (0.6 wide, 1.4 tall). */
+  aspect: number;
   /** Start delay in ms. */
   delay: number;
   /** Rise time in ms. */
   duration: number;
-  /** Sideways sway in % of the wisp's own width, signed (also sets the sway phase). */
-  sway: number;
-  /** Width of the ribbon, % of the screen width. */
-  width: number;
-  /** Mirror the S-curve. */
-  flip: boolean;
-  /** Peak opacity 0–1. */
+  /** Sideways drift, % of the puff's own width, signed. */
+  drift: number;
+  /** Rise, in puff heights (positive = up). */
+  rise: number;
+  /** Scale at the start and at the end. */
+  s0: number;
+  s1: number;
+  /** Peak alpha of the gradient centre, 0–1. */
   peak: number;
 }
 
@@ -32,31 +40,44 @@ export function rng(seed: number): () => number {
   };
 }
 
+const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a);
+const r1 = (n: number) => Math.round(n * 10) / 10;
+
 /**
- * `count` wisps spread across the width (one per slot, jittered inside it),
- * starting between 0 and `spread` ms apart.
+ * `count` puffs spread across the width (one per slot, jittered inside it),
+ * with uneven sizes, delays and drift. 'rise' billows up from below the
+ * bottom edge; 'clear' lifts from the middle and goes up and out.
  */
-export function wispLayout(count: number, mode: WispMode, seed = 7): Wisp[] {
+export function puffLayout(count: number, mode: WispMode, seed = 11): Puff[] {
   const r = rng(seed + (mode === 'clear' ? 101 : 0));
   const rise = mode === 'rise';
-  const spread = rise ? 400 : 250;
-  const out: Wisp[] = [];
+  const out: Puff[] = [];
+  let step = Math.max(1, Math.round(count * 0.38));
+  while (gcd(step, count) !== 1) step++;
   for (let i = 0; i < count; i++) {
     const slot = 100 / count;
+    // Visit slots in a scrambled order so neighbours don't start together.
+    const s = (i * step) % count;
+    const size = 26 + r() * 34;
+    const duration = Math.round((rise ? 950 : 900) + r() * (rise ? 450 : 400));
     out.push({
-      x: Math.round((slot * (i + 0.15 + r() * 0.7)) * 10) / 10,
-      delay: Math.round(count > 1 ? (((i * 5) % count) / (count - 1)) * spread * (0.7 + r() * 0.3) : 0),
-      duration: Math.round((rise ? 900 : 750) + r() * 200),
-      sway: Math.round((r() * 18 + 6) * (r() < 0.5 ? -1 : 1)),
-      width: Math.round((rise ? 16 : 13) + r() * 6),
-      flip: r() < 0.5,
-      peak: Math.round((0.7 + r() * 0.3) * 100) / 100,
+      x: r1(slot * (s + 0.1 + r() * 0.8)),
+      y: r1(rise ? 62 + r() * 48 : 35 + r() * 55),
+      size: r1(size),
+      aspect: r1(0.6 + r() * 0.8),
+      delay: Math.round(r() * (rise ? 380 : 260)),
+      duration,
+      drift: Math.round((r() * 40 + 8) * (r() < 0.5 ? -1 : 1)),
+      rise: r1(0.5 + r() * 0.9),
+      s0: r1(0.55 + r() * 0.25),
+      s1: r1(1.5 + r() * 0.5),
+      peak: Math.round((rise ? 0.14 + r() * 0.14 : 0.2 + r() * 0.1) * 100) / 100,
     });
   }
   return out;
 }
 
-/** When the last wisp is done, ms. */
-export function wispsEnd(w: Wisp[]): number {
+/** When the last puff is done, ms. */
+export function wispsEnd(w: Puff[]): number {
   return w.reduce((m, x) => Math.max(m, x.delay + x.duration), 0);
 }

@@ -203,7 +203,7 @@
     return days <= 0 ? 'Roasted today' : days === 1 ? 'Roasted yesterday' : `Roasted ${days} days ago`;
   }
 
-  $effect(() => { for (const b of bags) void app.loadPhoto(b.batch.id); });
+  $effect(() => { for (const b of bags) void app.loadBeanPhoto(b.batch.beanId); });
 
   // Weighing beans: the scale's reading against the dose (green within 0.1 g).
   const weigh = $derived(app.scaleConnected && !app.shotActive ? doseCheck(app.weight, dose) : null);
@@ -234,9 +234,9 @@
     {:else}
       <div class="bag-list" role="radiogroup" aria-label="Bag">
         {#each bags as { batch: b, bean } (b.id)}
-          <button class="bag glass" style:--bag={app.bagColours[b.id] ?? undefined} class:coloured={!!app.bagColours[b.id]} class:lit={b.id === batchId} class:selected={b.id === batchId} role="radio" aria-checked={b.id === batchId} onclick={() => (batchId = b.id)}>
-            {#if app.photos[b.id]}
-              <img src={app.photos[b.id]} alt="" />
+          <button class="bag glass" style:--bag={app.colourOfBag(b.id) ?? undefined} class:coloured={!!app.colourOfBag(b.id)} class:lit={b.id === batchId} class:selected={b.id === batchId} role="radio" aria-checked={b.id === batchId} onclick={() => (batchId = b.id)}>
+            {#if app.beanPhotos[b.beanId]}
+              <img src={app.beanPhotos[b.beanId]} alt="" />
             {:else}
               <span class="swatch" aria-hidden="true">{bean?.name.slice(0, 1) ?? '?'}</span>
             {/if}

@@ -14,8 +14,8 @@
 // Colours live in the KV store as one document { [batchId]: '#rrggbb' | null }
 // (null = computed, nothing vivid in the photo).
 
-/** v2: the first picker's colours were poor, so they are recomputed under a new key. */
-export const BAG_COLOURS_KEY = 'bagColours2';
+/** Colours are per coffee (from the coffee's photo), by bean id. */
+export const COFFEE_COLOURS_KEY = 'coffeeColours';
 export type BagColours = Record<string, string | null>;
 
 export function parseBagColours(raw: unknown): BagColours {

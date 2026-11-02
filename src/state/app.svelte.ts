@@ -20,7 +20,7 @@ import { applyDecrement, applyGiveback, doseOf, shouldDecrement } from '../lib/b
 import { withDialIn, type DialIn } from '../lib/dialIn';
 import { shotStats } from '../lib/history';
 import { beanPhotoKey, photoKey, toJpegDataUrl, vividColourOfDataUrl } from '../lib/photo';
-import { BAG_COLOURS_KEY, parseBagColours, type BagColours } from '../lib/bagColour';
+import { COFFEE_COLOURS_KEY, parseBagColours, type BagColours } from '../lib/bagColour';
 import { parseTheme, THEME_KEY, type PanelTint } from '../lib/theme';
 import { clampDim, dimTarget, fitDataUrl, parseDim, SCREENSAVER_BRIGHTNESS, SCREENSAVER_DIM_KEY, SCREENSAVER_KEY } from '../lib/screensaver';
 import { clampRefill, waterState } from '../lib/water';
@@ -89,8 +89,8 @@ class AppState {
   homeReset = $state(0);
   /** Profile lineage root → the bag its brew panel starts on (Set as default). */
   defaultBags = $state<DefaultBags>({});
-  /** Bag colours from their photos (KV bagColours); null = computed, nothing vivid. */
-  bagColours = $state<BagColours>({});
+  /** Coffee colours from their photos, by bean id (KV coffeeColours); null = computed or picked: no colour. */
+  coffeeColours = $state<BagColours>({});
   /** Starting point for a new profile (Duplicate on Profiles); null = blank. */
   editSeed = $state<Profile | null>(null);
 
@@ -153,7 +153,7 @@ class AppState {
 
   async reload(): Promise<void> {
     try {
-      const [profiles, workflow, categories, beans, batches, guide, defaultBags, bagColours] = await Promise.all([
+      const [profiles, workflow, categories, beans, batches, guide, defaultBags, coffeeColours] = await Promise.all([
         gateway.getProfiles(),
         gateway.getWorkflow(),
         gateway.storeGet(CATEGORIES_KEY),
@@ -161,11 +161,11 @@ class AppState {
         gateway.getBatches(),
         gateway.storeGet(GUIDE_KEY).catch(() => null),
         gateway.storeGet(DEFAULT_BAGS_KEY).catch(() => null),
-        gateway.storeGet(BAG_COLOURS_KEY).catch(() => null),
+        gateway.storeGet(COFFEE_COLOURS_KEY).catch(() => null),
       ]);
       this.guide = parseGuideSetup(guide);
       this.defaultBags = parseDefaultBags(defaultBags);
-      this.bagColours = parseBagColours(bagColours);
+      this.coffeeColours = parseBagColours(coffeeColours);
       this.profiles = profiles;
       this.workflow = workflow;
       this.categories = parseCategories(categories);
@@ -266,73 +266,79 @@ class AppState {
     this.batches = this.batches.map((b) => (b.id === updated.id ? updated : b));
   }
 
-  /** Bag photos by batch id, loaded on demand from the key-value store. */
-  photos = $state<Record<string, string | null>>({});
-
-  async loadPhoto(batchId: string): Promise<void> {
-    if (batchId in this.photos) return;
-    this.photos[batchId] = null;
-    const url = await gateway.storeGet<string>(photoKey(batchId)).catch(() => null);
-    this.photos[batchId] = typeof url === 'string' && url.startsWith('data:image/') ? url : null;
-    // Backfill: a photo with no colour entry yet gets one (null entries are already answered).
-    if (this.photos[batchId] && !(batchId in this.bagColours)) void this.computeBagColour(batchId, this.photos[batchId]!);
-  }
-
-  /** Save a bag photo. Its colour is worked out from it, unless `colour` is given (picked by hand; null = no colour). */
-  async savePhoto(batchId: string, dataUrl: string, colour?: string | null): Promise<void> {
-    await gateway.storeSet(photoKey(batchId), dataUrl);
-    this.photos[batchId] = dataUrl;
-    if (colour !== undefined) this.setBagColour(batchId, colour);
-    else void this.computeBagColour(batchId, dataUrl);
-  }
-
-  /** Set a bag's colour by hand (Edit bag); null = no colour. Saved with the same batching as computed ones. */
-  setBagColour(batchId: string, colour: string | null): void {
-    this.bagColours = { ...this.bagColours, [batchId]: colour };
-    this.pendingColours[batchId] = colour;
-    clearTimeout(this.colourTimer);
-    this.colourTimer = setTimeout(() => void this.flushBagColours(), 600);
-  }
-
-  private pendingColours: BagColours = {};
-  private colourTimer: ReturnType<typeof setTimeout> | undefined;
-
-  /** Work out a bag's colour from its photo and save it, batched (one write per burst, merged with what's stored). */
-  private async computeBagColour(batchId: string, dataUrl: string): Promise<void> {
-    const colour = await vividColourOfDataUrl(dataUrl);
-    if (!this.batches.some((b) => b.id === batchId) || this.photos[batchId] !== dataUrl) return;
-    this.setBagColour(batchId, colour);
-  }
-
-  private async flushBagColours(): Promise<void> {
-    const pending = this.pendingColours;
-    this.pendingColours = {};
-    try {
-      const stored = parseBagColours(await gateway.storeGet(BAG_COLOURS_KEY).catch(() => null));
-      const next = { ...stored, ...pending };
-      for (const [id, v] of Object.entries(pending)) if (v === undefined) delete next[id];
-      await gateway.storeSet(BAG_COLOURS_KEY, next);
-    } catch { /* recomputed next time the photo loads */ }
+  /** A bag's colour: its coffee's (bags have no photo of their own). */
+  colourOfBag(batchId: string): string | null {
+    const bag = this.batches.find((b) => b.id === batchId);
+    return bag ? (this.coffeeColours[bag.beanId] ?? null) : null;
   }
 
   /** Coffee photos by bean id (KV beanPhoto:<id>), loaded on demand. */
   beanPhotos = $state<Record<string, string | null>>({});
 
+  /** Load a coffee's photo. A coffee without one takes over the newest photo of its bags
+   *  (bags used to have their own photos), saved as the coffee's. Then its colour is
+   *  worked out if it hasn't been yet. */
   async loadBeanPhoto(beanId: string): Promise<void> {
     if (beanId in this.beanPhotos) return;
     this.beanPhotos[beanId] = null;
-    const url = await gateway.storeGet<string>(beanPhotoKey(beanId)).catch(() => null);
-    this.beanPhotos[beanId] = typeof url === 'string' && url.startsWith('data:image/') ? url : null;
+    let url = await gateway.storeGet<string>(beanPhotoKey(beanId)).catch(() => null);
+    if (!(typeof url === 'string' && url.startsWith('data:image/'))) {
+      url = null;
+      const bags = this.batches.filter((b) => b.beanId === beanId).sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''));
+      for (const b of bags) {
+        const old = await gateway.storeGet<string>(photoKey(b.id)).catch(() => null);
+        if (typeof old === 'string' && old.startsWith('data:image/')) {
+          url = old;
+          void gateway.storeSet(beanPhotoKey(beanId), old).catch(() => {});
+          break;
+        }
+      }
+    }
+    this.beanPhotos[beanId] = url;
+    if (url && !(beanId in this.coffeeColours)) void this.computeCoffeeColour(beanId, url);
   }
 
-  async saveBeanPhoto(beanId: string, dataUrl: string): Promise<void> {
+  /** Save a coffee photo. Its colour is worked out from it, unless `colour` is given (picked by hand; null = no colour). */
+  async saveBeanPhoto(beanId: string, dataUrl: string, colour?: string | null): Promise<void> {
     await gateway.storeSet(beanPhotoKey(beanId), dataUrl);
     this.beanPhotos[beanId] = dataUrl;
+    if (colour !== undefined) this.setCoffeeColour(beanId, colour);
+    else void this.computeCoffeeColour(beanId, dataUrl);
   }
 
   async removeBeanPhoto(beanId: string): Promise<void> {
     await gateway.storeDelete(beanPhotoKey(beanId));
+    // Old bag photos would be taken over again on the next load, so they go too.
+    for (const b of this.batches.filter((x) => x.beanId === beanId)) void gateway.storeDelete(photoKey(b.id)).catch(() => {});
     this.beanPhotos[beanId] = null;
+    this.setCoffeeColour(beanId, null);
+  }
+
+  /** Set a coffee's colour by hand (Edit coffee); null = no colour. Batched like computed ones. */
+  setCoffeeColour(beanId: string, colour: string | null): void {
+    this.coffeeColours = { ...this.coffeeColours, [beanId]: colour };
+    this.pendingColours[beanId] = colour;
+    clearTimeout(this.colourTimer);
+    this.colourTimer = setTimeout(() => void this.flushColours(), 600);
+  }
+
+  private pendingColours: BagColours = {};
+  private colourTimer: ReturnType<typeof setTimeout> | undefined;
+
+  private async computeCoffeeColour(beanId: string, dataUrl: string): Promise<void> {
+    const colour = await vividColourOfDataUrl(dataUrl);
+    if (this.beanPhotos[beanId] !== dataUrl) return;
+    this.setCoffeeColour(beanId, colour);
+  }
+
+  /** One write per burst, merged with a fresh read so another tablet's colours survive. */
+  private async flushColours(): Promise<void> {
+    const pending = this.pendingColours;
+    this.pendingColours = {};
+    try {
+      const stored = parseBagColours(await gateway.storeGet(COFFEE_COLOURS_KEY).catch(() => null));
+      await gateway.storeSet(COFFEE_COLOURS_KEY, { ...stored, ...pending });
+    } catch { /* recomputed next time the photo loads */ }
   }
 
   /** Add a bag of an existing bean (pass its id) or of a new one (pass roaster + name). */
@@ -369,19 +375,6 @@ class AppState {
     await gateway.deleteBatch(batchId);
     this.batches = this.batches.filter((b) => b.id !== batchId);
     void gateway.storeDelete(photoKey(batchId)).catch(() => {});
-    delete this.photos[batchId];
-    if (batchId in this.bagColours) {
-      const { [batchId]: _gone, ...rest } = this.bagColours;
-      this.bagColours = rest;
-      delete this.pendingColours[batchId];
-      void (async () => {
-        try {
-          const stored = parseBagColours(await gateway.storeGet(BAG_COLOURS_KEY));
-          delete stored[batchId];
-          await gateway.storeSet(BAG_COLOURS_KEY, stored);
-        } catch { /* a stale entry is harmless */ }
-      })();
-    }
   }
 
   async updateBean(beanId: string, patch: Partial<Bean>): Promise<void> {
