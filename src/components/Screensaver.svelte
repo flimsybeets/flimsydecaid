@@ -2,6 +2,7 @@
   import { app } from '../state/app.svelte';
   import { clockText } from '../lib/screensaver';
   import { GHOSTS, ghostPose } from '../lib/ghostPath';
+  import SteamWisps from './SteamWisps.svelte';
 
   // Full-screen photo with a big, fixed clock over it, or (Halloween theme)
   // a few ghosts drifting in and out. Tapping wakes the machine (or, in a
@@ -72,38 +73,71 @@
   });
 
   // Decaid lets the screen turn off while the machine sleeps; hold it on
-  // while the screensaver is up and hand control back when it goes.
+  // while the screensaver is up and hand control back when it goes. Waking
+  // plays a ~1 s outro; the screen is handed back when it starts, not after.
+  let released = false;
+  function release() {
+    if (released) return;
+    released = true;
+    if (!preview) void app.keepScreenOn(false);
+    void app.dimScreen(false);
+  }
   $effect(() => {
     if (preview) return;
     void app.keepScreenOn(true);
-    return () => void app.keepScreenOn(false);
+    return release;
   });
 
   // Dim while showing (the preview too, so it looks like the real thing),
   // and restore the previous brightness on close.
   $effect(() => {
     void app.dimScreen(true);
-    return () => void app.dimScreen(false);
+    return release;
   });
+
+  // Waking: the photo layer lifts a little and fades out ("clears like steam
+  // off a mirror") while wisps rise from it (see App). Svelte keeps the component
+  // mounted until this outro ends. Transform and opacity only.
+  // The clearing wisps are drawn by App (this component's reactivity is gone
+  // once it starts leaving), so all this does is hand the screen back and fade.
+  let leaving = false;
+  function wake(node: Element) {
+    leaving = true;
+    (node.parentElement as HTMLElement | null)?.style.setProperty('pointer-events', 'none');
+    release();
+    return {
+      duration: reduced ? 200 : 1000,
+      easing: (t: number) => t * t * (3 - 2 * t),
+      css: (t: number, u: number) => (reduced ? `opacity:${t}` : `opacity:${t};transform:translate3d(0,${-4 * u}%,0)`),
+    };
+  }
+  function tap() {
+    if (!leaving) onDismiss();
+  }
 </script>
 
-<button class="saver" onclick={onDismiss} aria-label={preview ? 'Close preview' : 'Wake the machine'}>
-  {#if image}<img src={image} alt="" decoding="async" />{/if}
-  {#if app.halloween}
-    {#if defs}
-      <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>{@html defs}</defs></svg>
-      <span class="ghosts" aria-hidden="true">
-        {#each GHOSTS as g, i}
-          <span class="ghost" bind:this={boxes[i]} style="left:{g.left}%;top:{g.top}%;width:{g.size}px;height:{g.size / aspect}px">
-            <svg viewBox="0 0 {aspect * 100} 100"><use bind:this={uses[i]} href="#gf0" width={aspect * 100} height="100" /></svg>
-          </span>
-        {/each}
-      </span>
+<button class="saver" onclick={tap} aria-label={preview ? 'Close preview' : 'Wake the machine'}>
+  <div class="photo" out:wake|global>
+    <div class="veil">
+      {#if image}<img src={image} alt="" decoding="async" />{/if}
+    </div>
+    {#if app.halloween}
+      {#if defs}
+        <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>{@html defs}</defs></svg>
+        <span class="ghosts" aria-hidden="true">
+          {#each GHOSTS as g, i}
+            <span class="ghost" bind:this={boxes[i]} style="left:{g.left}%;top:{g.top}%;width:{g.size}px;height:{g.size / aspect}px">
+              <svg viewBox="0 0 {aspect * 100} 100"><use bind:this={uses[i]} href="#gf0" width={aspect * 100} height="100" /></svg>
+            </span>
+          {/each}
+        </span>
+      {/if}
+    {:else if app.screensaverClock}
+      <span class="clock" aria-hidden="true">{time}</span>
     {/if}
-  {:else if app.screensaverClock}
-    <span class="clock" aria-hidden="true">{time}</span>
-  {/if}
-  {#if preview}<span class="hint">Preview. Tap to close.</span>{/if}
+    {#if preview}<span class="hint">Preview. Tap to close.</span>{/if}
+  </div>
+  <SteamWisps mode="rise" />
 </button>
 
 <style>
@@ -114,9 +148,16 @@
     display: grid;
     place-items: center;
     overflow: hidden;
-    background: #000;
     cursor: default;
-    animation: fade 600ms ease;
+  }
+  /* Waking animates this layer (see wake()); the root stays clear so the wisps are not faded with it. */
+  .photo { position: absolute; inset: 0; display: grid; place-items: center; will-change: transform, opacity; }
+  /* Sleeping: the photo fades in under the steam (200 to 1000 ms) with a slight settle; the clock or ghosts come last. */
+  .veil {
+    position: absolute;
+    inset: 0;
+    background: #000;
+    animation: veil-in 800ms ease-out 200ms both;
   }
   img {
     position: absolute;
@@ -124,7 +165,9 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+    animation: settle 800ms ease-out 200ms both;
   }
+  .clock, .ghosts, .hint { animation: late-in 500ms ease-out 800ms both; }
 
   /* Centred and fixed: about 65% of the screen width for "12:34". */
   .clock {
@@ -151,7 +194,7 @@
     position: absolute;
     bottom: 21px;
     left: 50%;
-    transform: translateX(-50%);
+    translate: -50% 0;
     padding: 9px 16px;
     border-radius: var(--radius-pill);
     background: rgb(0 0 0 / 0.4);
@@ -159,10 +202,14 @@
     font-size: var(--t-sm);
   }
 
-  @keyframes fade { from { opacity: 0; } }
+  @keyframes veil-in { from { opacity: 0; } }
+  @keyframes settle { from { transform: scale(1.04); } }
+  @keyframes late-in { from { opacity: 0; } }
 
   /* No loop under reduced motion: still, front-facing, faint ghosts at their home spots. */
   @media (prefers-reduced-motion: reduce) {
     .ghost { opacity: 0.35; }
+    .veil { animation: veil-in 200ms ease-out both; }
+    img, .clock, .ghosts, .hint { animation: none; }
   }
 </style>

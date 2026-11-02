@@ -36,8 +36,8 @@ const MIN_SHARE = 0.015;
 const FULL_SHARE = 0.3;
 /** A patch is grey, black or white (not a colour) below this chroma, or when its
  *  chroma is under this share of its brightness (so dark muted greens count). */
-const MIN_CHROMA = 0.05;
-const MIN_HSV_SAT = 0.15;
+const MIN_CHROMA = 0.045;
+const MIN_HSV_SAT = 0.11;
 
 function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
   r /= 255; g /= 255; b /= 255;
