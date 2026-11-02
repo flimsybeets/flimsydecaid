@@ -1,22 +1,35 @@
 import { describe, expect, it } from 'vitest';
-import { wispLayout, wispsEnd } from '../src/lib/wisps';
+import { puffLayout, wispsEnd } from '../src/lib/wisps';
 
-describe('wispLayout', () => {
-  it('is deterministic and spread across the width', () => {
-    const a = wispLayout(6, 'rise');
-    expect(wispLayout(6, 'rise')).toEqual(a);
-    expect(a).toHaveLength(6);
-    const xs = a.map((w) => w.x);
-    expect([...xs].sort((p, q) => p - q)).toEqual(xs);
-    expect(xs[0]).toBeLessThan(25);
-    expect(xs[5]).toBeGreaterThan(75);
+describe('puffLayout', () => {
+  it('is deterministic and covers the width', () => {
+    const a = puffLayout(15, 'rise');
+    expect(puffLayout(15, 'rise')).toEqual(a);
+    expect(a).toHaveLength(15);
+    const xs = a.map((p) => p.x);
+    expect(Math.min(...xs)).toBeLessThan(20);
+    expect(Math.max(...xs)).toBeGreaterThan(80);
   });
-  it('staggers starts within 0-400 ms and ends inside the sleep animation', () => {
-    const a = wispLayout(6, 'rise');
-    for (const w of a) { expect(w.delay).toBeGreaterThanOrEqual(0); expect(w.delay).toBeLessThanOrEqual(400); }
-    expect(wispsEnd(a)).toBeLessThanOrEqual(1500);
+  it('makes big, soft, varied puffs', () => {
+    for (const mode of ['rise', 'clear'] as const) {
+      const a = puffLayout(14, mode);
+      for (const p of a) {
+        expect(p.size).toBeGreaterThanOrEqual(25);
+        expect(p.size).toBeLessThanOrEqual(60);
+        expect(p.peak).toBeGreaterThanOrEqual(0.12);
+        expect(p.peak).toBeLessThanOrEqual(0.28);
+        expect(p.s1).toBeGreaterThanOrEqual(p.s0 + 0.8);
+        expect(p.duration).toBeGreaterThanOrEqual(900);
+      }
+      expect(new Set(a.map((p) => p.duration)).size).toBeGreaterThan(5);
+      expect(new Set(a.map((p) => p.delay)).size).toBeGreaterThan(5);
+    }
+  });
+  it('ends inside the sleep animation', () => {
+    expect(wispsEnd(puffLayout(15, 'rise'))).toBeLessThanOrEqual(1650);
+    expect(wispsEnd(puffLayout(12, 'clear'))).toBeLessThanOrEqual(1400);
   });
   it('differs between modes', () => {
-    expect(wispLayout(4, 'clear')).not.toEqual(wispLayout(4, 'rise'));
+    expect(puffLayout(4, 'clear')).not.toEqual(puffLayout(4, 'rise'));
   });
 });
