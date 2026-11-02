@@ -118,7 +118,7 @@
 
   ul { list-style: none; margin: 0; padding: 0; }
   .beans { display: grid; grid-template-columns: repeat(auto-fill, minmax(315px, 1fr)); gap: 12px; }
-  .bean { border-radius: 24px; padding: 16px 18px; display: grid; gap: 10px; align-content: start; }
+  .bean { border-radius: 24px; padding: 16px 18px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-content: start; }
   .bean-head { display: flex; gap: 12px; align-items: flex-start; }
   .bean-title { flex: 1 1 0; min-width: 0; }
   .bean-photo { flex: none; width: 84px; height: 84px; border-radius: 18px; object-fit: cover; box-shadow: 0 4px 12px rgb(0 0 0 / 0.35), inset 0 0 0 1px rgb(255 255 255 / 0.12); }
@@ -126,7 +126,7 @@
   .bean-head h2 { font-size: var(--t-lg); font-weight: 700; letter-spacing: -0.01em; }
   .bean-head p { color: var(--paper-dim); }
   .notes { font-size: var(--t-xs); margin-top: 3px; }
-  .bags { display: grid; gap: 6px; }
+  .bags { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
   .bag { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 10px; border-radius: 18px; position: relative; }
   .bag.finished { opacity: 0.55; }
   /* The bag's colour from its photo: a soft tint and edge on the card, and a frame round the picture. */
@@ -135,7 +135,7 @@
   .bag.coloured .bag-photo { border-color: color-mix(in srgb, var(--bag) 70%, transparent); box-shadow: 0 4px 14px rgb(0 0 0 / 0.4), 0 0 16px color-mix(in srgb, var(--bag) 35%, transparent); }
   .bag-info { flex: 1 1 100px; min-width: 0; display: grid; align-content: center; gap: 2px; }
   /* On a narrow card the buttons drop to their own row instead of spilling out. */
-  .bag-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; justify-content: flex-end; }
+  .bag-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; justify-content: flex-end; flex: 1 1 210px; }
   .sub { color: var(--paper-dim); font-size: var(--t-xs); }
   .finish { min-height: 40px; padding: 0 14px; border-radius: var(--radius-pill); color: var(--paper-dim); font-size: var(--t-xs); }
 </style>
