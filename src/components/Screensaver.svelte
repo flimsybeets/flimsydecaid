@@ -96,16 +96,19 @@
   });
 
   // Waking: the photo layer lifts a little and fades out ("clears like steam
-  // off a mirror") while wisps rise from it. Svelte keeps the component
+  // off a mirror") while wisps rise from it (see App). Svelte keeps the component
   // mounted until this outro ends. Transform and opacity only.
-  let leaving = $state(false);
-  function wake(_node: Element) {
-    queueMicrotask(() => (leaving = true));
+  // The clearing wisps are drawn by App (this component's reactivity is gone
+  // once it starts leaving), so all this does is hand the screen back and fade.
+  let leaving = false;
+  function wake(node: Element) {
+    leaving = true;
+    (node.parentElement as HTMLElement | null)?.style.setProperty('pointer-events', 'none');
     release();
     return {
       duration: reduced ? 200 : 1000,
       easing: (t: number) => t * t * (3 - 2 * t),
-      css: (t: number, u: number) => (reduced ? `opacity:${t}` : `opacity:${Math.min(1, t * 1.25)};transform:translate3d(0,${-4 * u}%,0)`),
+      css: (t: number, u: number) => (reduced ? `opacity:${t}` : `opacity:${t};transform:translate3d(0,${-4 * u}%,0)`),
     };
   }
   function tap() {
@@ -113,7 +116,7 @@
   }
 </script>
 
-<button class="saver" class:leaving onclick={tap} aria-label={preview ? 'Close preview' : 'Wake the machine'}>
+<button class="saver" onclick={tap} aria-label={preview ? 'Close preview' : 'Wake the machine'}>
   <div class="photo" out:wake|global>
     <div class="veil">
       {#if image}<img src={image} alt="" decoding="async" />{/if}
@@ -134,7 +137,7 @@
     {/if}
     {#if preview}<span class="hint">Preview. Tap to close.</span>{/if}
   </div>
-  {#if leaving}<SteamWisps mode="clear" />{:else}<SteamWisps mode="rise" />{/if}
+  <SteamWisps mode="rise" />
 </button>
 
 <style>
@@ -147,7 +150,6 @@
     overflow: hidden;
     cursor: default;
   }
-  .saver.leaving { pointer-events: none; }
   /* Waking animates this layer (see wake()); the root stays clear so the wisps are not faded with it. */
   .photo { position: absolute; inset: 0; display: grid; place-items: center; will-change: transform, opacity; }
   /* Sleeping: the photo fades in under the steam (200 to 1000 ms) with a slight settle; the clock or ghosts come last. */

@@ -41,10 +41,10 @@
               </linearGradient>
             </defs>
             <g fill="none" stroke="url(#{uid}{i})" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M50 296 C 8 244, 92 206, 50 156 S 10 66, 52 6" stroke-width="46" stroke-opacity="0.10" />
-              <path d="M50 296 C 8 244, 92 206, 50 156 S 10 66, 52 6" stroke-width="30" stroke-opacity="0.14" />
-              <path d="M50 292 C 14 242, 88 208, 50 158 S 14 70, 50 10" stroke-width="18" stroke-opacity="0.18" />
-              <path d="M52 290 C 22 244, 84 210, 52 160 S 20 76, 50 14" stroke-width="7" stroke-opacity="0.22" />
+              <path d="M50 296 C 8 244, 92 206, 50 156 S 10 66, 52 6" stroke-width="46" stroke-opacity="0.15" />
+              <path d="M50 296 C 8 244, 92 206, 50 156 S 10 66, 52 6" stroke-width="30" stroke-opacity="0.2" />
+              <path d="M50 292 C 14 242, 88 208, 50 158 S 14 70, 50 10" stroke-width="18" stroke-opacity="0.26" />
+              <path d="M52 290 C 22 244, 84 210, 52 160 S 20 76, 50 14" stroke-width="7" stroke-opacity="0.3" />
             </g>
           </svg>
         </div>
@@ -64,7 +64,7 @@
     will-change: transform, opacity;
     animation: rise var(--t) cubic-bezier(0.3, 0.1, 0.4, 1) var(--d) both;
   }
-  .clear .wisp { bottom: -45%; animation-name: clear; }
+  .clear .wisp { bottom: -40%; animation-name: clear; }
   .sway {
     width: 100%;
     height: 100%;

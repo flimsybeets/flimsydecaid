@@ -5,6 +5,7 @@
   import SteamModal from './components/SteamModal.svelte';
   import ShotView from './components/ShotView.svelte';
   import Screensaver from './components/Screensaver.svelte';
+  import SteamWisps from './components/SteamWisps.svelte';
   import ActivityView from './components/ActivityView.svelte';
   import { activityKind } from './lib/activity';
   import ProfileEditor from './features/profiles/ProfileEditor.svelte';
@@ -169,6 +170,10 @@
   <ActivityView kind={activity} />
 {/if}
 
+{#if waking}
+  <div class="clearing"><SteamWisps mode="clear" /></div>
+{/if}
+
 {#if app.screensaverPreview}
   <Screensaver image={app.screensaverImage} preview onDismiss={() => (app.screensaverPreview = false)} />
 {:else if saverUp}
@@ -179,6 +184,8 @@
   /* Optional photo behind everything (Settings → Theme options), with the
      darken/lighten layer over it. Fixed and static, so it costs nothing per frame. */
   .app-bg { position: fixed; inset: 0; z-index: -1; background-size: cover; background-position: center; pointer-events: none; }
+  /* Steam rising off the screensaver as it clears; above it (z 100), never catches touches. */
+  .clearing { position: fixed; inset: 0; z-index: 101; pointer-events: none; }
   .tone { position: absolute; inset: 0; }
   /* Under a full-screen view: hidden, and nothing under it animates (Home's guide tile spins forever). */
   .shell.covered { visibility: hidden; }
