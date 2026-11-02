@@ -183,7 +183,9 @@
     background: var(--tile);
     background:
       radial-gradient(120% 70% at 18% 0%, rgb(255 255 255 / 0.45), transparent 55%),
-      linear-gradient(160deg, color-mix(in srgb, var(--tile) 92%, transparent), color-mix(in srgb, var(--tile) 70%, transparent));
+      linear-gradient(160deg, color-mix(in srgb, var(--tile) 78%, transparent), color-mix(in srgb, var(--tile) 52%, transparent));
+    -webkit-backdrop-filter: var(--glass-blur-frost);
+    backdrop-filter: var(--glass-blur-frost);
     box-shadow: 0 16px 33px -16px color-mix(in srgb, var(--tile) 55%, transparent), var(--glass-shadow), inset 0 1px 0 rgb(255 255 255 / 0.6);
   }
   .tile .icon {
