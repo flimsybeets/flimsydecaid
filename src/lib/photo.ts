@@ -3,6 +3,7 @@
 // Kept out of BeanBatch.extras so listing beans stays light.
 
 import type { Rect } from './crop';
+import { vividColour } from './bagColour';
 
 export const photoKey = (batchId: string) => `photo:${batchId}`;
 
@@ -77,4 +78,22 @@ export function frameBlob(video: HTMLVideoElement): Promise<Blob> {
 /** A saved photo (data URL) back as a blob, for cropping again. */
 export async function dataUrlBlob(dataUrl: string): Promise<Blob> {
   return (await fetch(dataUrl)).blob();
+}
+
+export const beanPhotoKey = (beanId: string) => `beanPhoto:${beanId}`;
+
+/** The photo's vivid colour (lib/bagColour), found on a 48x48 copy. null when nothing is vivid or the photo can't be read. */
+export async function vividColourOfDataUrl(dataUrl: string): Promise<string | null> {
+  try {
+    const bitmap = await createImageBitmap(await dataUrlBlob(dataUrl));
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 48;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return null;
+    ctx.drawImage(bitmap, 0, 0, 48, 48);
+    bitmap.close();
+    return vividColour(ctx.getImageData(0, 0, 48, 48).data);
+  } catch {
+    return null;
+  }
 }

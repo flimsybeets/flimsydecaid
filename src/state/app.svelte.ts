@@ -19,8 +19,9 @@ import { skinUpdateResult, updateErrorText, type SkinUpdateResult } from '../lib
 import { applyDecrement, applyGiveback, doseOf, shouldDecrement } from '../lib/bagWeight';
 import { withDialIn, type DialIn } from '../lib/dialIn';
 import { shotStats } from '../lib/history';
-import { photoKey, toJpegDataUrl } from '../lib/photo';
-import { parseTheme, THEME_KEY } from '../lib/theme';
+import { beanPhotoKey, photoKey, toJpegDataUrl, vividColourOfDataUrl } from '../lib/photo';
+import { BAG_COLOURS_KEY, parseBagColours, type BagColours } from '../lib/bagColour';
+import { parseTheme, THEME_KEY, type PanelTint } from '../lib/theme';
 import { clampDim, dimTarget, fitDataUrl, parseDim, SCREENSAVER_BRIGHTNESS, SCREENSAVER_DIM_KEY, SCREENSAVER_KEY } from '../lib/screensaver';
 import { clampRefill, waterState } from '../lib/water';
 import { parseSettings, pluginState, VISUALIZER_ID, type PluginState, type VisualizerSettings } from '../lib/visualizer';
@@ -88,6 +89,8 @@ class AppState {
   homeReset = $state(0);
   /** Profile lineage root → the bag its brew panel starts on (Set as default). */
   defaultBags = $state<DefaultBags>({});
+  /** Bag colours from their photos (KV bagColours); null = computed, nothing vivid. */
+  bagColours = $state<BagColours>({});
   /** Starting point for a new profile (Duplicate on Profiles); null = blank. */
   editSeed = $state<Profile | null>(null);
 
@@ -107,6 +110,8 @@ class AppState {
   screensaverClock = $state(true);
   /** Graph on each profile tile on Home (theme.tilePreview). */
   tilePreview = $state<TilePreview>('shot');
+  /** Theme option: hue of the big glass sheets (theme.panelTint). */
+  panelTint = $state<PanelTint>('dark');
   /** Photo behind the whole app, or null for the usual colour pools. */
   appBackground = $state<string | null>(null);
   /** −100 darken … 100 lighten over that photo. */
@@ -148,7 +153,7 @@ class AppState {
 
   async reload(): Promise<void> {
     try {
-      const [profiles, workflow, categories, beans, batches, guide, defaultBags] = await Promise.all([
+      const [profiles, workflow, categories, beans, batches, guide, defaultBags, bagColours] = await Promise.all([
         gateway.getProfiles(),
         gateway.getWorkflow(),
         gateway.storeGet(CATEGORIES_KEY),
@@ -156,9 +161,11 @@ class AppState {
         gateway.getBatches(),
         gateway.storeGet(GUIDE_KEY).catch(() => null),
         gateway.storeGet(DEFAULT_BAGS_KEY).catch(() => null),
+        gateway.storeGet(BAG_COLOURS_KEY).catch(() => null),
       ]);
       this.guide = parseGuideSetup(guide);
       this.defaultBags = parseDefaultBags(defaultBags);
+      this.bagColours = parseBagColours(bagColours);
       this.profiles = profiles;
       this.workflow = workflow;
       this.categories = parseCategories(categories);
@@ -267,11 +274,58 @@ class AppState {
     this.photos[batchId] = null;
     const url = await gateway.storeGet<string>(photoKey(batchId)).catch(() => null);
     this.photos[batchId] = typeof url === 'string' && url.startsWith('data:image/') ? url : null;
+    // Backfill: a photo with no colour entry yet gets one (null entries are already answered).
+    if (this.photos[batchId] && !(batchId in this.bagColours)) void this.computeBagColour(batchId, this.photos[batchId]!);
   }
 
   async savePhoto(batchId: string, dataUrl: string): Promise<void> {
     await gateway.storeSet(photoKey(batchId), dataUrl);
     this.photos[batchId] = dataUrl;
+    void this.computeBagColour(batchId, dataUrl);
+  }
+
+  private pendingColours: BagColours = {};
+  private colourTimer: ReturnType<typeof setTimeout> | undefined;
+
+  /** Work out a bag's colour from its photo and save it, batched (one write per burst, merged with what's stored). */
+  private async computeBagColour(batchId: string, dataUrl: string): Promise<void> {
+    const colour = await vividColourOfDataUrl(dataUrl);
+    if (!this.batches.some((b) => b.id === batchId) || this.photos[batchId] !== dataUrl) return;
+    this.bagColours = { ...this.bagColours, [batchId]: colour };
+    this.pendingColours[batchId] = colour;
+    clearTimeout(this.colourTimer);
+    this.colourTimer = setTimeout(() => void this.flushBagColours(), 600);
+  }
+
+  private async flushBagColours(): Promise<void> {
+    const pending = this.pendingColours;
+    this.pendingColours = {};
+    try {
+      const stored = parseBagColours(await gateway.storeGet(BAG_COLOURS_KEY).catch(() => null));
+      const next = { ...stored, ...pending };
+      for (const [id, v] of Object.entries(pending)) if (v === undefined) delete next[id];
+      await gateway.storeSet(BAG_COLOURS_KEY, next);
+    } catch { /* recomputed next time the photo loads */ }
+  }
+
+  /** Coffee photos by bean id (KV beanPhoto:<id>), loaded on demand. */
+  beanPhotos = $state<Record<string, string | null>>({});
+
+  async loadBeanPhoto(beanId: string): Promise<void> {
+    if (beanId in this.beanPhotos) return;
+    this.beanPhotos[beanId] = null;
+    const url = await gateway.storeGet<string>(beanPhotoKey(beanId)).catch(() => null);
+    this.beanPhotos[beanId] = typeof url === 'string' && url.startsWith('data:image/') ? url : null;
+  }
+
+  async saveBeanPhoto(beanId: string, dataUrl: string): Promise<void> {
+    await gateway.storeSet(beanPhotoKey(beanId), dataUrl);
+    this.beanPhotos[beanId] = dataUrl;
+  }
+
+  async removeBeanPhoto(beanId: string): Promise<void> {
+    await gateway.storeDelete(beanPhotoKey(beanId));
+    this.beanPhotos[beanId] = null;
   }
 
   /** Add a bag of an existing bean (pass its id) or of a new one (pass roaster + name). */
@@ -309,6 +363,18 @@ class AppState {
     this.batches = this.batches.filter((b) => b.id !== batchId);
     void gateway.storeDelete(photoKey(batchId)).catch(() => {});
     delete this.photos[batchId];
+    if (batchId in this.bagColours) {
+      const { [batchId]: _gone, ...rest } = this.bagColours;
+      this.bagColours = rest;
+      delete this.pendingColours[batchId];
+      void (async () => {
+        try {
+          const stored = parseBagColours(await gateway.storeGet(BAG_COLOURS_KEY));
+          delete stored[batchId];
+          await gateway.storeSet(BAG_COLOURS_KEY, stored);
+        } catch { /* a stale entry is harmless */ }
+      })();
+    }
   }
 
   async updateBean(beanId: string, patch: Partial<Bean>): Promise<void> {
@@ -471,10 +537,16 @@ class AppState {
     this.screensaverClock = theme.clock;
     this.tilePreview = theme.tilePreview;
     this.bgTone = theme.bgTone;
+    this.panelTint = theme.panelTint;
   }
 
   async setHalloween(on: boolean): Promise<void> {
     this.halloween = on;
+    await this.saveTheme();
+  }
+
+  async setPanelTint(tint: PanelTint): Promise<void> {
+    this.panelTint = tint;
     await this.saveTheme();
   }
 
@@ -517,7 +589,7 @@ class AppState {
   }
 
   private saveTheme(): Promise<void> {
-    return gateway.storeSet(THEME_KEY, { halloween: this.halloween, clock: this.screensaverClock, tilePreview: this.tilePreview, bgTone: this.bgTone }).catch(() => {});
+    return gateway.storeSet(THEME_KEY, { halloween: this.halloween, clock: this.screensaverClock, tilePreview: this.tilePreview, bgTone: this.bgTone, panelTint: this.panelTint }).catch(() => {});
   }
 
   private dimSaveTimer: ReturnType<typeof setTimeout> | null = null;
