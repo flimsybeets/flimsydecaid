@@ -71,7 +71,7 @@ export function puffLayout(count: number, mode: WispMode, seed = 11): Puff[] {
       rise: r1(0.5 + r() * 0.9),
       s0: r1(0.55 + r() * 0.25),
       s1: r1(1.5 + r() * 0.5),
-      peak: Math.round((0.12 + r() * 0.16) * 100) / 100,
+      peak: Math.round((rise ? 0.14 + r() * 0.14 : 0.2 + r() * 0.1) * 100) / 100,
     });
   }
   return out;

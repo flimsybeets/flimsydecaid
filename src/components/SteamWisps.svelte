@@ -13,7 +13,7 @@
   // Capture once: the mode never changes while mounted.
   // svelte-ignore state_referenced_locally
   const m = mode;
-  const puffs = reduced ? [] : puffLayout(m === 'rise' ? 15 : 12, m);
+  const puffs = reduced ? [] : puffLayout(m === 'rise' ? 15 : 14, m);
   let done = $state(reduced);
   $effect(() => {
     if (done) return;
@@ -62,7 +62,7 @@
   }
   @keyframes puff-clear {
     0% { opacity: 0; transform: translate3d(-50%, -50%, 0) scale(var(--s0)); }
-    22% { opacity: 1; }
+    16% { opacity: 1; }
     100% {
       opacity: 0;
       transform: translate3d(calc(-50% + var(--dx)), calc(-50% + var(--dy) * 1.3), 0) scale(var(--s1));

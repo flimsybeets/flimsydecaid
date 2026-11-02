@@ -16,8 +16,8 @@ describe('puffLayout', () => {
       for (const p of a) {
         expect(p.size).toBeGreaterThanOrEqual(25);
         expect(p.size).toBeLessThanOrEqual(60);
-        expect(p.peak).toBeGreaterThanOrEqual(0.12);
-        expect(p.peak).toBeLessThanOrEqual(0.28);
+        expect(p.peak).toBeGreaterThanOrEqual(0.14);
+        expect(p.peak).toBeLessThanOrEqual(0.3);
         expect(p.s1).toBeGreaterThanOrEqual(p.s0 + 0.8);
         expect(p.duration).toBeGreaterThanOrEqual(900);
       }
@@ -27,7 +27,7 @@ describe('puffLayout', () => {
   });
   it('ends inside the sleep animation', () => {
     expect(wispsEnd(puffLayout(15, 'rise'))).toBeLessThanOrEqual(1650);
-    expect(wispsEnd(puffLayout(12, 'clear'))).toBeLessThanOrEqual(1400);
+    expect(wispsEnd(puffLayout(14, 'clear'))).toBeLessThanOrEqual(1400);
   });
   it('differs between modes', () => {
     expect(puffLayout(4, 'clear')).not.toEqual(puffLayout(4, 'rise'));
