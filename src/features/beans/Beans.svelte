@@ -50,7 +50,7 @@
 <div class="page">
   <div class="bar">
     <button class="add glass solid" onclick={() => (adding = true)}>Add a bag</button>
-    <label class="toggle glass"><input type="checkbox" bind:checked={showFinished} /> Show finished bags</label>
+    <label class="toggle glass frost"><input type="checkbox" bind:checked={showFinished} /> Show finished bags</label>
   </div>
 
   {#if beans.length === 0}
@@ -62,7 +62,7 @@
 
   <ul class="beans">
     {#each beans as { bean, bags } (bean.id)}
-      <li class="bean glass">
+      <li class="bean glass frost">
         <div class="bean-head">
           <button class="edit glass" onclick={() => (editingBean = bean)}>Edit</button>
           <h2>{bean.name}</h2>
