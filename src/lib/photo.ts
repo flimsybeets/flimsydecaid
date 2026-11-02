@@ -3,7 +3,7 @@
 // Kept out of BeanBatch.extras so listing beans stays light.
 
 import type { Rect } from './crop';
-import { vividColour } from './bagColour';
+import { colourChoices, vividColour } from './bagColour';
 
 export const photoKey = (batchId: string) => `photo:${batchId}`;
 
@@ -82,18 +82,30 @@ export async function dataUrlBlob(dataUrl: string): Promise<Blob> {
 
 export const beanPhotoKey = (beanId: string) => `beanPhoto:${beanId}`;
 
-/** The photo's vivid colour (lib/bagColour), found on a 48x48 copy. null when nothing is vivid or the photo can't be read. */
-export async function vividColourOfDataUrl(dataUrl: string): Promise<string | null> {
+/** The photo drawn on a 64x64 canvas, as RGBA pixels (null if it can't be read). */
+async function pixels64(dataUrl: string): Promise<Uint8ClampedArray | null> {
   try {
     const bitmap = await createImageBitmap(await dataUrlBlob(dataUrl));
     const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = 48;
+    canvas.width = canvas.height = 64;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) return null;
-    ctx.drawImage(bitmap, 0, 0, 48, 48);
+    ctx.drawImage(bitmap, 0, 0, 64, 64);
     bitmap.close();
-    return vividColour(ctx.getImageData(0, 0, 48, 48).data);
+    return ctx.getImageData(0, 0, 64, 64).data;
   } catch {
     return null;
   }
+}
+
+/** The photo's bag colour (lib/bagColour). null when nothing is a colour or the photo can't be read. */
+export async function vividColourOfDataUrl(dataUrl: string): Promise<string | null> {
+  const px = await pixels64(dataUrl);
+  return px ? vividColour(px) : null;
+}
+
+/** The photo's colours to pick from by hand, best first. */
+export async function colourChoicesOfDataUrl(dataUrl: string): Promise<string[]> {
+  const px = await pixels64(dataUrl);
+  return px ? colourChoices(px) : [];
 }

@@ -5,7 +5,7 @@
   import Stepper from '../../components/Stepper.svelte';
   import ConfirmDialog from '../../components/ConfirmDialog.svelte';
   import PhotoCrop from '../../components/PhotoCrop.svelte';
-  import { dataUrlBlob } from '../../lib/photo';
+  import { colourChoicesOfDataUrl, dataUrlBlob } from '../../lib/photo';
 
   // Edit a bag: roast date, weight and what's left, frozen, photo. Finished
   // bags can be reopened. Delete is permanent (photo too); shots keep the
@@ -36,6 +36,20 @@
 
   const bean = $derived(app.beans.find((b) => b.id === bag.beanId));
   const shownPhoto = $derived(photo === undefined ? app.photos[bag.id] : photo);
+
+  // Colour: picked from the photo's own colours (first = the automatic pick).
+  let colour = $state<string | null | undefined>(undefined); // undefined = unchanged / automatic
+  let choices = $state<string[]>([]);
+  $effect(() => {
+    const url = shownPhoto;
+    choices = [];
+    if (!url) return;
+    let live = true;
+    void colourChoicesOfDataUrl(url).then((c) => { if (live) choices = c; });
+    return () => { live = false; };
+  });
+  // A new photo starts on its automatic colour; the old photo shows what's saved.
+  const currentColour = $derived(colour !== undefined ? colour : photo === undefined ? (app.bagColours[bag.id] ?? null) : (choices[0] ?? null));
 
   async function onFile(e: Event) {
     const file = (e.currentTarget as HTMLInputElement).files?.[0];
@@ -73,7 +87,8 @@
         ...(frozen !== bag.frozen ? (frozen ? { freezeDate: new Date().toISOString() } : { unfreezeDate: new Date().toISOString() }) : {}),
         ...patch,
       });
-      if (photo) await app.savePhoto(bag.id, photo);
+      if (photo) await app.savePhoto(bag.id, photo, colour);
+      else if (colour !== undefined) app.setBagColour(bag.id, colour);
       onClose();
     } catch (e) {
       error = `Couldn't save: ${(e as Error).message}`;
@@ -90,6 +105,15 @@
     {#if shownPhoto}<button class="small glass" onclick={cropExisting}>Crop photo</button>{/if}
     <input bind:this={fileInput} class="sr-only" type="file" accept="image/*" onchange={onFile} tabindex="-1" aria-hidden="true" />
   </div>
+  {#if shownPhoto && choices.length > 0}
+    <div class="colours" role="radiogroup" aria-label="Bag colour">
+      <span>Colour</span>
+      {#each choices as c (c)}
+        <button class="swatch" style:--c={c} role="radio" aria-checked={currentColour === c} aria-label="Colour {c}" onclick={() => (colour = c)}></button>
+      {/each}
+      <button class="small glass" role="radio" aria-checked={currentColour === null} onclick={() => (colour = null)}>None</button>
+    </div>
+  {/if}
 
   <div class="two">
     <label><span>Roast date</span><input class="well" type="date" bind:value={roastDate} /></label>
@@ -135,6 +159,10 @@
   .check { display: flex; align-items: center; gap: 8px; min-height: var(--touch); }
   .check input { width: 20px; height: 20px; accent-color: var(--paper); }
   .photo { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .colours { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .colours > span { color: var(--paper-dim); font-size: var(--t-sm); margin-right: 4px; }
+  .swatch { width: 40px; height: 40px; border-radius: 50%; background: var(--c); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.25); }
+  .swatch[aria-checked='true'] { box-shadow: 0 0 0 3px var(--paper), inset 0 0 0 1px rgb(0 0 0 / 0.3); }
   .photo img { width: 72px; height: 72px; object-fit: cover; border-radius: 12px; }
   .row { display: flex; flex-wrap: wrap; gap: 6px; }
   .small { min-height: 40px; padding: 0 14px; border-radius: var(--radius-pill); color: var(--paper); font-size: var(--t-xs); font-weight: 650; }
