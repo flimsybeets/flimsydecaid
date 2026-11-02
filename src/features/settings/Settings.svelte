@@ -155,13 +155,13 @@
 </script>
 
 <div class="page">
-  <section class="glass">
+  <section class="glass frost">
     <h2>Machine and app settings</h2>
     <p>Decaid's own settings screen handles the machine, scale, and app.</p>
     <a class="button glass solid" href={decaidSettings}>Open Decaid settings</a>
   </section>
 
-  <section class="glass">
+  <section class="glass frost">
     <h2>Screensaver</h2>
     <p>Shown while the machine is asleep{app.screensaverClock ? ', with a big clock over it' : ''}. Tap it to wake the machine.</p>
     {#if app.screensaverImage}
@@ -192,7 +192,7 @@
     <input bind:this={picker} class="sr-only" type="file" accept="image/*" onchange={onPick} tabindex="-1" aria-hidden="true" />
   </section>
 
-  <section class="glass">
+  <section class="glass frost">
     <h2>Theme options</h2>
     <div class="row">
       <button class="button glass toggle theme-toggle" class:lit={app.halloween} role="switch" aria-checked={app.halloween} onclick={() => app.setHalloween(!app.halloween)}>
@@ -225,7 +225,7 @@
     <input bind:this={bgPicker} class="sr-only" type="file" accept="image/*" onchange={onPickBg} tabindex="-1" aria-hidden="true" />
   </section>
 
-  <section class="glass">
+  <section class="glass frost">
     <h2>Water level warning</h2>
     <p>The machine warns you to refill when the tank drops to this height.</p>
     <div class="water-row">
@@ -236,7 +236,7 @@
     </div>
   </section>
 
-  <section class="glass">
+  <section class="glass frost">
     <h2>Visualizer</h2>
     {#if !vizLoaded}
       <p class="small">Checking…</p>
@@ -265,7 +265,7 @@
     {/if}
   </section>
 
-  <section class="glass">
+  <section class="glass frost">
     <h2>Connection</h2>
     <dl>
       <dt>Decaid</dt><dd>{app.mock ? 'Demo data (no machine)' : gw.httpBase}</dd>

@@ -159,7 +159,7 @@
   {/key}
 {:else}
 <div class="page">
-  <aside class="list glass">
+  <aside class="list glass frost">
     <div class="filters" role="group" aria-label="Show shots for">
       <button class="chip glass" class:solid={bagFilter === null} class:on={bagFilter === null} onclick={() => (bagFilter = null)}>All shots</button>
       {#each openBags as b (b.id)}
@@ -212,7 +212,7 @@
     </div>
   </aside>
 
-  <section class="detail" aria-label="Selected shot">
+  <section class="detail glass frost" aria-label="Selected shot">
     {#if selected}
       {@const ctx = selected.workflow?.context}
       {@const out = outWeight(selected) ?? stats.weight}
@@ -349,7 +349,9 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding: 14px var(--gutter) var(--gutter);
+    margin: 0 var(--gutter) 0 8px;
+    padding: 14px 18px 18px;
+    border-radius: 26px;
     min-height: 0;
     min-width: 0;
   }
