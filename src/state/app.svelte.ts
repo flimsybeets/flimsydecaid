@@ -278,10 +278,20 @@ class AppState {
     if (this.photos[batchId] && !(batchId in this.bagColours)) void this.computeBagColour(batchId, this.photos[batchId]!);
   }
 
-  async savePhoto(batchId: string, dataUrl: string): Promise<void> {
+  /** Save a bag photo. Its colour is worked out from it, unless `colour` is given (picked by hand; null = no colour). */
+  async savePhoto(batchId: string, dataUrl: string, colour?: string | null): Promise<void> {
     await gateway.storeSet(photoKey(batchId), dataUrl);
     this.photos[batchId] = dataUrl;
-    void this.computeBagColour(batchId, dataUrl);
+    if (colour !== undefined) this.setBagColour(batchId, colour);
+    else void this.computeBagColour(batchId, dataUrl);
+  }
+
+  /** Set a bag's colour by hand (Edit bag); null = no colour. Saved with the same batching as computed ones. */
+  setBagColour(batchId: string, colour: string | null): void {
+    this.bagColours = { ...this.bagColours, [batchId]: colour };
+    this.pendingColours[batchId] = colour;
+    clearTimeout(this.colourTimer);
+    this.colourTimer = setTimeout(() => void this.flushBagColours(), 600);
   }
 
   private pendingColours: BagColours = {};
@@ -291,10 +301,7 @@ class AppState {
   private async computeBagColour(batchId: string, dataUrl: string): Promise<void> {
     const colour = await vividColourOfDataUrl(dataUrl);
     if (!this.batches.some((b) => b.id === batchId) || this.photos[batchId] !== dataUrl) return;
-    this.bagColours = { ...this.bagColours, [batchId]: colour };
-    this.pendingColours[batchId] = colour;
-    clearTimeout(this.colourTimer);
-    this.colourTimer = setTimeout(() => void this.flushBagColours(), 600);
+    this.setBagColour(batchId, colour);
   }
 
   private async flushBagColours(): Promise<void> {
