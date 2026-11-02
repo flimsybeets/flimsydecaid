@@ -107,10 +107,10 @@
     {#if !profileRoot}
     <div class="list">
       <div class="crumb">
-        <button class="back glass" onclick={back}>‹ Categories</button>
+        <button class="back glass frost" onclick={back}>‹ Categories</button>
         <h1>{category.name}</h1>
         <div class="preview-pick"><Segmented label="Tile graphs" value={app.tilePreview} options={PREVIEW_OPTIONS} onchange={(v) => app.setTilePreview(v)} /></div>
-        <button class="edit-cat glass" onclick={() => (editingCategory = category)}>Edit</button>
+        <button class="edit-cat glass frost" onclick={() => (editingCategory = category)}>Edit</button>
       </div>
 
       {#if profilesInCategory.length === 0}
@@ -125,7 +125,7 @@
             {@const temp = baseTemperature(p.record!.profile)}
             {@const mini = preview(p)}
             <li>
-              <button class="profile glass" class:lit={profileRoot === p.root} class:selected={profileRoot === p.root} aria-pressed={profileRoot === p.root} title="Hold to edit"
+              <button class="profile glass frost" class:lit={profileRoot === p.root} class:selected={profileRoot === p.root} aria-pressed={profileRoot === p.root} title="Hold to edit"
                 use:longpress={{ onhold: () => (app.editing = p.record!) }} onclick={() => (profileRoot = p.root)}>
                 <span class="title">{p.record!.profile.title}</span>
                 {#if mini}<MiniGraph lines={mini.lines} kind={mini.kind} />{/if}

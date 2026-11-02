@@ -66,7 +66,7 @@
   <ul>
     {#each shown as { root, record } (root)}
       {@const temp = baseTemperature(record.profile)}
-      <li class="glass">
+      <li class="glass frost">
         <button class="info" aria-label="Edit {record.profile.title}" onclick={() => (app.editing = record)}>
           <span class="title">{record.profile.title}</span>
           <span class="meta">
