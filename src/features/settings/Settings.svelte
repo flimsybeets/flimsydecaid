@@ -6,6 +6,11 @@
   import { credentialsPatch } from '../../lib/visualizer';
   import type { SkinUpdateResult } from '../../lib/skinUpdate';
   import { toneLabel } from '../../lib/background';
+  import Segmented from '../../components/Segmented.svelte';
+  import type { PanelTint } from '../../lib/theme';
+  const TINTS: { value: PanelTint; label: string }[] = [
+    { value: 'dark', label: 'Dark' }, { value: 'teal', label: 'Teal' }, { value: 'coffee', label: 'Coffee' }, { value: 'plum', label: 'Plum' },
+  ];
 
   const gw = resolveGateway();
   const version = __APP_VERSION__;
@@ -155,138 +160,146 @@
 </script>
 
 <div class="page">
-  <section class="glass frost">
-    <h2>Machine and app settings</h2>
-    <p>Decaid's own settings screen handles the machine, scale, and app.</p>
-    <a class="button glass solid" href={decaidSettings}>Open Decaid settings</a>
-  </section>
+  <div class="col">
+    <section class="glass frost">
+      <h2>Machine and app settings</h2>
+      <p>Decaid's own settings screen handles the machine, scale, and app.</p>
+      <a class="button glass solid" href={decaidSettings}>Open Decaid settings</a>
+    </section>
 
-  <section class="glass frost">
-    <h2>Screensaver</h2>
-    <p>Shown while the machine is asleep{app.screensaverClock ? ', with a big clock over it' : ''}. Tap it to wake the machine.</p>
-    {#if app.screensaverImage}
-      <img class="saver-preview" src={app.screensaverImage} alt="Your screensaver" />
-    {/if}
-    <div class="row">
-      <button class="button glass solid" disabled={saverBusy !== null} onclick={() => picker.click()}>
-        {saverBusy === 'saving' ? 'Saving…' : app.screensaverImage ? 'Choose another image' : 'Choose an image'}
-      </button>
+    <section class="glass frost">
+      <h2>Screensaver</h2>
+      <p>Shown while the machine is asleep{app.screensaverClock ? ', with a big clock over it' : ''}. Tap it to wake the machine.</p>
       {#if app.screensaverImage}
-        <button class="button glass" disabled={saverBusy !== null} onclick={() => (app.screensaverPreview = true)}>Preview</button>
-        <button class="button glass" disabled={saverBusy !== null} onclick={removeSaver}>{saverBusy === 'removing' ? 'Removing…' : 'Remove'}</button>
+        <img class="saver-preview" src={app.screensaverImage} alt="Your screensaver" />
       {/if}
-    </div>
-    <div class="row">
-      <button class="button glass toggle" class:lit={app.screensaverClock} role="switch" aria-checked={app.screensaverClock} onclick={() => app.setScreensaverClock(!app.screensaverClock)}>
-        Show the clock <b>{app.screensaverClock ? 'On' : 'Off'}</b>
-      </button>
-    </div>
-    {#if !app.screensaverImage}<p class="small">Until you choose one, the screen turns off when the machine sleeps, as usual.</p>{/if}
-    {#if saverError}<p class="error" role="alert">{saverError}</p>{/if}
-    <label class="slider">
-      <span class="slider-head">Screen brightness while asleep <b>{app.screensaverDim}%</b></span>
-      <input type="range" min="0" max="100" step="1" value={app.screensaverDim}
-        oninput={(e) => app.setScreensaverDim(Number(e.currentTarget.value))} />
-      <span class="small">{app.screensaverDim >= 100 ? 'Not dimmed.' : 'Open Preview to see it as you move the slider.'}</span>
-    </label>
-    <input bind:this={picker} class="sr-only" type="file" accept="image/*" onchange={onPick} tabindex="-1" aria-hidden="true" />
-  </section>
-
-  <section class="glass frost">
-    <h2>Theme options</h2>
-    <div class="row">
-      <button class="button glass toggle theme-toggle" class:lit={app.halloween} role="switch" aria-checked={app.halloween} onclick={() => app.setHalloween(!app.halloween)}>
-        Halloween screensaver <b>{app.halloween ? 'On' : 'Off'}</b>
-      </button>
-      <button class="button glass" disabled={!app.screensaverImage} onclick={() => (app.screensaverPreview = true)}>Preview</button>
-    </div>
-    <p class="small">Ghosts drift over your screensaver photo instead of the clock.{app.screensaverImage ? '' : ' Choose a screensaver image first.'}</p>
-
-    <h3>App background</h3>
-    <p class="small">A photo behind the whole skin. Darken or lighten it so everything stays easy to read.</p>
-    <div class="row">
-      <button class="button glass solid" disabled={bgBusy !== null} onclick={() => bgPicker.click()}>
-        {bgBusy === 'saving' ? 'Saving…' : app.appBackground ? 'Choose another image' : 'Choose an image'}
-      </button>
-      {#if app.appBackground}
-        <button class="button glass" disabled={bgBusy !== null} onclick={removeBg}>{bgBusy === 'removing' ? 'Removing…' : 'Remove'}</button>
-      {/if}
-    </div>
-    {#if app.appBackground}
-      <label class="slider">
-        <span class="slider-head">Darken or lighten <b>{toneLabel(app.bgTone)}</b></span>
-        <input type="range" min="-100" max="100" step="1" value={app.bgTone}
-          oninput={(e) => app.setBgTone(Number(e.currentTarget.value))} />
-        <span class="ends small"><span>Darker</span><span>Lighter</span></span>
-        {#if app.bgTone > 30}<span class="small">The skin's text is light, so a lot of lightening makes it harder to read.</span>{/if}
-      </label>
-    {/if}
-    {#if bgError}<p class="error" role="alert">{bgError}</p>{/if}
-    <input bind:this={bgPicker} class="sr-only" type="file" accept="image/*" onchange={onPickBg} tabindex="-1" aria-hidden="true" />
-  </section>
-
-  <section class="glass frost">
-    <h2>Water level warning</h2>
-    <p>The machine warns you to refill when the tank drops to this height.</p>
-    <div class="water-row">
-      <Stepper compact label="Warn at" unit="mm" min={REFILL_MIN_MM} max={REFILL_MAX_MM} step={1}
-        bind:value={() => (app.water && Number.isFinite(app.water.refillLevel) ? app.water.refillLevel : undefined), (v) => { if (v !== undefined) app.setWaterRefill(v); }}
-        placeholder="…" disabled={!app.water || !Number.isFinite(app.water.refillLevel)} />
-      <p class="small">{app.water && Number.isFinite(app.water.currentLevel) ? `Tank is at ${Math.round(app.water.currentLevel)} mm now.` : 'Waiting for the machine.'}</p>
-    </div>
-  </section>
-
-  <section class="glass frost">
-    <h2>Visualizer</h2>
-    {#if !vizLoaded}
-      <p class="small">Checking…</p>
-    {:else if app.visualizer === 'missing'}
-      <p>Decaid's Visualizer plugin isn't installed on this tablet. Install it from Decaid's own settings, then come back.</p>
-    {:else}
-      <p>Decaid uploads each shot to visualizer.coffee for you once this is on and you're signed in.</p>
       <div class="row">
-        <button class="button glass" class:lit={app.visualizer === 'on'} role="switch" aria-checked={app.visualizer === 'on'} disabled={vizBusy} onclick={toggleViz}>
-          {app.visualizer === 'on' ? 'Plugin on' : 'Plugin off'}
+        <button class="button glass solid" disabled={saverBusy !== null} onclick={() => picker.click()}>
+          {saverBusy === 'saving' ? 'Saving…' : app.screensaverImage ? 'Choose another image' : 'Choose an image'}
         </button>
-        <span class="status" class:ok={vizOnline === true} class:bad={vizOnline === false}>
-          {app.visualizer !== 'on' ? 'Not running' : vizOnline === null ? 'Checking…' : vizOnline ? 'Running' : 'Not answering'}
-        </span>
+        {#if app.screensaverImage}
+          <button class="button glass" disabled={saverBusy !== null} onclick={() => (app.screensaverPreview = true)}>Preview</button>
+          <button class="button glass" disabled={saverBusy !== null} onclick={removeSaver}>{saverBusy === 'removing' ? 'Removing…' : 'Remove'}</button>
+        {/if}
       </div>
-      <form class="creds" onsubmit={saveViz}>
-        <label>Username<input class="well" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" bind:value={vizUser} /></label>
-        <label>Password<input class="well" type="password" autocomplete="off" placeholder={vizPassSet ? 'Saved' : ''} bind:value={vizPass} /></label>
-        <button class="button glass solid" type="submit" disabled={vizBusy || vizUser.trim() === ''}>{vizBusy ? 'Working…' : vizPass !== '' ? 'Save and sign in' : 'Save'}</button>
-      </form>
-      <button class="button glass toggle" class:lit={vizAuto} role="switch" aria-checked={vizAuto} onclick={toggleAuto}>
-        Upload shots automatically <b>{vizAuto ? 'On' : 'Off'}</b>
-      </button>
-      {#if vizResult}<p class={vizResult.ok ? 'okmsg' : 'error'} role="status">{vizResult.text}</p>{/if}
-      {#if app.visualizer === 'on' && !vizPassSet}<p class="small">Add your Visualizer username and password to start uploading.</p>{/if}
-    {/if}
-  </section>
+      <div class="row">
+        <button class="button glass toggle" class:lit={app.screensaverClock} role="switch" aria-checked={app.screensaverClock} onclick={() => app.setScreensaverClock(!app.screensaverClock)}>
+          Show the clock <b>{app.screensaverClock ? 'On' : 'Off'}</b>
+        </button>
+      </div>
+      {#if !app.screensaverImage}<p class="small">Until you choose one, the screen turns off when the machine sleeps, as usual.</p>{/if}
+      {#if saverError}<p class="error" role="alert">{saverError}</p>{/if}
+      <label class="slider">
+        <span class="slider-head">Screen brightness while asleep <b>{app.screensaverDim}%</b></span>
+        <input type="range" min="0" max="100" step="1" value={app.screensaverDim}
+          oninput={(e) => app.setScreensaverDim(Number(e.currentTarget.value))} />
+        <span class="small">{app.screensaverDim >= 100 ? 'Not dimmed.' : 'Open Preview to see it as you move the slider.'}</span>
+      </label>
+      <input bind:this={picker} class="sr-only" type="file" accept="image/*" onchange={onPick} tabindex="-1" aria-hidden="true" />
+    </section>
 
-  <section class="glass frost">
-    <h2>Connection</h2>
-    <dl>
-      <dt>Decaid</dt><dd>{app.mock ? 'Demo data (no machine)' : gw.httpBase}</dd>
-      <dt>Machine</dt><dd>{app.machineDevice ? `${app.machineDevice.name}, ${app.machineDevice.state}` : 'Not found'}</dd>
-      <dt>Scale</dt><dd>{app.scaleDevice ? `${app.scaleDevice.name}, ${app.scaleDevice.state}` : 'Not found'}</dd>
-      <dt>Skin version</dt><dd>{version}</dd>
-    </dl>
-    <button class="button glass" disabled={updating} onclick={checkUpdates}>{updating ? 'Checking…' : 'Check for skin updates'}</button>
-    {#if update?.kind === 'updated'}
-      <p class="okmsg" role="status">Version {update.installed} is installed.</p>
-      <button class="button glass solid" onclick={() => location.reload()}>Reload to use it</button>
-    {:else if update?.kind === 'current'}
-      <p class="okmsg" role="status">You're on the latest version ({update.installed}).</p>
-    {:else if update?.kind === 'failed'}
-      <p class="error" role="alert">{update.message}</p>
-    {/if}
-  </section>
+    <section class="glass frost">
+      <h2>Theme options</h2>
+      <div class="row">
+        <button class="button glass toggle theme-toggle" class:lit={app.halloween} role="switch" aria-checked={app.halloween} onclick={() => app.setHalloween(!app.halloween)}>
+          Halloween screensaver <b>{app.halloween ? 'On' : 'Off'}</b>
+        </button>
+        <button class="button glass" disabled={!app.screensaverImage} onclick={() => (app.screensaverPreview = true)}>Preview</button>
+      </div>
+      <p class="small">Ghosts drift over your screensaver photo instead of the clock.{app.screensaverImage ? '' : ' Choose a screensaver image first.'}</p>
+
+      <h3>Panel colour</h3>
+      <p class="small">The frosted glass of the brew panel, dialogs and graphs.</p>
+      <div class="tint"><Segmented label="Panel colour" value={app.panelTint} options={TINTS} onchange={(v) => app.setPanelTint(v)} /></div>
+
+      <h3>App background</h3>
+      <p class="small">A photo behind the whole skin. Darken it so everything stays easy to read.</p>
+      <div class="row">
+        <button class="button glass solid" disabled={bgBusy !== null} onclick={() => bgPicker.click()}>
+          {bgBusy === 'saving' ? 'Saving…' : app.appBackground ? 'Choose another image' : 'Choose an image'}
+        </button>
+        {#if app.appBackground}
+          <button class="button glass" disabled={bgBusy !== null} onclick={removeBg}>{bgBusy === 'removing' ? 'Removing…' : 'Remove'}</button>
+        {/if}
+      </div>
+      {#if app.appBackground}
+        <label class="slider">
+          <span class="slider-head">Darken <b>{toneLabel(app.bgTone)}</b></span>
+          <input type="range" min="0" max="100" step="1" value={-app.bgTone}
+            oninput={(e) => app.setBgTone(-Number(e.currentTarget.value))} />
+          <span class="ends small"><span>As is</span><span>Black</span></span>
+        </label>
+      {/if}
+      {#if bgError}<p class="error" role="alert">{bgError}</p>{/if}
+      <input bind:this={bgPicker} class="sr-only" type="file" accept="image/*" onchange={onPickBg} tabindex="-1" aria-hidden="true" />
+    </section>
+  </div>
+  <div class="col">
+    <section class="glass frost">
+      <h2>Connection</h2>
+      <dl>
+        <dt>Decaid</dt><dd>{app.mock ? 'Demo data (no machine)' : gw.httpBase}</dd>
+        <dt>Machine</dt><dd>{app.machineDevice ? `${app.machineDevice.name}, ${app.machineDevice.state}` : 'Not found'}</dd>
+        <dt>Scale</dt><dd>{app.scaleDevice ? `${app.scaleDevice.name}, ${app.scaleDevice.state}` : 'Not found'}</dd>
+        <dt>Skin version</dt><dd>{version}</dd>
+      </dl>
+      <button class="button glass" disabled={updating} onclick={checkUpdates}>{updating ? 'Checking…' : 'Check for skin updates'}</button>
+      {#if update?.kind === 'updated'}
+        <p class="okmsg" role="status">Version {update.installed} is installed.</p>
+        <button class="button glass solid" onclick={() => location.reload()}>Reload to use it</button>
+      {:else if update?.kind === 'current'}
+        <p class="okmsg" role="status">You're on the latest version ({update.installed}).</p>
+      {:else if update?.kind === 'failed'}
+        <p class="error" role="alert">{update.message}</p>
+      {/if}
+    </section>
+
+    <section class="glass frost">
+      <h2>Visualizer</h2>
+      {#if !vizLoaded}
+        <p class="small">Checking…</p>
+      {:else if app.visualizer === 'missing'}
+        <p>Decaid's Visualizer plugin isn't installed on this tablet. Install it from Decaid's own settings, then come back.</p>
+      {:else}
+        <p>Decaid uploads each shot to visualizer.coffee for you once this is on and you're signed in.</p>
+        <div class="row">
+          <button class="button glass" class:lit={app.visualizer === 'on'} role="switch" aria-checked={app.visualizer === 'on'} disabled={vizBusy} onclick={toggleViz}>
+            {app.visualizer === 'on' ? 'Plugin on' : 'Plugin off'}
+          </button>
+          <span class="status" class:ok={vizOnline === true} class:bad={vizOnline === false}>
+            {app.visualizer !== 'on' ? 'Not running' : vizOnline === null ? 'Checking…' : vizOnline ? 'Running' : 'Not answering'}
+          </span>
+        </div>
+        <form class="creds" onsubmit={saveViz}>
+          <label>Username<input class="well" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" bind:value={vizUser} /></label>
+          <label>Password<input class="well" type="password" autocomplete="off" placeholder={vizPassSet ? 'Saved' : ''} bind:value={vizPass} /></label>
+          <button class="button glass solid" type="submit" disabled={vizBusy || vizUser.trim() === ''}>{vizBusy ? 'Working…' : vizPass !== '' ? 'Save and sign in' : 'Save'}</button>
+        </form>
+        <button class="button glass toggle" class:lit={vizAuto} role="switch" aria-checked={vizAuto} onclick={toggleAuto}>
+          Upload shots automatically <b>{vizAuto ? 'On' : 'Off'}</b>
+        </button>
+        {#if vizResult}<p class={vizResult.ok ? 'okmsg' : 'error'} role="status">{vizResult.text}</p>{/if}
+        {#if app.visualizer === 'on' && !vizPassSet}<p class="small">Add your Visualizer username and password to start uploading.</p>{/if}
+      {/if}
+    </section>
+
+    <section class="glass frost">
+      <h2>Water level warning</h2>
+      <p>The machine warns you to refill when the tank drops to this height.</p>
+      <div class="water-row">
+        <Stepper compact label="Warn at" unit="mm" min={REFILL_MIN_MM} max={REFILL_MAX_MM} step={1}
+          bind:value={() => (app.water && Number.isFinite(app.water.refillLevel) ? app.water.refillLevel : undefined), (v) => { if (v !== undefined) app.setWaterRefill(v); }}
+          placeholder="…" disabled={!app.water || !Number.isFinite(app.water.refillLevel)} />
+        <p class="small">{app.water && Number.isFinite(app.water.currentLevel) ? `Tank is at ${Math.round(app.water.currentLevel)} mm now.` : 'Waiting for the machine.'}</p>
+      </div>
+    </section>
+  </div>
 </div>
 
 <style>
   .page { height: 100%; overflow-y: auto; padding: var(--gutter); display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr)); gap: 16px; align-content: start; align-items: start; }
+  /* Two independent columns, so a tall card never leaves a gap beside a short one. */
+  .col { display: grid; gap: 16px; align-content: start; min-width: 0; }
   section { display: grid; gap: 9px; padding: 20px 21px; border-radius: 24px; }
   h2 { font-size: var(--t-lg); font-weight: 700; }
   p { color: var(--paper-dim); }
@@ -303,6 +316,7 @@
   .button:disabled { opacity: 0.5; }
   .saver-preview { width: 100%; max-width: 270px; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 16px; box-shadow: var(--glass-shadow); }
   .small { font-size: var(--t-xs); }
+  .tint { justify-self: start; }
   .slider { display: grid; gap: 6px; margin-top: 4px; }
   h3 { font-size: var(--t-md); font-weight: 700; margin-top: 10px; }
   .ends { display: flex; justify-content: space-between; margin-top: -6px; }

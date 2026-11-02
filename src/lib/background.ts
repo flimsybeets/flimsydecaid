@@ -1,27 +1,26 @@
 // Optional photo behind the whole app (Settings → Theme options), with one
-// tone slider: below 0 lays black over it (darken), above 0 white (lighten),
-// so the glass and text stay readable on any photo.
+// darken slider: black laid over it at |tone| %, so the glass and the light
+// text stay readable on any photo. Tone is 0 (as is) … −100 (black); older
+// saved values above 0 (there used to be a lighten side) read as 0.
 
 export const APP_BACKGROUND_KEY = 'appBackground';
 /** A fresh background starts a little dark, which suits the cream text. */
 export const DEFAULT_TONE = -45;
 
 export function clampTone(n: number): number {
-  return Number.isFinite(n) ? Math.max(-100, Math.min(100, Math.round(n))) : DEFAULT_TONE;
+  return Number.isFinite(n) ? Math.max(-100, Math.min(0, Math.round(n))) : DEFAULT_TONE;
 }
 
 export function parseTone(raw: unknown): number {
   return typeof raw === 'number' ? clampTone(raw) : DEFAULT_TONE;
 }
 
-/** The layer over the photo for a tone: black or white at |tone| %. */
+/** The layer over the photo for a tone: black at |tone| %. */
 export function toneOverlay(tone: number): string {
-  const t = clampTone(tone);
-  const a = (Math.abs(t) / 100).toFixed(2);
-  return t < 0 ? `rgb(0 0 0 / ${a})` : `rgb(255 255 255 / ${a})`;
+  return `rgb(0 0 0 / ${(-clampTone(tone) / 100).toFixed(2)})`;
 }
 
 export function toneLabel(tone: number): string {
   const t = clampTone(tone);
-  return t === 0 ? 'As is' : t < 0 ? `Darker ${-t}%` : `Lighter ${t}%`;
+  return t === 0 ? 'Not darkened' : `${-t}%`;
 }

@@ -22,7 +22,7 @@
       .filter((x) => showFinished || x.bags.length > 0),
   );
 
-  $effect(() => { for (const { bags } of beans) for (const b of bags) void app.loadPhoto(b.id); });
+  $effect(() => { for (const { bean, bags } of beans) { void app.loadBeanPhoto(bean.id); for (const b of bags) void app.loadPhoto(b.id); } });
 
   // Shots per bag, asked one bag at a time (Decaid doesn't like a burst) and again after each pull.
   let shotCounts = $state<Record<string, number>>({});
@@ -64,15 +64,18 @@
     {#each beans as { bean, bags } (bean.id)}
       <li class="bean glass frost">
         <div class="bean-head">
-          <button class="edit glass" onclick={() => (editingBean = bean)}>Edit</button>
-          <h2>{bean.name}</h2>
-          <p>{bean.roaster}{bean.country ? `, ${bean.country}` : ''}{bean.processing ? `, ${bean.processing}` : ''}</p>
-          {#if bean.notes}<p class="notes">{bean.notes}</p>{/if}
+          {#if app.beanPhotos[bean.id]}<img class="bean-photo" src={app.beanPhotos[bean.id]} alt="Photo of {bean.name}" />{/if}
+          <div class="bean-title">
+            <button class="edit glass" onclick={() => (editingBean = bean)}>Edit</button>
+            <h2>{bean.name}</h2>
+            <p>{bean.roaster}{bean.country ? `, ${bean.country}` : ''}{bean.processing ? `, ${bean.processing}` : ''}</p>
+            {#if bean.notes}<p class="notes">{bean.notes}</p>{/if}
+          </div>
         </div>
         <ul class="bags">
           {#each bags as b (b.id)}
-            <li class="bag well" class:finished={b.archived}>
-              {#if app.photos[b.id]}<img src={app.photos[b.id]} alt="Photo of the {bean.name} bag" />{/if}
+            <li class="bag well" class:finished={b.archived} class:coloured={!!app.bagColours[b.id]} style:--bag={app.bagColours[b.id] ?? undefined}>
+              {#if app.photos[b.id]}<img class="bag-photo" src={app.photos[b.id]} alt="Photo of the {bean.name} bag" />{/if}
               <div class="bag-info">
                 <span>{fmtDate(b.roastDate) ? `Roasted ${fmtDate(b.roastDate)}` : 'Roast date not set'}</span>
                 {#if b.weightRemaining != null}<span class="sub">{Math.round(b.weightRemaining)} of {Math.round(b.weight ?? b.weightRemaining)} g left</span>{/if}
@@ -116,16 +119,21 @@
   ul { list-style: none; margin: 0; padding: 0; }
   .beans { display: grid; grid-template-columns: repeat(auto-fill, minmax(315px, 1fr)); gap: 12px; }
   .bean { border-radius: 24px; padding: 16px 18px; display: grid; gap: 10px; align-content: start; }
-  .bean-head { position: relative; }
+  .bean-head { display: flex; gap: 12px; align-items: flex-start; }
+  .bean-title { flex: 1 1 0; min-width: 0; }
+  .bean-photo { flex: none; width: 84px; height: 84px; border-radius: 18px; object-fit: cover; box-shadow: 0 4px 12px rgb(0 0 0 / 0.35), inset 0 0 0 1px rgb(255 255 255 / 0.12); }
   .edit { float: right; min-height: 40px; padding: 0 14px; border-radius: var(--radius-pill); color: var(--paper); font-size: var(--t-xs); font-weight: 650; }
   .bean-head h2 { font-size: var(--t-lg); font-weight: 700; letter-spacing: -0.01em; }
   .bean-head p { color: var(--paper-dim); }
   .notes { font-size: var(--t-xs); margin-top: 3px; }
   .bags { display: grid; gap: 6px; }
-  .bag { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 8px; border-radius: 16px; }
+  .bag { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 10px; border-radius: 18px; position: relative; }
   .bag.finished { opacity: 0.55; }
-  .bag img { width: 48px; height: 48px; border-radius: 10px; object-fit: cover; box-shadow: 0 3px 9px rgb(0 0 0 / 0.3); }
-  .bag-info { flex: 1 1 120px; min-width: 0; display: grid; }
+  /* The bag's colour from its photo: a soft tint and edge on the card, and a frame round the picture. */
+  .bag.coloured { background-image: linear-gradient(100deg, color-mix(in srgb, var(--bag) 22%, transparent), transparent 70%); box-shadow: inset 4px 0 0 var(--bag); padding-left: 14px; }
+  .bag-photo { flex: none; width: 108px; height: 144px; border-radius: 14px; object-fit: cover; box-shadow: 0 4px 14px rgb(0 0 0 / 0.4); border: 3px solid rgb(255 255 255 / 0.14); }
+  .bag.coloured .bag-photo { border-color: color-mix(in srgb, var(--bag) 70%, transparent); box-shadow: 0 4px 14px rgb(0 0 0 / 0.4), 0 0 16px color-mix(in srgb, var(--bag) 35%, transparent); }
+  .bag-info { flex: 1 1 100px; min-width: 0; display: grid; align-content: center; gap: 2px; }
   /* On a narrow card the buttons drop to their own row instead of spilling out. */
   .bag-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; justify-content: flex-end; }
   .sub { color: var(--paper-dim); font-size: var(--t-xs); }

@@ -234,7 +234,7 @@
     {:else}
       <div class="bag-list" role="radiogroup" aria-label="Bag">
         {#each bags as { batch: b, bean } (b.id)}
-          <button class="bag glass" class:lit={b.id === batchId} class:selected={b.id === batchId} role="radio" aria-checked={b.id === batchId} onclick={() => (batchId = b.id)}>
+          <button class="bag glass" style:--bag={app.bagColours[b.id] ?? undefined} class:coloured={!!app.bagColours[b.id]} class:lit={b.id === batchId} class:selected={b.id === batchId} role="radio" aria-checked={b.id === batchId} onclick={() => (batchId = b.id)}>
             {#if app.photos[b.id]}
               <img src={app.photos[b.id]} alt="" />
             {:else}
@@ -371,7 +371,9 @@
     border-radius: 16px;
     text-align: left;
   }
+  .bag.coloured { box-shadow: inset 4px 0 0 var(--bag), var(--glass-sheen); }
   .bag.selected { box-shadow: 0 0 0 3px var(--tile), var(--glass-sheen); }
+  .bag.coloured.selected { box-shadow: 0 0 0 3px var(--tile), inset 4px 0 0 var(--bag), var(--glass-sheen); }
   .bag img, .swatch {
     width: 44px; height: 44px; flex: none;
     border-radius: 10px;
