@@ -52,6 +52,20 @@
   });
   const saverUp = $derived(app.asleep && app.screensaverImage !== null && !saverDismissed);
 
+  // Waking: when the screensaver goes, the main page rises into place.
+  let waking = $state(false);
+  let wasUp = false;
+  $effect(() => {
+    const up = app.screensaverPreview || saverUp;
+    if (wasUp && !up) {
+      waking = true;
+      const t = setTimeout(() => (waking = false), 1000);
+      wasUp = up;
+      return () => clearTimeout(t);
+    }
+    wasUp = up;
+  });
+
   function dismissSaver() {
     saverDismissed = true;
     void app.wake().catch(() => {});
@@ -112,7 +126,7 @@
     {/if}
   </header>
 
-  <main>
+  <main class:waking>
     {#if app.error && !app.loaded}
       <div class="problem">
         <p>{app.error}</p>
@@ -169,6 +183,12 @@
   /* Under a full-screen view: hidden, and nothing under it animates (Home's guide tile spins forever). */
   .shell.covered { visibility: hidden; }
   .shell.covered, .shell.covered :global(*) { animation: none !important; transition: none !important; }
+  /* The page under the tabs rises in as the screensaver clears: transform and opacity, a few elements. */
+  main.waking > :global(*) { animation: page-rise 450ms cubic-bezier(0.2, 0.7, 0.3, 1) 150ms both; }
+  main.waking > :global(*:nth-child(2)) { animation-delay: 220ms; }
+  main.waking > :global(*:nth-child(n + 3)) { animation-delay: 290ms; }
+  @keyframes page-rise { from { opacity: 0; transform: translate3d(0, 18px, 0); } }
+  @media (prefers-reduced-motion: reduce) { main.waking > :global(*) { animation: none; } }
   .shell {
     display: grid;
     grid-template-rows: auto 1fr auto;
