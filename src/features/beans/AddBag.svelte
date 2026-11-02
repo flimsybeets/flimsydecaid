@@ -21,11 +21,15 @@
   let cropping = $state<Blob | null>(null);
   let stream = $state<MediaStream | null>(null);
   let video = $state<HTMLVideoElement>();
-  let fileInput: HTMLInputElement;
+  let fileInput = $state<HTMLInputElement>();
   let cameraNote = $state<string | null>(null);
 
   let saving = $state(false);
   let error = $state<string | null>(null);
+
+  // The photo belongs to the coffee: offered for a new coffee, or one that has none yet.
+  $effect(() => { if (beanId !== 'new') void app.loadBeanPhoto(beanId); });
+  const wantsPhoto = $derived(beanId === 'new' || !app.beanPhotos[beanId]);
 
   const canSave = $derived(!saving && (beanId !== 'new' || (roaster.trim() && name.trim())));
 
@@ -43,7 +47,7 @@
     if (s) { stream = s; return; }
     // Live camera unavailable (dev server, consent denied, iOS picker).
     // Fall back to the system capture/file picker.
-    fileInput.click();
+    fileInput?.click();
   }
 
   async function snap() {
@@ -73,7 +77,7 @@
           openDate: new Date().toISOString(),
         },
       );
-      if (photo) await app.savePhoto(bag.id, photo);
+      if (photo && wantsPhoto) await app.saveBeanPhoto(bag.beanId, photo);
       onClose();
     } catch (e) {
       error = `The bag wasn't added: ${(e as Error).message}`;
@@ -84,13 +88,14 @@
 </script>
 
 <Modal title="Add a bag" {onClose}>
+  {#if wantsPhoto}
   <div class="photo">
     {#if stream}
       <!-- svelte-ignore a11y_media_has_caption -->
       <video bind:this={video} playsinline muted></video>
       <button class="snap glass solid" onclick={snap}>Take photo</button>
     {:else if photo}
-      <img src={photo} alt="The bag" />
+      <img src={photo} alt="The coffee" />
       <div class="photo-actions">
         {#if raw}<button class="retake glass" onclick={() => (cropping = raw)}>Crop photo</button>{/if}
         <button class="retake glass" onclick={takePhoto}>Retake</button>
@@ -98,12 +103,13 @@
     {:else}
       <button class="camera glass" onclick={takePhoto}>
         <span class="lens" aria-hidden="true"></span>
-        Photograph the bag
+        Photograph the coffee (optional)
       </button>
     {/if}
     <input bind:this={fileInput} class="sr-only" type="file" accept="image/*" capture="user" onchange={onFile} tabindex="-1" aria-hidden="true" />
     {#if cameraNote}<p class="note">{cameraNote}</p>{/if}
   </div>
+  {/if}
 
   <label>
     <span>Coffee</span>

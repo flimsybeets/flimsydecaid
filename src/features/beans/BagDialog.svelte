@@ -4,11 +4,9 @@
   import Modal from '../../components/Modal.svelte';
   import Stepper from '../../components/Stepper.svelte';
   import ConfirmDialog from '../../components/ConfirmDialog.svelte';
-  import PhotoCrop from '../../components/PhotoCrop.svelte';
-  import { colourChoicesOfDataUrl, dataUrlBlob } from '../../lib/photo';
 
-  // Edit a bag: roast date, weight and what's left, frozen, photo. Finished
-  // bags can be reopened. Delete is permanent (photo too); shots keep the
+  // Edit a bag: roast date, weight and what's left, frozen. (Photos belong to
+  // the coffee.) Finished bags can be reopened. Delete is permanent; shots keep the
   // coffee's name but lose the link to the bag.
 
   let { bag, onClose }: { bag: BeanBatch; onClose: () => void } = $props();
@@ -27,43 +25,13 @@
   let remaining = $state<number | undefined>(bag.weightRemaining ?? undefined);
   // svelte-ignore state_referenced_locally
   let frozen = $state(bag.frozen);
-  let photo = $state<string | null | undefined>(undefined); // undefined = unchanged
-  let fileInput: HTMLInputElement;
   let saving = $state(false);
   let error = $state<string | null>(null);
   let confirming = $state(false);
-  let cropping = $state<Blob | null>(null);
 
   const bean = $derived(app.beans.find((b) => b.id === bag.beanId));
-  const shownPhoto = $derived(photo === undefined ? app.photos[bag.id] : photo);
 
-  // Colour: picked from the photo's own colours (first = the automatic pick).
-  let colour = $state<string | null | undefined>(undefined); // undefined = unchanged / automatic
-  let choices = $state<string[]>([]);
-  $effect(() => {
-    const url = shownPhoto;
-    choices = [];
-    if (!url) return;
-    let live = true;
-    void colourChoicesOfDataUrl(url).then((c) => { if (live) choices = c; });
-    return () => { live = false; };
-  });
-  // A new photo starts on its automatic colour; the old photo shows what's saved.
-  const currentColour = $derived(colour !== undefined ? colour : photo === undefined ? (app.bagColours[bag.id] ?? null) : (choices[0] ?? null));
 
-  async function onFile(e: Event) {
-    const file = (e.currentTarget as HTMLInputElement).files?.[0];
-    if (!file) return;
-    (e.currentTarget as HTMLInputElement).value = '';
-    if (!file.type.startsWith('image/')) { error = "That photo couldn't be read. Try another."; return; }
-    cropping = file;
-  }
-
-  /** Crop the photo already on the bag. */
-  async function cropExisting() {
-    if (!shownPhoto) return;
-    try { cropping = await dataUrlBlob(shownPhoto); } catch { error = "That photo couldn't be read."; }
-  }
 
   // Finishing a bag set what's left to 0; reopening shouldn't leave it looking empty.
   function reopen() {
@@ -87,8 +55,6 @@
         ...(frozen !== bag.frozen ? (frozen ? { freezeDate: new Date().toISOString() } : { unfreezeDate: new Date().toISOString() }) : {}),
         ...patch,
       });
-      if (photo) await app.savePhoto(bag.id, photo, colour);
-      else if (colour !== undefined) app.setBagColour(bag.id, colour);
       onClose();
     } catch (e) {
       error = `Couldn't save: ${(e as Error).message}`;
@@ -99,22 +65,6 @@
 </script>
 
 <Modal title="Edit bag{bean ? ` · ${bean.name}` : ''}" {onClose}>
-  <div class="photo">
-    {#if shownPhoto}<img src={shownPhoto} alt="The bag" />{/if}
-    <button class="small glass" onclick={() => fileInput.click()}>{shownPhoto ? 'Change photo' : 'Add a photo'}</button>
-    {#if shownPhoto}<button class="small glass" onclick={cropExisting}>Crop photo</button>{/if}
-    <input bind:this={fileInput} class="sr-only" type="file" accept="image/*" onchange={onFile} tabindex="-1" aria-hidden="true" />
-  </div>
-  {#if shownPhoto && choices.length > 0}
-    <div class="colours" role="radiogroup" aria-label="Bag colour">
-      <span>Colour</span>
-      {#each choices as c (c)}
-        <button class="swatch" style:--c={c} role="radio" aria-checked={currentColour === c} aria-label="Colour {c}" onclick={() => (colour = c)}></button>
-      {/each}
-      <button class="small glass" role="radio" aria-checked={currentColour === null} onclick={() => (colour = null)}>None</button>
-    </div>
-  {/if}
-
   <div class="two">
     <label><span>Roast date</span><input class="well" type="date" bind:value={roastDate} /></label>
     <label class="check"><input type="checkbox" bind:checked={frozen} /> Frozen</label>
@@ -138,14 +88,11 @@
   {/snippet}
 </Modal>
 
-{#if cropping}
-  <PhotoCrop source={cropping} onDone={(url) => { photo = url; cropping = null; }} onCancel={() => { cropping = null; }} />
-{/if}
 
 {#if confirming}
   <ConfirmDialog
     title="Delete this bag?"
-    message="It's removed from Decaid for good, with its photo and the grind, dose and temperature you saved for it. Shots made with it keep the coffee's name. To just put it away, use Finished instead."
+    message="It's removed from Decaid for good, with the grind, dose and temperature you saved for it. Shots made with it keep the coffee's name. To just put it away, use Finished instead."
     action="Delete bag"
     onConfirm={async () => { await app.deleteBag(bag.id); onClose(); }}
     onClose={() => (confirming = false)}
@@ -158,12 +105,6 @@
   .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: end; }
   .check { display: flex; align-items: center; gap: 8px; min-height: var(--touch); }
   .check input { width: 20px; height: 20px; accent-color: var(--paper); }
-  .photo { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-  .colours { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-  .colours > span { color: var(--paper-dim); font-size: var(--t-sm); margin-right: 4px; }
-  .swatch { width: 40px; height: 40px; border-radius: 50%; background: var(--c); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.25); }
-  .swatch[aria-checked='true'] { box-shadow: 0 0 0 3px var(--paper), inset 0 0 0 1px rgb(0 0 0 / 0.3); }
-  .photo img { width: 72px; height: 72px; object-fit: cover; border-radius: 12px; }
   .row { display: flex; flex-wrap: wrap; gap: 6px; }
   .small { min-height: 40px; padding: 0 14px; border-radius: var(--radius-pill); color: var(--paper); font-size: var(--t-xs); font-weight: 650; }
   .small.danger { color: #ffb3ab; }

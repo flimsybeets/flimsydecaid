@@ -4,7 +4,7 @@
   import Modal from '../../components/Modal.svelte';
   import ConfirmDialog from '../../components/ConfirmDialog.svelte';
   import PhotoCrop from '../../components/PhotoCrop.svelte';
-  import { frameBlob, openFrontCamera, stopStream } from '../../lib/photo';
+  import { colourChoicesOfDataUrl, dataUrlBlob, frameBlob, openFrontCamera, stopStream } from '../../lib/photo';
 
   // Edit a coffee (Decaid "bean"): roaster, name, origin, notes. Removing it
   // archives the coffee and its bags, so shots and other skins keep them.
@@ -39,6 +39,27 @@
   const shownPhoto = $derived(photo === undefined ? app.beanPhotos[bean.id] : photo);
 
   $effect(() => { void app.loadBeanPhoto(bean.id); });
+
+  // Colour: picked from the photo's own colours (first = the automatic pick).
+  let colour = $state<string | null | undefined>(undefined); // undefined = unchanged / automatic
+  let choices = $state<string[]>([]);
+  $effect(() => {
+    const url = shownPhoto;
+    choices = [];
+    if (!url) return;
+    let live = true;
+    void colourChoicesOfDataUrl(url).then((c) => { if (live) choices = c; });
+    return () => { live = false; };
+  });
+  // A new photo starts on its automatic colour; the old photo shows what's saved.
+  // svelte-ignore state_referenced_locally
+  const currentColour = $derived(colour !== undefined ? colour : photo === undefined ? (app.coffeeColours[bean.id] ?? null) : (choices[0] ?? null));
+
+  /** Crop the photo already on the coffee. */
+  async function cropExisting() {
+    if (!shownPhoto) return;
+    try { cropping = await dataUrlBlob(shownPhoto); } catch { photoNote = "That photo couldn't be read."; }
+  }
   $effect(() => {
     if (video && stream) {
       video.srcObject = stream;
@@ -78,8 +99,9 @@
     error = null;
     try {
       await app.updateBean(bean.id, { roaster: roaster.trim(), name: name.trim(), country: orNull(country), processing: orNull(processing), notes: orNull(notes), decaf });
-      if (photo) await app.saveBeanPhoto(bean.id, photo);
+      if (photo) await app.saveBeanPhoto(bean.id, photo, colour);
       else if (photo === null) await app.removeBeanPhoto(bean.id);
+      else if (colour !== undefined) app.setCoffeeColour(bean.id, colour);
       onClose();
     } catch (e) {
       error = `Couldn't save: ${(e as Error).message}`;
@@ -99,12 +121,22 @@
       {#if shownPhoto}<img src={shownPhoto} alt="The coffee" />{/if}
       <button class="small glass" onclick={takePhoto}>Take photo</button>
       <button class="small glass" onclick={() => fileInput.click()}>Choose photo</button>
+      {#if shownPhoto}<button class="small glass" onclick={cropExisting}>Crop photo</button>{/if}
       {#if shownPhoto}<button class="small glass danger" onclick={() => (photo = null)}>Remove photo</button>{/if}
     {/if}
     <input bind:this={fileInput} class="sr-only" type="file" accept="image/*" onchange={onFile} tabindex="-1" aria-hidden="true" />
     <input bind:this={cameraInput} class="sr-only" type="file" accept="image/*" capture="user" onchange={onFile} tabindex="-1" aria-hidden="true" />
     {#if photoNote}<p class="error">{photoNote}</p>{/if}
   </div>
+  {#if shownPhoto && choices.length > 0}
+    <div class="colours" role="radiogroup" aria-label="Coffee colour">
+      <span>Colour</span>
+      {#each choices as c (c)}
+        <button class="swatch" style:--c={c} role="radio" aria-checked={currentColour === c} aria-label="Colour {c}" onclick={() => (colour = c)}></button>
+      {/each}
+      <button class="small glass" role="radio" aria-checked={currentColour === null} onclick={() => (colour = null)}>None</button>
+    </div>
+  {/if}
   <div class="two">
     <label><span>Roaster</span><input class="well" bind:value={roaster} /></label>
     <label><span>Coffee name</span><input class="well" bind:value={name} /></label>
@@ -140,6 +172,10 @@
 {/if}
 
 <style>
+  .colours { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .colours > span { color: var(--paper-dim); font-size: var(--t-sm); margin-right: 4px; }
+  .swatch { width: 40px; height: 40px; border-radius: 50%; background: var(--c); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.25); }
+  .swatch[aria-checked='true'] { box-shadow: 0 0 0 3px var(--paper), inset 0 0 0 1px rgb(0 0 0 / 0.3); }
   label { display: grid; gap: 4px; color: var(--paper-dim); font-size: var(--t-sm); }
   input:not([type=checkbox]) { min-height: var(--touch); padding: 0 12px; border-radius: var(--radius-control); border: 1px solid rgb(255 255 255 / 0.08); color: var(--paper); font-size: var(--t-md); user-select: text; }
   input:focus { outline: none; border-color: rgb(255 255 255 / 0.45); }
