@@ -158,7 +158,7 @@
 </Modal>
 
 {#if cropping}
-  <PhotoCrop source={cropping} onDone={(url) => { photo = url; cropping = null; }} onCancel={() => { cropping = null; }} />
+  <PhotoCrop source={cropping} onDone={(url) => { photo = url; colour = undefined; cropping = null; }} onCancel={() => { cropping = null; }} />
 {/if}
 
 {#if confirming}

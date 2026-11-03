@@ -29,7 +29,12 @@
 
   // The photo belongs to the coffee: offered for a new coffee, or one that has none yet.
   $effect(() => { if (beanId !== 'new') void app.loadBeanPhoto(beanId); });
-  const wantsPhoto = $derived(beanId === 'new' || !app.beanPhotos[beanId]);
+  // Only once it's known the coffee has none (null), not while its photo is still loading.
+  const wantsPhoto = $derived(beanId === 'new' || app.beanPhotos[beanId] === null);
+  // Switching to a coffee that has a photo hides the camera: turn it off too.
+  $effect(() => { if (!wantsPhoto && stream) { stopStream(stream); stream = null; } });
+  /** The bag is in Decaid; only the photo failed. Save then just closes (never adds it twice). */
+  let added = $state(false);
 
   const canSave = $derived(!saving && (beanId !== 'new' || (roaster.trim() && name.trim())));
 
@@ -66,6 +71,7 @@
   }
 
   async function save() {
+    if (added) { onClose(); return; }
     saving = true;
     error = null;
     try {
@@ -77,7 +83,15 @@
           openDate: new Date().toISOString(),
         },
       );
-      if (photo && wantsPhoto) await app.saveBeanPhoto(bag.beanId, photo);
+      if (photo && wantsPhoto) {
+        try {
+          await app.saveBeanPhoto(bag.beanId, photo);
+        } catch {
+          added = true;
+          error = "The bag was added, but the photo couldn't be saved. Try again from Edit coffee.";
+          return;
+        }
+      }
       onClose();
     } catch (e) {
       error = `The bag wasn't added: ${(e as Error).message}`;
@@ -137,7 +151,7 @@
 
   {#snippet actions()}
     <button class="secondary glass" onclick={onClose}>Cancel</button>
-    <button class="primary glass solid" disabled={!canSave} onclick={save}>{saving ? 'Adding…' : 'Add bag'}</button>
+    <button class="primary glass solid" disabled={!canSave} onclick={save}>{added ? 'Done' : saving ? 'Adding…' : 'Add bag'}</button>
   {/snippet}
 </Modal>
 

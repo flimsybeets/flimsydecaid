@@ -31,6 +31,8 @@ import { hideOrder, indexProfiles, latestPerLineage, lineageRoot, shiftTemperatu
 import { ShotRecorder, samplesFromMeasurements, type ShotSample } from '../lib/shot';
 import { clampSteamFlow, clampSteamTemp, LAST_STEAM_TEMP_KEY, STEAM_DEFAULT_C } from '../lib/steam';
 
+/** Set once the old per-bag photos have been moved to their coffees. */
+const PHOTOS_MOVED_KEY = 'photosMoved';
 const config = resolveGateway();
 export const gateway: Gateway = config.mock ? createMockGateway() : createHttpGateway(config);
 
@@ -174,7 +176,7 @@ class AppState {
       this.error = null;
       this.loaded = true;
       // Big, so they load after everything else (the background first: it's on screen).
-      void this.loadAppBackground().then(() => this.loadScreensaver());
+      void this.loadAppBackground().then(() => this.loadScreensaver()).then(() => this.moveBagPhotos());
     } catch (e) {
       this.error = `Couldn't reach Decaid: ${(e as Error).message}`;
     }
@@ -266,36 +268,46 @@ class AppState {
     this.batches = this.batches.map((b) => (b.id === updated.id ? updated : b));
   }
 
-  /** A bag's colour: its coffee's (bags have no photo of their own). */
-  colourOfBag(batchId: string): string | null {
-    const bag = this.batches.find((b) => b.id === batchId);
-    return bag ? (this.coffeeColours[bag.beanId] ?? null) : null;
-  }
-
-  /** Coffee photos by bean id (KV beanPhoto:<id>), loaded on demand. */
+  /** Coffee photos by bean id (KV beanPhoto:<id>), loaded on demand. Missing = not known yet, null = none. */
   beanPhotos = $state<Record<string, string | null>>({});
+  private photoLoads = new Set<string>();
 
-  /** Load a coffee's photo. A coffee without one takes over the newest photo of its bags
-   *  (bags used to have their own photos), saved as the coffee's. Then its colour is
-   *  worked out if it hasn't been yet. */
+  /** Load a coffee's photo, then work out its colour if that hasn't been done. */
   async loadBeanPhoto(beanId: string): Promise<void> {
+    if (beanId in this.beanPhotos || this.photoLoads.has(beanId)) return;
+    this.photoLoads.add(beanId);
+    const raw = await gateway.storeGet<string>(beanPhotoKey(beanId)).catch(() => null);
+    this.photoLoads.delete(beanId);
+    // A save or remove that finished meanwhile wins over what was read before it.
     if (beanId in this.beanPhotos) return;
-    this.beanPhotos[beanId] = null;
-    let url = await gateway.storeGet<string>(beanPhotoKey(beanId)).catch(() => null);
-    if (!(typeof url === 'string' && url.startsWith('data:image/'))) {
-      url = null;
-      const bags = this.batches.filter((b) => b.beanId === beanId).sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''));
-      for (const b of bags) {
-        const old = await gateway.storeGet<string>(photoKey(b.id)).catch(() => null);
-        if (typeof old === 'string' && old.startsWith('data:image/')) {
-          url = old;
-          void gateway.storeSet(beanPhotoKey(beanId), old).catch(() => {});
-          break;
-        }
-      }
-    }
+    const url = typeof raw === 'string' && raw.startsWith('data:image/') ? raw : null;
     this.beanPhotos[beanId] = url;
     if (url && !(beanId in this.coffeeColours)) void this.computeCoffeeColour(beanId, url);
+  }
+
+  /** Bags used to have their own photos (KV photo:<batchId>). Once ever (KV photosMoved),
+   *  each coffee without a photo takes over its newest bag's photo. Reads one at a time. */
+  private async moveBagPhotos(): Promise<void> {
+    try {
+      if ((await gateway.storeGet(PHOTOS_MOVED_KEY)) === true) return;
+      for (const bean of this.beans) {
+        const own = await gateway.storeGet<string>(beanPhotoKey(bean.id)).catch(() => null);
+        if (typeof own === 'string' && own.startsWith('data:image/')) continue;
+        const bags = this.batches.filter((b) => b.beanId === bean.id).sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''));
+        for (const b of bags) {
+          const old = await gateway.storeGet<string>(photoKey(b.id)).catch(() => null);
+          if (typeof old === 'string' && old.startsWith('data:image/')) {
+            await gateway.storeSet(beanPhotoKey(bean.id), old);
+            if (!this.beanPhotos[bean.id]) {
+              this.beanPhotos[bean.id] = old;
+              if (!(bean.id in this.coffeeColours)) void this.computeCoffeeColour(bean.id, old);
+            }
+            break;
+          }
+        }
+      }
+      await gateway.storeSet(PHOTOS_MOVED_KEY, true);
+    } catch { /* tried again next time the skin loads */ }
   }
 
   /** Save a coffee photo. Its colour is worked out from it, unless `colour` is given (picked by hand; null = no colour). */
@@ -308,8 +320,6 @@ class AppState {
 
   async removeBeanPhoto(beanId: string): Promise<void> {
     await gateway.storeDelete(beanPhotoKey(beanId));
-    // Old bag photos would be taken over again on the next load, so they go too.
-    for (const b of this.batches.filter((x) => x.beanId === beanId)) void gateway.storeDelete(photoKey(b.id)).catch(() => {});
     this.beanPhotos[beanId] = null;
     this.setCoffeeColour(beanId, null);
   }

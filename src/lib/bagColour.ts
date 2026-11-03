@@ -1,4 +1,4 @@
-// A bag's colour: the boldest colour patch in its photo that is big enough to
+// A coffee's colour: the boldest colour patch in its photo that is big enough to
 // matter, kept close to how it really looks (only lifted if too dark to see on
 // the dark UI). The caller draws the photo small (64x64) on a canvas and
 // passes the RGBA pixels; this stays free of the DOM.
@@ -11,7 +11,7 @@
 // how big it is (square root up to 30% of the picture, so a big bag beats a
 // small bright thing in the corner). Kraft paper, wood and hands are
 // low-chroma, so a printed label beats them; a plain kraft bag gets its tan.
-// Colours live in the KV store as one document { [batchId]: '#rrggbb' | null }
+// Colours live in the KV store as one document { [beanId]: '#rrggbb' | null }
 // (null = computed, nothing vivid in the photo).
 
 /** Colours are per coffee (from the coffee's photo), by bean id. */
@@ -148,12 +148,12 @@ export function vividColour(rgba: Uint8ClampedArray): string | null {
   return best ? displayColour(best) : null;
 }
 
-/** Colours to offer when picking a bag's colour by hand: the photo's real
- *  colour patches, best first (the first is what vividColour picks), with
- *  near-duplicates dropped. */
+/** Colours to offer when picking a coffee's colour by hand: the photo's real
+ *  colour patches, best first, near-duplicates dropped. Same rule as
+ *  vividColour, so the first is always what it picks. */
 export function colourChoices(rgba: Uint8ClampedArray, max = 6): string[] {
   const ranked = swatches(rgba)
-    .filter((s) => s.share >= MIN_SHARE / 2 && swatchScore({ ...s, share: Math.max(s.share, MIN_SHARE) }) > 0)
+    .filter((s) => swatchScore(s) > 0)
     .sort((a, b) => swatchScore(b) - swatchScore(a));
   const out: string[] = [];
   const seen: number[][] = [];

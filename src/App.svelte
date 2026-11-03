@@ -37,12 +37,12 @@
   // painting, no animating, no touches, until they close.
   const covered = $derived((app.guiding && app.guide !== null) || shotOpen || app.editing !== undefined || activity !== null);
 
-  // Screensaver: up while the machine sleeps, once a photo is chosen.
-  // Tapping asks the machine to wake. If it stays asleep (say the wake
-  // didn't get through), the screensaver comes back after a minute.
   // Sheet colour (Settings → Theme options): read by the tokens in styles.css.
   $effect(() => { document.documentElement.dataset.tint = app.panelTint; });
 
+  // Screensaver: up while the machine sleeps, once a photo is chosen.
+  // Tapping asks the machine to wake. If it stays asleep (say the wake
+  // didn't get through), the screensaver comes back after a minute.
   let saverDismissed = $state(false);
   $effect(() => { if (!app.asleep) saverDismissed = false; });
   $effect(() => {
