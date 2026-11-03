@@ -227,10 +227,10 @@ li.glass:not(.frost) {
 /* Fallback with no blur at all: where the WebView can't do backdrop-filter,
    or the person asked for less transparency. A denser fill keeps text legible. */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .glass { background: rgb(30 60 68 / 0.85); }
+  .glass, .glass.frost { background: rgb(30 60 68 / 0.85); }
 }
 @media (prefers-reduced-transparency: reduce) {
-  .glass { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgb(30 60 68 / 0.9); }
+  .glass, .glass.frost { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgb(30 60 68 / 0.9); }
   .glass.thick { background: rgb(14 32 37 / 0.96); }
 }
 

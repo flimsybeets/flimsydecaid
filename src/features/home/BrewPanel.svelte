@@ -234,7 +234,7 @@
     {:else}
       <div class="bag-list" role="radiogroup" aria-label="Bag">
         {#each bags as { batch: b, bean } (b.id)}
-          <button class="bag glass" style:--bag={app.colourOfBag(b.id) ?? undefined} class:coloured={!!app.colourOfBag(b.id)} class:lit={b.id === batchId} class:selected={b.id === batchId} role="radio" aria-checked={b.id === batchId} onclick={() => (batchId = b.id)}>
+          <button class="bag glass" style:--bag={app.coffeeColours[b.beanId] ?? undefined} class:coloured={!!app.coffeeColours[b.beanId]} class:lit={b.id === batchId} class:selected={b.id === batchId} role="radio" aria-checked={b.id === batchId} onclick={() => (batchId = b.id)}>
             {#if app.beanPhotos[b.beanId]}
               <img src={app.beanPhotos[b.beanId]} alt="" />
             {:else}

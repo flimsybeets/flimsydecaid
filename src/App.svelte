@@ -5,7 +5,6 @@
   import SteamModal from './components/SteamModal.svelte';
   import ShotView from './components/ShotView.svelte';
   import Screensaver from './components/Screensaver.svelte';
-  import SteamWisps from './components/SteamWisps.svelte';
   import ActivityView from './components/ActivityView.svelte';
   import { activityKind } from './lib/activity';
   import ProfileEditor from './features/profiles/ProfileEditor.svelte';
@@ -38,12 +37,12 @@
   // painting, no animating, no touches, until they close.
   const covered = $derived((app.guiding && app.guide !== null) || shotOpen || app.editing !== undefined || activity !== null);
 
-  // Screensaver: up while the machine sleeps, once a photo is chosen.
-  // Tapping asks the machine to wake. If it stays asleep (say the wake
-  // didn't get through), the screensaver comes back after a minute.
   // Sheet colour (Settings → Theme options): read by the tokens in styles.css.
   $effect(() => { document.documentElement.dataset.tint = app.panelTint; });
 
+  // Screensaver: up while the machine sleeps, once a photo is chosen.
+  // Tapping asks the machine to wake. If it stays asleep (say the wake
+  // didn't get through), the screensaver comes back after a minute.
   let saverDismissed = $state(false);
   $effect(() => { if (!app.asleep) saverDismissed = false; });
   $effect(() => {
@@ -52,20 +51,6 @@
     return () => clearTimeout(t);
   });
   const saverUp = $derived(app.asleep && app.screensaverImage !== null && !saverDismissed);
-
-  // Waking: when the screensaver goes, the main page rises into place.
-  let waking = $state(false);
-  let wasUp = false;
-  $effect(() => {
-    const up = app.screensaverPreview || saverUp;
-    if (wasUp && !up) {
-      waking = true;
-      const t = setTimeout(() => (waking = false), 1000);
-      wasUp = up;
-      return () => clearTimeout(t);
-    }
-    wasUp = up;
-  });
 
   function dismissSaver() {
     saverDismissed = true;
@@ -127,7 +112,7 @@
     {/if}
   </header>
 
-  <main class:waking>
+  <main>
     {#if app.error && !app.loaded}
       <div class="problem">
         <p>{app.error}</p>
@@ -170,10 +155,6 @@
   <ActivityView kind={activity} />
 {/if}
 
-{#if waking}
-  <div class="clearing"><SteamWisps mode="clear" /></div>
-{/if}
-
 {#if app.screensaverPreview}
   <Screensaver image={app.screensaverImage} preview onDismiss={() => (app.screensaverPreview = false)} />
 {:else if saverUp}
@@ -184,18 +165,10 @@
   /* Optional photo behind everything (Settings → Theme options), with the
      darken/lighten layer over it. Fixed and static, so it costs nothing per frame. */
   .app-bg { position: fixed; inset: 0; z-index: -1; background-size: cover; background-position: center; pointer-events: none; }
-  /* Steam rising off the screensaver as it clears; above it (z 100), never catches touches. */
-  .clearing { position: fixed; inset: 0; z-index: 101; pointer-events: none; }
   .tone { position: absolute; inset: 0; }
   /* Under a full-screen view: hidden, and nothing under it animates (Home's guide tile spins forever). */
   .shell.covered { visibility: hidden; }
   .shell.covered, .shell.covered :global(*) { animation: none !important; transition: none !important; }
-  /* The page under the tabs rises in as the screensaver clears: transform and opacity, a few elements. */
-  main.waking > :global(*) { animation: page-rise 450ms cubic-bezier(0.2, 0.7, 0.3, 1) 150ms both; }
-  main.waking > :global(*:nth-child(2)) { animation-delay: 220ms; }
-  main.waking > :global(*:nth-child(n + 3)) { animation-delay: 290ms; }
-  @keyframes page-rise { from { opacity: 0; transform: translate3d(0, 18px, 0); } }
-  @media (prefers-reduced-motion: reduce) { main.waking > :global(*) { animation: none; } }
   .shell {
     display: grid;
     grid-template-rows: auto 1fr auto;
