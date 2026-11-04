@@ -120,7 +120,7 @@
     {:else}
       {#if shownPhoto}<img src={shownPhoto} alt="The coffee" />{/if}
       <button class="small glass" onclick={takePhoto}>Take photo</button>
-      <button class="small glass" onclick={() => fileInput.click()}>Choose photo</button>
+      <button class="small glass" onclick={() => fileInput.click()}>Upload photo</button>
       {#if shownPhoto}<button class="small glass" onclick={cropExisting}>Crop photo</button>{/if}
       {#if shownPhoto}<button class="small glass danger" onclick={() => (photo = null)}>Remove photo</button>{/if}
     {/if}
