@@ -30,6 +30,7 @@
   let stream = $state<MediaStream | null>(null);
   let video = $state<HTMLVideoElement>();
   let fileInput = $state<HTMLInputElement>();
+  let uploadInput = $state<HTMLInputElement>();
   let cameraNote = $state<string | null>(null);
 
   let saving = $state(false);
@@ -120,15 +121,25 @@
       <img src={photo} alt="The coffee" />
       <div class="photo-actions">
         {#if raw}<button class="retake glass" onclick={() => (cropping = raw)}>Crop photo</button>{/if}
-        <button class="retake glass" onclick={takePhoto}>Retake</button>
+        <button class="retake glass" onclick={takePhoto}>Take photo</button>
+        <button class="retake glass" onclick={() => uploadInput?.click()}>Upload photo</button>
       </div>
     {:else}
-      <button class="camera glass" onclick={takePhoto}>
-        <span class="lens" aria-hidden="true"></span>
-        Photograph the coffee (optional)
-      </button>
+      <span class="photo-label">Photo of the coffee (optional)</span>
+      <div class="photo-pick">
+        <button class="camera glass" onclick={takePhoto}>
+          <span class="lens" aria-hidden="true"></span>
+          Take photo
+        </button>
+        <button class="camera glass" onclick={() => uploadInput?.click()}>
+          <span class="upload" aria-hidden="true"></span>
+          Upload photo
+        </button>
+      </div>
     {/if}
+    <!-- Take photo falls back to the system camera; Upload photo opens the files/gallery picker. -->
     <input bind:this={fileInput} class="sr-only" type="file" accept="image/*" capture="user" onchange={onFile} tabindex="-1" aria-hidden="true" />
+    <input bind:this={uploadInput} class="sr-only" type="file" accept="image/*" onchange={onFile} tabindex="-1" aria-hidden="true" />
     {#if cameraNote}<p class="note">{cameraNote}</p>{/if}
   </div>
   {/if}
@@ -185,6 +196,14 @@
     color: var(--paper-dim);
     font-size: var(--t-md);
   }
+  .photo { width: 100%; }
+  .photo-label { color: var(--paper-dim); font-size: var(--t-sm); }
+  .photo-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
+  .photo-pick .camera { min-height: 64px; }
+  /* An arrow up out of a tray. */
+  .upload { width: 30px; height: 24px; border: 3px solid currentColor; border-top: none; border-radius: 0 0 6px 6px; position: relative; margin-top: 6px; }
+  .upload::before { content: ''; position: absolute; left: 50%; top: -12px; width: 3px; height: 18px; background: currentColor; translate: -50% 0; }
+  .upload::after { content: ''; position: absolute; left: 50%; top: -13px; width: 9px; height: 9px; border-left: 3px solid currentColor; border-top: 3px solid currentColor; translate: -50% 0; rotate: 45deg; }
   .lens { width: 40px; height: 26px; border: 3px solid currentColor; border-radius: 7px; position: relative; }
   .lens::after { content: ''; position: absolute; inset: 5px 9px; border: 3px solid currentColor; border-radius: 50%; }
   /* Mirrored like a selfie view so it's easy to line the bag up; the saved photo isn't, so its label reads right. */
