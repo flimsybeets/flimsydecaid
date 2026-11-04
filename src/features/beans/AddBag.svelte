@@ -4,12 +4,20 @@
   import Stepper from '../../components/Stepper.svelte';
   import PhotoCrop from '../../components/PhotoCrop.svelte';
   import { frameBlob, openFrontCamera, stopStream } from '../../lib/photo';
+  import { roasterSuggestions } from '../../lib/roasters';
 
   let { onClose }: { onClose: () => void } = $props();
 
-  // Bean: an existing one, or a new roaster + name.
-  let beanId = $state<string | 'new'>(app.beans.find((b) => !b.archived)?.id ?? 'new');
+  // Bean: a new coffee by default (most bags are), or another bag of one you have.
+  let beanId = $state<string | 'new'>('new');
   let roaster = $state('');
+  let nameInput = $state<HTMLInputElement>();
+  // Roasters you've bought from before (every coffee, finished ones too), matching what's typed.
+  const roasters = $derived(roasterSuggestions(app.beans, roaster));
+  function pickRoaster(r: string) {
+    roaster = r;
+    nameInput?.focus();
+  }
   let name = $state('');
   let roastDate = $state(new Date().toISOString().slice(0, 10));
   let weight = $state<number | undefined>(250);
@@ -128,18 +136,25 @@
   <label>
     <span>Coffee</span>
     <select bind:value={beanId}>
+      <option value="new">A new coffee</option>
       {#each app.beans.filter((b) => !b.archived) as b (b.id)}
-        <option value={b.id}>{b.roaster} {b.name}</option>
+        <option value={b.id}>Another bag of {b.roaster} {b.name}</option>
       {/each}
-      <option value="new">A new coffee…</option>
     </select>
   </label>
 
   {#if beanId === 'new'}
     <div class="two">
       <label><span>Roaster</span><input bind:value={roaster} placeholder="e.g. Proud Mary" /></label>
-      <label><span>Coffee name</span><input bind:value={name} placeholder="e.g. Ethiopia Hambela" /></label>
+      <label><span>Coffee name</span><input bind:this={nameInput} bind:value={name} placeholder="e.g. Ethiopia Hambela" /></label>
     </div>
+    {#if roasters.length > 0}
+      <div class="roasters" role="group" aria-label="Roasters you've bought from">
+        {#each roasters as r (r)}
+          <button type="button" class="chip glass" onmousedown={(e) => e.preventDefault()} onclick={() => pickRoaster(r)}>{r}</button>
+        {/each}
+      </div>
+    {/if}
   {/if}
 
   <div class="two">
@@ -199,4 +214,7 @@
   .primary:disabled { opacity: 0.4; }
   .secondary { color: var(--paper-dim); }
   select { font-family: inherit; }
+  /* Tap a roaster you've bought from before; the list narrows as you type. */
+  .roasters { display: flex; flex-wrap: wrap; gap: 6px; margin-top: -4px; }
+  .chip { min-height: 40px; padding: 0 14px; border-radius: var(--radius-pill); color: var(--paper); font-size: var(--t-sm); font-weight: 600; }
 </style>
