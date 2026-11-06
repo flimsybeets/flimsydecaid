@@ -84,19 +84,21 @@ function knockBox(S, cam, o = {}) {
 
 // Milk jug: polished steel pitcher, spout to the left, handle on the right.
 // Opening centre (cx, topY, cz). o.inside(clip) draws milk in the opening.
+// o.flip: spout to the right, handle to the left. o.shadow false: no ground shadow.
 function milkJug(S, cam, cx, y0, cz, o = {}) {
-  const h = 92;
-  groundShadow(S, cam, cx, cz, 50, y0, 1.1);
+  const h = 92, sg = o.flip ? -1 : 1;
+  if (o.shadow !== false) groundShadow(S, cam, cx, cz, 50, y0, 1.1);
   // handle first (right side)
-  const hd = tube(cam, [[cx + 40, y0 + h - 14, cz], [cx + 66, y0 + h - 16, cz], [cx + 70, y0 + 52, cz], [cx + 46, y0 + 22, cz]], 4.6, 8);
+  const hd = tube(cam, [[cx + 40 * sg, y0 + h - 14, cz], [cx + 66 * sg, y0 + h - 16, cz], [cx + 70 * sg, y0 + 52, cz], [cx + 46 * sg, y0 + 22, cz]], 4.6, 8);
   S.solid(hd.d, 'metal', { under: false, rim: 0.9 });
   const prof = [[y0 + h, 41], [y0 + h - 1.4, 42.2, 1], [y0 + h - 10, 40.4], [y0 + 48, 45], [y0 + 22, 42.4], [y0 + 4, 33], [y0, 30]];
   const body = stackLathe(cam, cx, cz, prof, 6);
-  // spout: a pinched wedge towards -x at the rim
-  const sp = cam.P(cx - 43, y0 + h + 1, cz);
-  const spd = `M${f(sp[0] - 15)} ${f(sp[1] - 4)}L${f(sp[0] + 6)} ${f(sp[1] + 3.2)}L${f(sp[0] + 18)} ${f(sp[1] + 6.4)}L${f(sp[0] + 12)} ${f(sp[1] + 12)}Z`;
+  // spout: a rolled pouring lip at the rim, on the -x side (+x when flipped)
+  const sp = cam.P(cx - 41 * sg, y0 + h, cz), dd = -sg;
+  const q = (x, y) => `${f(sp[0] + x * dd)} ${f(sp[1] + y)}`;
+  const spd = `M${q(-9, -3.4)}L${q(5, -3.2)}Q${q(15, -2.4)} ${q(18, 1.6)}Q${q(11, 5)} ${q(2, 16)}L${q(-9, 14)}Z`;
   S.solid(body.sil, 'metal');
-  S.fill(spd, 'rgb(170 182 182 / .5)');
+  S.solid(spd, 'metal', { rim: 0.9 });
   S.face(body.ring(y0 + h, 41), 'top');
   S.face(body.ring(y0 + h - 0.6, 38.4), 'hole');
   if (o.inside) { clipTo(S, body.ring(y0 + h - 0.6, 38.4)); o.inside({ body, y0, h }); S.raw('</g>'); }

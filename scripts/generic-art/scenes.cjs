@@ -5,6 +5,7 @@ const O = require('./objects.cjs');
 const T = require('./tools.cjs');
 const Mo = require('./more.cjs');
 const M = require('./machines.cjs');
+const Sh = require('./shaker.cjs');
 const { circle, groundShadow, aboveClip, clipTo, px, bean, beanHeap, dosingCup, scale } = O;
 const YAW = -32;
 const scenes = {};
@@ -293,33 +294,106 @@ scenes.rinse = (S) => {
 
 scenes.steam = (S) => {
   const cam = MC();
-  const jx = 184, jz = 98, ty = DE.FY - 2, wx = 201;
-  let jug;
-  const jugTop = ty + 92;
-  const rim = cam.ell(jx, jugTop - 0.6, jz, 38.4);
+  const ty = DE.FY - 2, wx = 201, wz = 78;
+  const jx = 184, jz = 98, h = 92;
+  // The jug is held, not standing: lifted off the tray and tilted towards the
+  // wand (clockwise, spout on the wand side). It is drawn upright and turned
+  // as a whole in the plane of the picture; the milk stays level inside it.
+  const TILT = 21, by = ty + 24;
+  const piv = cam.P(jx, by, jz);
+  const turn = (p, a = TILT) => {
+    const c = Math.cos(a * Math.PI / 180), s = Math.sin(a * Math.PI / 180), dx = p[0] - piv[0], dy = p[1] - piv[1];
+    return [piv[0] + dx * c - dy * s, piv[1] + dx * s + dy * c];
+  };
+  const rim = cam.ell(jx, by + h - 0.6, jz, 38.4);
+  // where the milk sits in the jug (jug frame): level ellipse, a little to the low side
+  const mr = 34 * cam.s;
+  const mLoc = [rim.cx + 9, rim.cy + 15];
+  const wandX = cam.P(wx, 0, wz)[0];
+  // slide the jug sideways until the wand enters the milk right of its centre
+  const mT = turn(mLoc);
+  const tx = wandX - mr * 0.34 - mT[0];
+  const tr = `translate(${f(tx)} 0) rotate(${TILT} ${f(piv[0])} ${f(piv[1])})`;
+  const mc = [mT[0] + tx, mT[1]];
+  const crossY = mc[1] + 2.5;
+  // shadow of the held jug on the tray
+  const base = cam.P(jx, ty, jz);
+  S.shadow(ellD({ cx: base[0] + tx + 4, cy: base[1] + 10, rx: 60, ry: 25 }), 1);
   M.de1(S, cam, {
     wand: false,
     under: () => {
-      jug = Mo.milkJug(S, cam, jx, ty, jz, {
-        inside: ({ body, h }) => {
-          const lv = ty + h - 20;
-          const e = body.ell(lv, 38);
-          S.raw(`<g class="k-milk"><ellipse cx="${f(e.cx)}" cy="${f(e.cy)}" rx="${f(e.rx)}" ry="${f(e.ry)}" fill="url(#${S.id}milk)"/><ellipse cx="${f(e.cx - 4)}" cy="${f(e.cy - 1)}" rx="${f(e.rx * 0.62)}" ry="${f(e.ry * 0.58)}" fill="#fff" fill-opacity=".35"/></g>`);
-          S.raw(`<path class="k-swirl fx" d="M${f(e.cx - e.rx * 0.6)} ${f(e.cy)}A${f(e.rx * 0.6)} ${f(e.ry * 0.6)} 0 0 0 ${f(e.cx + e.rx * 0.2)} ${f(e.cy + e.ry * 0.58)}" fill="none" style="stroke:var(--acc)" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="10 8"/>`);
+      S.open('', ` transform="${tr}"`);
+      Mo.milkJug(S, cam, jx, by, jz, {
+        flip: true,
+        shadow: false,
+        inside: () => {
+          S.open('k-milk');
+          S.raw(`<g transform="rotate(${-TILT} ${f(mLoc[0])} ${f(mLoc[1])})">`);
+          S.raw(`<ellipse cx="${f(mLoc[0])}" cy="${f(mLoc[1])}" rx="${f(mr)}" ry="${f(mr * cam.sp * 1.04)}" fill="url(#${S.id}milk)"/>`);
+          S.raw(`<ellipse cx="${f(mLoc[0] - 5)}" cy="${f(mLoc[1] - 1)}" rx="${f(mr * 0.66)}" ry="${f(mr * 0.58 * cam.sp)}" fill="#fff" fill-opacity=".35"/>`);
+          S.raw(`<ellipse cx="${f(mLoc[0])}" cy="${f(mLoc[1])}" rx="${f(mr)}" ry="${f(mr * cam.sp * 1.04)}" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="1"/>`);
+          // the milk circling the wand tip: dashes run round it
+          const sx = mLoc[0] + (wandX - mc[0]), sy = mLoc[1] + (crossY - mc[1]);
+          S.raw(`<ellipse class="k-swirl fx" cx="${f(sx)}" cy="${f(sy)}" rx="19" ry="${f(19 * cam.sp * 1.04)}" fill="none" stroke="#9a7448" stroke-opacity=".8" stroke-width="1.8" stroke-linecap="round"/>`);
+          S.raw(`<ellipse class="k-swirl fx s2" cx="${f(sx)}" cy="${f(sy)}" rx="9.5" ry="${f(9.5 * cam.sp * 1.04)}" fill="none" stroke="#9a7448" stroke-opacity=".7" stroke-width="1.5" stroke-linecap="round"/>`);
+          S.raw('</g>');
+          S.close();
         },
       });
+      S.close();
     },
   });
-  // the wand, dipped into the jug: only the part above the rim's centre line and
-  // through the opening shows
-  const ac = aboveClip(S, rim);
-  M.steamWand(S, cam, wx, { tipY: ty + 92 - 56, clipId: ac });
-  const tp = cam.P(wx, ty + 92 + 14, 78);
+  // The wand reaches in from above: seen above the front lip of the (turned)
+  // opening, and down to where it meets the milk.
+  const lip = S.uid('lip'), cut = S.uid('cut');
+  S.raw(`<clipPath id="${lip}"><path transform="${tr}" d="M-3000 -3000H3000V${f(rim.cy)}H-3000Z"/><path transform="${tr}" d="${ellD(rim)}"/></clipPath>`);
+  S.raw(`<clipPath id="${cut}"><path d="M-3000 -3000H3000V${f(crossY)}H-3000Z"/></clipPath>`);
+  S.raw(`<g clip-path="url(#${lip})"><g clip-path="url(#${cut})">`);
+  M.steamWand(S, cam, wx, { tipY: 120 });
+  S.raw('</g></g>');
+  // ripples where the wand tip stirs the surface (the milk swirls around it)
+  S.raw(`<ellipse class="k-ripple fx" cx="${f(wandX)}" cy="${f(crossY)}" rx="9" ry="${f(9 * cam.sp * 1.1)}" fill="none" stroke="#fff" stroke-opacity=".75" stroke-width="1.3"/>`);
   S.raw(`<g class="k-puffs fx">`);
-  for (let i = 0; i < 3; i++) S.raw(`<path class="k-puff p${i}" d="M${f(tp[0] + i * 7 - 6)} ${f(tp[1])}c-6 -10 6 -16 0 -26" fill="none" stroke="rgb(${S.PAPER} / .7)" stroke-width="2" stroke-linecap="round"/>`);
+  for (let i = 0; i < 3; i++) S.raw(`<path class="k-puff p${i}" d="M${f(wandX + 10 + i * 7)} ${f(crossY - 14)}c-6 -10 6 -16 0 -26" fill="none" stroke="rgb(${S.PAPER} / .7)" stroke-width="2" stroke-linecap="round"/>`);
   S.raw('</g>');
-  return { vb: frameAround([cam.P(40, ty + 150, 130), cam.P(jx + 90, ty + 150, jz), cam.P(jx + 60, ty - 6, jz + 50), cam.P(jx - 80, ty - 6, jz + 60), cam.P(wx, 250, 78)], 0.03) };
+  const tl = turn(cam.P(jx - 80, by + h, jz)), tr2 = turn(cam.P(jx + 80, by + h, jz));
+  return { vb: frameAround([[tl[0] + tx, tl[1] - 4], [tr2[0] + tx, tr2[1]], cam.P(40, ty + 160, 130), cam.P(jx + 110, ty + 160, jz), cam.P(jx + 90, ty - 8, jz + 60), cam.P(jx - 80, ty - 8, jz + 60), cam.P(wx, 250, wz)], 0.03) };
 };
+
+// shake: a cobbler shaker, held at an angle and shaken hard, beside a glass of ice
+scenes.shake = (S) => {
+  const cam = Cam(YAW, 22, 1.25, 215, 330);
+  const TILT = 17, sx = 46, sz = 0, y0 = 40;
+  const foot = cam.P(sx, y0, sz);
+  // pivot near the middle of the cup: where a hand would hold it
+  const mid = cam.P(sx, y0 + 70, sz);
+  groundShadow(S, cam, sx + 6, sz + 4, 40, 0, 1.1);
+  Sh.iceGlass(S, cam, -66, 0, 30);
+  const a = TILT * Math.PI / 180;
+  S.raw(`<g class="k-shaker" style="transform-origin:${px(mid[0])} ${px(mid[1])};--ax:${f(Math.sin(a) * 9)}px;--ay:${f(-Math.cos(a) * 9)}px">`);
+  S.raw(`<g transform="rotate(${TILT} ${f(mid[0])} ${f(mid[1])})">`);
+  const sh = Sh.shaker(S, cam, sx, y0, sz);
+  S.raw('</g></g>');
+  // motion lines either side, and frost sparkles: both only while it moves
+  const arc = (x, y, dir, len, k) => `<path class="k-mline m${k}" d="M${f(x)} ${f(y)}q${f(dir * 9)} ${f(len / 2)} 0 ${f(len)}" fill="none" stroke="rgb(${S.PAPER} / .8)" stroke-width="2" stroke-linecap="round"/>`;
+  const L = turn(mid, [mid[0] - 70, mid[1] - 56], TILT), R = turn(mid, [mid[0] + 70, mid[1] - 56], TILT);
+  S.raw('<g class="k-motion fx">');
+  S.raw(arc(L[0], L[1], -1, 34, 0) + arc(L[0] - 12, L[1] + 26, -1, 28, 1) + arc(R[0], R[1] + 6, 1, 34, 2) + arc(R[0] + 12, R[1] + 34, 1, 28, 3));
+  S.raw('</g>');
+  const star = (x, y, r, k) => `<path class="k-spark sp${k}" d="M${f(x)} ${f(y - r)}Q${f(x)} ${f(y)} ${f(x + r)} ${f(y)}Q${f(x)} ${f(y)} ${f(x)} ${f(y + r)}Q${f(x)} ${f(y)} ${f(x - r)} ${f(y)}Q${f(x)} ${f(y)} ${f(x)} ${f(y - r)}Z" fill="#fff"/>`;
+  const P = (dx, dy) => turn(mid, [mid[0] + dx, mid[1] + dy], TILT);
+  S.raw('<g class="k-sparks fx">');
+  [[-46, -50, 6, 0], [48, -8, 5, 1], [-52, 22, 4, 2], [40, 50, 6, 3], [-30, -96, 4.5, 4], [30, -74, 4, 5]].forEach(([dx, dy, r, k]) => { const p = P(dx, dy); S.raw(star(p[0], p[1], r, k)); });
+  S.raw('</g>');
+  const pts = [turn(mid, sh.topP, TILT), turn(mid, cam.P(sx - 48, y0 + 150, sz), TILT), turn(mid, cam.P(sx + 48, y0 + 150, sz), TILT), turn(mid, cam.P(sx - 30, y0, sz), TILT), turn(mid, cam.P(sx + 30, y0, sz), TILT),
+    cam.P(-66 - 38, 100, 30), cam.P(-66 + 38, 0, 30), cam.P(sx + 6, 0, sz + 44), P(-88, -70), P(88, 40)];
+  return { vb: frameAround(pts, 0.075) };
+};
+
+function turn(c, p, deg) {
+  const a = deg * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a), dx = p[0] - c[0], dy = p[1] - c[1];
+  return [c[0] + dx * ca - dy * sa, c[1] + dx * sa + dy * ca];
+}
 
 scenes.knock = (S) => {
   const cam = Cam(YAW, 26, 1.3, 210, 330);

@@ -5,7 +5,7 @@
 // Stored in the KV store as one JSON document; this file is the rules for it.
 
 export const SMART_KEYS = ['weigh', 'grinder', 'grind', 'pull', 'rinse', 'steam', 'done'] as const;
-export const PLAIN_KEYS = ['spray', 'wdt', 'distribute', 'funnel', 'basket', 'tamp', 'puckscreen', 'paper', 'minerals', 'knock', 'custom'] as const;
+export const PLAIN_KEYS = ['spray', 'wdt', 'distribute', 'funnel', 'basket', 'tamp', 'puckscreen', 'paper', 'minerals', 'knock', 'shake', 'custom'] as const;
 export const TEMPLATE_KEYS = [...SMART_KEYS, ...PLAIN_KEYS] as const;
 export type TemplateKey = (typeof TEMPLATE_KEYS)[number];
 
@@ -54,6 +54,8 @@ export interface LibraryEntry {
   body: string;
   label: string;
   items?: string[];
+  /** Seconds: a plain step made from this entry starts with this timer. */
+  timer?: number;
 }
 
 /**
@@ -83,6 +85,7 @@ export const STEP_LIBRARY: Record<TemplateKey, LibraryEntry> = {
   paper: { kind: 'Paper filter', title: 'Paper on top', body: 'Lay a paper filter flat on the tamped puck.', label: 'Paper' },
   minerals: { kind: 'Add minerals', title: 'Add minerals', body: 'Add your minerals to the water or the cup.', label: 'Minerals' },
   knock: { kind: 'Knock out the puck', title: 'Knock out the puck', body: 'Into the knock box, and a wipe of the basket while you are there.', label: 'Knock' },
+  shake: { kind: 'Shake it', title: 'Shake it', body: 'Espresso and ice in the shaker, lid on, then shake hard until the outside is frosty.', label: 'Shake', timer: 15 },
   custom: { kind: 'Your own step', title: 'New step', body: '', label: 'Step' },
 };
 
@@ -108,6 +111,7 @@ export function libraryStep(template: TemplateKey, taken: Iterable<string> = [],
   const id = overrides.id ?? (template !== 'custom' && !used.has(template) ? template : freshId(used, template === 'custom' ? 's' : template));
   const step: WorkflowStep = { id, template, title: lib.title, body: lib.body, label: lib.label };
   if (lib.items) step.items = [...lib.items];
+  if (lib.timer) step.timer = lib.timer;
   return { ...step, ...overrides, id };
 }
 

@@ -11,7 +11,7 @@ const { minifySvg } = require('./minify.cjs');
 const scenes = require('./scenes.cjs');
 
 const W = 448, H = 320;
-const ORDER = ['weigh', 'spray', 'grinder', 'grind', 'wdt', 'distribute', 'funnel', 'basket', 'tamp', 'puckscreen', 'paper', 'minerals', 'pull', 'knock', 'rinse', 'steam', 'done'];
+const ORDER = ['weigh', 'spray', 'grinder', 'grind', 'wdt', 'distribute', 'funnel', 'basket', 'tamp', 'puckscreen', 'paper', 'minerals', 'pull', 'knock', 'rinse', 'steam', 'done', 'shake'];
 let frames = {};
 try { frames = JSON.parse(fs.readFileSync(path.join(__dirname, 'frames.json'), 'utf8')); } catch { /* first run */ }
 // viewBox = the measured bounding box padded to the panel's aspect
