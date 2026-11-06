@@ -2,6 +2,7 @@
   import { app } from '../../state/app.svelte';
   import Modal from '../../components/Modal.svelte';
   import { pickBag, planBrew } from '../../lib/guide';
+  import StepsEditor from './StepsEditor.svelte';
 
   // Choose what "Guide me" brews: one profile and one coffee. The coffee's
   // newest open bag is used each time, with that bag's dial-in.
@@ -15,6 +16,7 @@
   let query = $state('');
   let saving = $state(false);
   let error = $state<string | null>(null);
+  let editingSteps = $state(false);
 
   const profiles = $derived(
     [...app.profileLineages.entries()]
@@ -79,6 +81,11 @@
     </section>
   </div>
 
+  <div class="steps-row">
+    <span><b>{app.guideWorkflow.name}</b> · {app.guideWorkflow.steps.length} steps</span>
+    <button class="edit glass" onclick={() => (editingSteps = true)}>Edit steps</button>
+  </div>
+
   {#if preview}
     <p class="preview">
       {preview.dose.toFixed(1)} g in{preview.yield ? ` · ${preview.yield} g out` : ''} · {preview.grind ? `grind ${preview.grind}` : 'no grind saved yet'}
@@ -94,6 +101,8 @@
   {/snippet}
 </Modal>
 
+{#if editingSteps}<StepsEditor onClose={() => (editingSteps = false)} />{/if}
+
 <style>
   .cols { display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px; }
   section { display: grid; gap: 8px; align-content: start; min-width: 0; }
@@ -105,6 +114,9 @@
   .opt small { color: var(--paper-faint); font-weight: 500; font-size: var(--t-xs); }
   .opt.lit { box-shadow: 0 0 0 3px var(--go), var(--glass-sheen); }
   .none { color: var(--paper-faint); padding: 6px 3px; }
+  .steps-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--paper-dim); font-size: var(--t-sm); }
+  .steps-row b { color: var(--paper); }
+  .edit { min-height: 40px; padding: 0 16px; border-radius: var(--radius-pill); color: var(--paper); font-size: var(--t-xs); font-weight: 650; }
   .preview { font-size: var(--t-md); font-weight: 700; }
   .preview span { display: block; font-size: var(--t-xs); color: var(--paper-faint); font-weight: 500; }
   .error { color: var(--stop); }

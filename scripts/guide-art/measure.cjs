@@ -7,7 +7,7 @@ const os = require('os');
 const path = require('path');
 const { chromium } = require('playwright');
 
-const src = fs.readFileSync(path.join(__dirname, '../../src/features/guide/guideScenes.ts'), 'utf8');
+const src = fs.readFileSync(path.join(__dirname, '../../src/edition/guideScenes.ts'), 'utf8');
 const common = src.match(/COMMON_DEFS = `([^`]*)`/)[1];
 const scenes = [...src.matchAll(/^ {2}(\w+): \{ vb: "[^"]*", svg: `([^`]*)`/gm)].map((m) => [m[1], m[2].replace(/<!--@-->/g, '')]);
 const html = `<!doctype html><style>.fx{display:none}</style>${scenes.map(([k, svg]) => `<svg data-k="${k}" width="420" height="390" viewBox="0 0 420 390"><defs>${common}</defs>${svg}</svg>`).join('')}`;

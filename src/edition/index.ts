@@ -5,11 +5,20 @@
 // (editions/public/src/edition in the personal repo).
 
 import type { Component } from 'svelte';
+import type { SceneSet } from '../features/guide/scenes';
+import { PRESETS, type WorkflowPreset } from '../lib/workflowPresets';
+import { FLIMSY_BEETS } from './presets';
 
 export interface Edition {
   id: 'personal' | 'public';
   /** Extra screensaver art shown instead of the clock, with its Settings toggle (theme.halloween); none = no toggle. */
   screensaverExtra?: { label: string; note: string; load: () => Promise<{ default: Component }> };
+  guide: {
+    /** Ready-made Guide me workflows; the first is what a guide starts as. */
+    presets: WorkflowPreset[];
+    /** The edition's own illustrations (the shared generic ones fill the gaps). */
+    scenes?: () => Promise<SceneSet>;
+  };
 }
 
 export const EDITION: Edition = {
@@ -18,5 +27,9 @@ export const EDITION: Edition = {
     label: 'Halloween screensaver',
     note: 'Ghosts drift over your screensaver photo instead of the clock.',
     load: () => import('./Ghosts.svelte'),
+  },
+  guide: {
+    presets: [FLIMSY_BEETS, ...PRESETS],
+    scenes: () => import('./scenes').then((m) => m.personalScenes()),
   },
 };

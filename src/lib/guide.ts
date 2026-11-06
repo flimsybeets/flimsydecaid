@@ -73,29 +73,15 @@ export function weighState(weight: number | null | undefined, target: number, to
   return { state: delta > 0 ? 'under' : 'over', delta };
 }
 
-export type GuideStepId =
-  | 'weigh' | 'spray' | 'dial' | 'grind' | 'basket' | 'funnel' | 'tamp' | 'paper' | 'minerals' | 'start' | 'knock' | 'rinse' | 'done';
-
-export const GUIDE_STEPS: readonly GuideStepId[] = [
-  'weigh', 'spray', 'dial', 'grind', 'basket', 'funnel', 'tamp', 'paper', 'minerals', 'start', 'knock', 'rinse', 'done',
-];
-
-/** Short labels for the progress rail. */
-export const STEP_LABELS: Record<GuideStepId, string> = {
-  weigh: 'Weigh', spray: 'Spray', dial: 'Grinder', grind: 'Grind', basket: 'Basket', funnel: 'Funnel', tamp: 'Tamp',
-  paper: 'Paper', minerals: 'Minerals', start: 'Pull', knock: 'Knock', rinse: 'Rinse', done: 'Enjoy',
-};
-
-/** Steps before the shot can be stepped through freely; after it, the order follows the machine. */
-export function canGoBack(step: GuideStepId): boolean {
-  const i = GUIDE_STEPS.indexOf(step);
-  return i > 0 && i <= GUIDE_STEPS.indexOf('start');
+/** A step that follows the machine's own state: waiting for it, in it, then back out of it. */
+export function followProgress(seen: boolean, state: string | undefined, target: string): 'waiting' | 'rinsing' | 'finished' {
+  if (state === target) return 'rinsing';
+  return seen ? 'finished' : 'waiting';
 }
 
 /** Rinse progresses on the machine's own state: started flushing, then back out of it. */
 export function rinseProgress(seenFlush: boolean, state: string | undefined): 'waiting' | 'rinsing' | 'finished' {
-  if (state === 'flush') return 'rinsing';
-  return seenFlush ? 'finished' : 'waiting';
+  return followProgress(seenFlush, state, 'flush');
 }
 
 /**

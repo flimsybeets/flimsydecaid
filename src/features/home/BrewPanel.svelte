@@ -12,6 +12,7 @@
 
     let { profileRoot, onClose, initial }: { profileRoot: string; onClose: () => void; initial?: BrewStart } = $props();
 
+  const gc = $derived(app.grindControl);
   const record = $derived(app.profileLineages.get(profileRoot));
   const base = $derived(record ? baseTemperature(record.profile) : null);
 
@@ -271,7 +272,7 @@
     </div>
     {#if source === 'shot' && initial?.note}<p class="source note">{initial.note}</p>{/if}
     <div class="grid">
-      <Stepper compact label="Grind" bind:value={grind} min={0} max={100} step={0.5} decimals={1} placeholder="Not set" />
+      <Stepper compact label="Grind" bind:value={grind} min={gc.min} max={gc.max} step={gc.step} decimals={gc.decimals} placeholder="Not set" />
       <Stepper compact label="Temperature" bind:value={temp} min={(base ?? 90) - 10} max={(base ?? 90) + 10} step={0.5} decimals={1} unit="°C" disabled={base === null} />
       <div class="dose {weigh?.state ?? ''}"><Stepper compact label="Dose" bind:value={dose} min={5} max={30} step={0.1} decimals={1} unit="g" /></div>
       <Stepper compact label="Yield" bind:value={yieldG} min={0} max={400} step={0.5} decimals={1} unit="g" placeholder="Off" />

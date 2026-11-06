@@ -10,10 +10,11 @@ export type ActivityKind = 'flush' | 'steam';
 
 /**
  * Which flush / steam view to show. While Guide me is open its rinse step
- * has its own screen and follows the flush, so only steam is shown over it.
+ * has its own screen and follows the flush, so only steam is shown over it;
+ * and on its steam step the guide follows the steam too, so neither is.
  */
-export function activityKind(state: MachineState | undefined, guiding: boolean): ActivityKind | null {
-  if (state === 'steam') return 'steam';
+export function activityKind(state: MachineState | undefined, guiding: boolean, onSteamStep = false): ActivityKind | null {
+  if (state === 'steam') return guiding && onSteamStep ? null : 'steam';
   if (state === 'flush' && !guiding) return 'flush';
   return null;
 }

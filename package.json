@@ -15,7 +15,8 @@
     "package": "npm run build && node scripts/package.mjs",
     "install:tablet": "node scripts/install-to-tablet.mjs",
     "art:guide": "node scripts/guide-art/build.cjs",
-    "art:ghost": "node scripts/ghost-art/build.cjs"
+    "art:ghost": "node scripts/ghost-art/build.cjs",
+    "art:generic": "node scripts/generic-art/build.cjs"
   },
   "devDependencies": {
     "@fontsource-variable/sen": "^5.3.0",

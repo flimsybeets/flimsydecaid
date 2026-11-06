@@ -4,6 +4,9 @@ import { activityKind, atTemp, clockText, isPreparing, preheatText, progress } f
 describe('activity views', () => {
   it('shows flush and steam from the machine state', () => {
     expect(activityKind('steam', false)).toBe('steam');
+    expect(activityKind('steam', true)).toBe('steam');
+    expect(activityKind('steam', true, true)).toBeNull();
+    expect(activityKind('steam', false, true)).toBe('steam');
     expect(activityKind('flush', false)).toBe('flush');
     expect(activityKind('idle', false)).toBeNull();
     expect(activityKind(undefined, false)).toBeNull();

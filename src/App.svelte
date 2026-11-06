@@ -32,7 +32,7 @@
   // is stopped before it ever pours.
   $effect(() => { if (app.shotActive || app.machine.state?.state === 'espresso') shotOpen = true; });
   // Flush and steam get their own view while the machine is in that state.
-  const activity = $derived(activityKind(app.machine.state?.state, app.guiding && app.guide !== null));
+  const activity = $derived(activityKind(app.machine.state?.state, app.guiding && app.guide !== null, app.guideTemplate === 'steam'));
   // Full-screen views are opaque, so what sits under them is hidden: no
   // painting, no animating, no touches, until they close.
   const covered = $derived((app.guiding && app.guide !== null) || shotOpen || app.editing !== undefined || activity !== null);

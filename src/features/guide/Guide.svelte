@@ -3,15 +3,17 @@
   import { app } from '../../state/app.svelte';
   import GuideArt from './GuideArt.svelte';
   import { ratioText, shotStats } from '../../lib/history';
-  import {
-    canGoBack, GUIDE_STEPS, pickBag, planBrew, rinseProgress, STEP_LABELS, weighState, type GuideStepId,
-  } from '../../lib/guide';
+  import { followProgress, pickBag, planBrew, weighState } from '../../lib/guide';
+  import { afterPull, canGoBack, fillText, timerText } from '../../lib/workflow';
 
   // "Guide me": the whole routine for one profile + coffee, one step at a
-  // time, from weighing beans to rinsing the group. The profile, bag and
-  // dial-in are loaded onto the machine as soon as the guide opens, so it
-  // heats to the right temperature while you prep. Pulling hands over to the
-  // usual shot view; the guide picks up again when the shot ends.
+  // time, from weighing beans to rinsing the group. The steps are data (the
+  // saved workflow, or the edition's first preset): smart ones follow the
+  // scale or the machine, plain ones show their words, an optional list and
+  // an optional timer. The profile, bag and dial-in are loaded onto the
+  // machine as soon as the guide opens, so it heats to the right temperature
+  // while you prep. Pulling hands over to the usual shot view; the guide
+  // picks up again when the shot ends.
 
   let { onclose, covered = false }: { onclose: () => void; covered?: boolean } = $props();
 
@@ -21,11 +23,22 @@
   const batch = $derived(pickBag(setup.beanId, app.batches));
   const plan = $derived(record ? planBrew(record, setup.profileRoot, batch, app.batches, app.workflow.context?.targetDoseWeight ?? 18) : null);
 
-  let step = $state<GuideStepId>('weigh');
-  const index = $derived(GUIDE_STEPS.indexOf(step));
-  const go = (s: GuideStepId) => (step = s);
-  const next = () => { const n = GUIDE_STEPS[index + 1]; if (n) go(n); };
-  const back = () => { const p = GUIDE_STEPS[index - 1]; if (p && canGoBack(step)) go(p); };
+  const steps = $derived(app.guideWorkflow.steps);
+  let at = $state(0);
+  const index = $derived(Math.min(at, steps.length - 1));
+  const cur = $derived(steps[index]!);
+  const kind = $derived(cur.template);
+
+  function go(i: number) {
+    at = Math.max(0, Math.min(steps.length - 1, i));
+    timerEnd = null;
+  }
+  const next = () => go(index + 1);
+  const back = () => { if (canGoBack(app.guideWorkflow, index)) go(index - 1); };
+
+  // The app needs to know the current kind of step: on a steam step the guide shows the steam itself.
+  $effect(() => { app.guideTemplate = kind; });
+  $effect(() => () => { app.guideTemplate = null; });
 
   // Load onto the machine once, when the guide opens.
   let loaded = $state<'loading' | 'ok' | 'failed'>('loading');
@@ -43,18 +56,9 @@
   }
   $effect(() => { untrack(() => void load()); });
 
-  // The grind screen's list; the scene loops through the same five beats.
-  const GRIND_STEPS = [
-    'Turn on the grinder',
-    'Add the beans',
-    'Wait for it to finish grinding',
-    'Turn it off',
-    'Tap the bellows to push out the last grounds',
-  ];
-
   // Weighing
   const weigh = $derived(plan ? weighState(app.weight, plan.dose) : { state: 'empty' as const, delta: 0 });
-  const tone = $derived(step === 'weigh' && app.scaleConnected ? weigh.state : step === 'done' ? 'ok' : 'idle');
+  const tone = $derived(kind === 'weigh' && app.scaleConnected ? weigh.state : kind === 'done' ? 'ok' : 'idle');
   const ring = $derived(plan && app.weight !== null ? Math.max(0, Math.min(1.08, app.weight / plan.dose)) : 0);
   const weighText = $derived.by(() => {
     if (!app.scaleConnected) return app.scanning ? 'Looking for the scale…' : 'No scale connected: weigh it by hand';
@@ -70,25 +74,41 @@
   let starting = $state(false);
   let startError = $state('');
   let shotsAtStart = 0; // not reactive: just remembers the count when Pull was reached
-  $effect(() => { if (step === 'start') shotsAtStart = untrack(() => app.shotsFinished); });
-  $effect(() => { if (step === 'start' && app.shotsFinished !== shotsAtStart) go('knock'); });
+  $effect(() => { if (kind === 'pull') shotsAtStart = untrack(() => app.shotsFinished); });
+  $effect(() => { if (kind === 'pull' && app.shotsFinished !== shotsAtStart) untrack(() => go(afterPull(app.guideWorkflow))); });
   async function startShot() {
     starting = true;
     startError = '';
     try { await app.startEspresso(); } catch (e) { startError = (e as Error).message; } finally { starting = false; }
   }
 
-  // Rinse: started with the machine's own flush button; follow the machine
-  // into flush and back out.
+  // Rinse and steam: started with the machine's own buttons; follow the
+  // machine into the state and back out.
   let seenFlush = $state(false);
+  let seenSteam = $state(false);
   const machineState = $derived(app.machine.state?.state);
-  $effect(() => { if (step === 'rinse' && machineState === 'flush') seenFlush = true; });
-  const rinse = $derived(rinseProgress(seenFlush, machineState));
+  $effect(() => { if (kind === 'rinse' && machineState === 'flush') seenFlush = true; });
+  $effect(() => { if (kind === 'steam' && machineState === 'steam') seenSteam = true; });
+  const rinse = $derived(followProgress(seenFlush, machineState, 'flush'));
+  const steam = $derived(followProgress(seenSteam, machineState, 'steam'));
+  const follow = $derived(kind === 'rinse' ? rinse : kind === 'steam' ? steam : 'waiting');
   $effect(() => {
-    if (step !== 'rinse' || rinse !== 'finished') return;
-    const t = setTimeout(() => go('done'), 900);
+    if ((kind !== 'rinse' && kind !== 'steam') || follow !== 'finished') return;
+    const t = setTimeout(() => untrack(() => next()), 900);
     return () => clearTimeout(t);
   });
+
+  // A plain step's timer: counts down from its seconds once started.
+  let timerEnd = $state<number | null>(null);
+  let now = $state(Date.now());
+  const left = $derived(timerEnd === null ? null : Math.max(0, (timerEnd - now) / 1000));
+  $effect(() => {
+    if (timerEnd === null || Date.now() >= timerEnd) return;
+    now = Date.now();
+    const t = setInterval(() => { now = Date.now(); if (now >= timerEnd!) clearInterval(t); }, 250);
+    return () => clearInterval(t);
+  });
+  function startTimer() { now = Date.now(); timerEnd = now + (cur.timer ?? 0) * 1000; }
 
   // Summary
   const stats = $derived(shotStats(app.shot));
@@ -98,6 +118,20 @@
   const sourceText = $derived(plan?.source === 'this-bag' ? 'Your setting for this bag'
     : plan?.source === 'previous-bag' ? 'Carried over from your last bag of this coffee'
     : 'Nothing saved for this bag yet');
+
+  // Words in titles and bodies: {dose}, {beans}, {coffee}, {grind}, {source}, {start}.
+  const vars = $derived({
+    dose: plan ? plan.dose.toFixed(1) : '',
+    beans: bean ? `beans of ${bean.name}` : 'beans',
+    coffee: bean?.name ?? '',
+    grind: plan?.grind ?? '',
+    source: plan ? `${sourceText}.${plan.grind ? '' : ' Use your usual setting; save it in the brew panel afterwards.'}` : '',
+    start: app.ghc ? 'press brew' : 'start',
+  });
+  const title = $derived(kind === 'grinder' && plan && !plan.grind && cur.title.includes('{grind}') ? 'Set your grind' : fillText(cur.title, vars));
+  const bodyText = $derived(fillText(cur.body, vars));
+  // The grind scene loops through five beats; the list follows them only when it has five.
+  const beats = $derived(kind === 'grind' && cur.items?.length === 5);
 </script>
 
 <section class="guide tone-{tone}" class:covered inert={covered} aria-label="Guided brew">
@@ -116,9 +150,9 @@
   </header>
 
   <ol class="rail" aria-label="Steps">
-    {#each GUIDE_STEPS as s, i (s)}
+    {#each steps as s, i (s.id)}
       <li class:done={i < index} class:now={i === index}>
-        <span class="bar"></span><span class="lbl">{STEP_LABELS[s]}</span>
+        <span class="bar"></span><span class="lbl">{s.label}</span>
       </li>
     {/each}
   </ol>
@@ -133,24 +167,25 @@
       <div class="art glass thick">
         <!-- Not drawn while the shot view covers the guide: nothing to animate or update under it. -->
         {#if !covered}
-          {#key step}
+          {#key cur.id}
             <!-- The Tap to connect button is the real control; tapping the scale in the picture does the same. -->
             <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-            <div class="art-in" class:tappable={step === 'weigh' && !app.scaleConnected && !app.scanning} onclick={() => { if (step === 'weigh' && !app.scaleConnected && !app.scanning) app.scanForScale(); }}>
-              <GuideArt {step} weight={step === 'weigh' && app.scaleConnected ? app.weight : null} weighState={step === 'weigh' ? weigh.state : 'empty'} grind={plan.grind} active={rinse === 'rinsing'} />
+            <div class="art-in" class:tappable={kind === 'weigh' && !app.scaleConnected && !app.scanning} onclick={() => { if (kind === 'weigh' && !app.scaleConnected && !app.scanning) app.scanForScale(); }}>
+              <GuideArt sceneKey={kind} stepId={cur.id} weight={kind === 'weigh' && app.scaleConnected ? app.weight : null} weighState={kind === 'weigh' ? weigh.state : 'empty'} grind={plan.grind} active={follow === 'rinsing'} />
             </div>
           {/key}
         {/if}
       </div>
 
       <div class="copy">
-        {#key step}
+        {#key cur.id}
           <div class="copy-in">
-            <p class="count">Step {index + 1} of {GUIDE_STEPS.length}</p>
+            <p class="count">Step {index + 1} of {steps.length}</p>
+            <h1>{title}</h1>
+            {#if kind === 'grinder' && app.grindControl.name}<p class="grinder">{app.grindControl.name}</p>{/if}
+            {#if bodyText}<p class="body">{bodyText}</p>{/if}
 
-            {#if step === 'weigh'}
-              <h1>Weigh {plan.dose.toFixed(1)} g</h1>
-              <p class="body">Dosing cup on the scale and tare, then add beans{bean ? ` of ${bean.name}` : ''}.</p>
+            {#if kind === 'weigh'}
               <div class="weigh {weigh.state}" class:noscale={!app.scaleConnected}>
                 <svg viewBox="0 0 120 120" class="ring" aria-hidden="true">
                   <circle cx="60" cy="60" r="52" class="track" />
@@ -166,36 +201,15 @@
               {:else}
                 <button class="tare connect glass" onclick={() => app.scanForScale()} disabled={app.scanning} aria-live="polite">{app.scanning ? 'Looking for the scale…' : 'Tap to connect'}</button>
               {/if}
-            {:else if step === 'spray'}
-              <h1>Spray the beans</h1>
-              <p class="body">One or two sprays from a distance to gently mist the beans.</p>
-            {:else if step === 'dial'}
-              <h1>{plan.grind ? `Set the grinder to ${plan.grind}` : 'Set your grind'}</h1>
-              <p class="body">{sourceText}.{plan.grind ? '' : ' Use your usual setting; save it in the brew panel afterwards.'}</p>
-            {:else if step === 'grind'}
-              <h1>Grind</h1>
-              <p class="body">All {plan.dose.toFixed(1)} g.</p>
-              <ol class="steps" aria-label="Grinding">
-                {#each GRIND_STEPS as g, i (g)}<li style="--i: {i}">{g}</li>{/each}
+            {/if}
+
+            {#if cur.items?.length}
+              <ol class="steps" class:beats aria-label="List">
+                {#each cur.items as g, i (i)}<li style="--i: {i}">{g}</li>{/each}
               </ol>
-            {:else if step === 'basket'}
-              <h1>Convex basket in</h1>
-              <p class="body">Check the IKAPE convex basket is in the portafilter.</p>
-            {:else if step === 'funnel'}
-              <h1>Funnel, cup, then tap</h1>
-              <p class="body">Funnel on the portafilter, and sit the dosing cup on the funnel. Pull the bell out so the grounds drop in, then tap the portafilter with the funnel still on.</p>
-            {:else if step === 'tamp'}
-              <h1>Tamp</h1>
-              <p class="body">Funnel off, then press the tamper down.</p>
-            {:else if step === 'paper'}
-              <h1>Paper on top</h1>
-              <p class="body">Lay a paper filter flat on the tamped puck.</p>
-            {:else if step === 'minerals'}
-              <h1>One drop of minerals</h1>
-              <p class="body">Shake the bottle, then one drop from the eyedropper into the cup.</p>
-            {:else if step === 'start'}
-              <h1>{app.ghc ? 'Lock in and press brew' : 'Lock in and start'}</h1>
-              <p class="body">Lock the portafilter in, and sit the cup on the scales under the portafilter. Then press brew to start.</p>
+            {/if}
+
+            {#if kind === 'pull'}
               {#if !app.ghc}
                 <button class="go-btn start" disabled={starting || loaded === 'loading' || app.shotActive} onclick={startShot}>
                   {app.shotActive ? 'Pulling…' : starting ? 'Starting…' : 'Start shot'}
@@ -204,12 +218,7 @@
                 <p class="waiting"><span class="dot"></span>{app.shotActive ? 'Pulling…' : 'Waiting for the group head'}</p>
               {/if}
               {#if startError}<p class="error">{startError}</p>{/if}
-            {:else if step === 'knock'}
-              <h1>Knock out the puck</h1>
-              <p class="body">Into the knock box, and a wipe of the basket while you're there.</p>
-            {:else if step === 'rinse'}
-              <h1>Rinse the group and portafilter</h1>
-              <p class="body">Press flush and hold the empty portafilter under the water to rinse the basket.</p>
+            {:else if kind === 'rinse'}
               {#if rinse === 'rinsing'}
                 <p class="waiting"><span class="dot"></span>Rinsing…</p>
               {:else if rinse === 'finished'}
@@ -217,8 +226,15 @@
               {:else}
                 <p class="waiting"><span class="dot"></span>Press the flush button on the machine</p>
               {/if}
-            {:else}
-              <h1>Enjoy</h1>
+            {:else if kind === 'steam'}
+              {#if machineState === 'steam'}
+                <p class="waiting"><span class="dot"></span>Steaming…</p>
+              {:else if steam === 'finished'}
+                <p class="waiting ok">Steamed</p>
+              {:else}
+                <p class="waiting"><span class="dot"></span>Press the steam button on the machine</p>
+              {/if}
+            {:else if kind === 'done'}
               <dl class="summary">
                 <div><dt>In</dt><dd>{plan.dose.toFixed(1)}<small>g</small></dd></div>
                 <div><dt>Out</dt><dd>{shotOut !== null ? shotOut.toFixed(1) : '–'}<small>g</small></dd></div>
@@ -226,21 +242,32 @@
                 <div><dt>Time</dt><dd>{shotTime !== null ? shotTime.toFixed(1) : '–'}<small>s</small></dd></div>
               </dl>
             {/if}
+
+            {#if cur.timer}
+              {#if left === null}
+                <button class="tare timer glass" onclick={startTimer}>Start timer · {timerText(cur.timer)}</button>
+              {:else if left > 0}
+                <p class="clock" aria-live="off">{timerText(left)}</p>
+              {:else}
+                <p class="waiting ok">Time's up</p>
+                <button class="tare timer glass" onclick={startTimer}>Restart timer</button>
+              {/if}
+            {/if}
           </div>
         {/key}
       </div>
     </div>
 
     <footer>
-      {#if canGoBack(step)}<button class="nav glass" onclick={back}>Back</button>{:else}<span></span>{/if}
-      {#if step === 'done'}
+      {#if canGoBack(app.guideWorkflow, index)}<button class="nav glass" onclick={back}>Back</button>{:else}<span></span>{/if}
+      {#if kind === 'done'}
         <button class="nav glass solid primary" onclick={onclose}>Finish</button>
-      {:else if step === 'rinse'}
-        <button class="nav glass" onclick={() => go('done')}>{rinse === 'finished' ? 'Next' : 'Skip'}</button>
-      {:else if step === 'start'}
-        <button class="nav glass" onclick={() => go('knock')}>Skip the shot</button>
+      {:else if kind === 'rinse' || kind === 'steam'}
+        <button class="nav glass" onclick={next}>{follow === 'finished' ? 'Next' : 'Skip'}</button>
+      {:else if kind === 'pull'}
+        <button class="nav glass" onclick={() => go(afterPull(app.guideWorkflow))}>Skip the shot</button>
       {:else}
-        <button class="nav glass solid primary" class:ready={step === 'weigh' && weigh.state === 'ok'} onclick={next}>Next</button>
+        <button class="nav glass solid primary" class:ready={kind === 'weigh' && weigh.state === 'ok'} onclick={next}>Next</button>
       {/if}
     </footer>
   {/if}
@@ -316,9 +343,9 @@
 
   .steps { margin: 2px 0 0; padding: 0; list-style: none; counter-reset: g; display: grid; gap: 7px; max-width: 34ch; }
   .steps li { counter-increment: g; display: flex; gap: 10px; align-items: baseline; color: var(--paper); font-size: var(--t-md); line-height: 1.2; }
-  .steps li { animation: beat 10s linear infinite; animation-delay: calc(var(--i) * 2s - 10s); }
+  .steps.beats li { animation: beat 10s linear infinite; animation-delay: calc(var(--i) * 2s - 10s); }
   @keyframes beat { 0%, 20% { opacity: 1; } 24%, 96% { opacity: 0.5; } 100% { opacity: 1; } }
-  @media (prefers-reduced-motion: reduce) { .steps li { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .steps.beats li { animation: none; } }
   .steps li::before { content: counter(g); flex: none; width: 1.5em; height: 1.5em; display: grid; place-items: center; border-radius: 50%; border: 1.5px solid rgb(var(--accent) / 0.7); color: rgb(var(--accent)); font-size: var(--t-xs); font-weight: 700; }
 
   .weigh { display: flex; align-items: center; gap: 16px; margin-top: 4px; --c: 238 243 239; }
@@ -340,6 +367,9 @@
   @keyframes pulse { 50% { opacity: 0.45; } }
   .art-in.tappable { cursor: pointer; }
   .tare { justify-self: start; min-height: var(--touch); padding: 0 22px; border-radius: var(--radius-pill); font-weight: 650; color: var(--paper); }
+
+  .grinder { color: rgb(var(--accent)); font-size: var(--t-sm); font-weight: 650; margin-top: -4px; }
+  .clock { font-size: var(--t-xxl); font-weight: 800; letter-spacing: -0.02em; color: rgb(var(--accent)); }
 
   .go-btn { justify-self: start; min-height: 68px; min-width: 196px; padding: 0 27px; border-radius: 26px; font-size: var(--t-lg); font-weight: 800; color: var(--paper); }
   .go-btn.start {
