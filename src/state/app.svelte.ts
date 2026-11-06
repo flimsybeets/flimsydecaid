@@ -240,6 +240,9 @@ class AppState {
    * Load a profile + bag + dial-in onto the machine. The profile is sent
    * inline with the temperature offset applied, so no new profile is saved.
    */
+  /** Brew panel "Don't track": the last settings used without a bag, per profile (this session only). */
+  untrackedDialIn: Record<string, DialIn> = {};
+
   async applySelection(profileRoot: string, batch: BeanBatch | null, dialIn: DialIn): Promise<void> {
     const record = this.profileLineages.get(profileRoot);
     if (!record) throw new Error('Profile not found');
