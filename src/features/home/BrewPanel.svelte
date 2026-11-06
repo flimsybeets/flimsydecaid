@@ -26,12 +26,14 @@
   // Start on: the bag asked for, this profile's default, the bag last used with
   // it, the bag on the machine, then the newest (lib/defaultBag).
   let batchId = $state<string | null>(null);
+  /** "Don't track": no bag (a freezer dose, a sample). Nothing goes on a bag, and the shot has no coffee. */
+  const UNTRACKED = 'untracked';
   $effect.pre(() => {
     if (batchId === null) {
       batchId = startBag({
         open: bags.map((b) => b.batch), profileRoot, requested: initial?.batchId,
         defaults: app.defaultBags, onMachine: app.workflow.context?.beanBatchId,
-      });
+      }) ?? UNTRACKED; // no open bags: brew untracked
     }
   });
   const defaultId = $derived(app.defaultBags[profileRoot] ?? null);
@@ -46,7 +48,7 @@
   let dose = $state<number | undefined>();
   let yieldG = $state<number | undefined>();
   let temp = $state<number | undefined>();
-  let source = $state<DialInSource | 'shot'>('profile-default');
+  let source = $state<DialInSource | 'shot' | 'untracked'>('profile-default');
   // The first load takes the shot's numbers (once); changing bag afterwards goes back to what each bag remembers.
   // svelte-ignore state_referenced_locally
   let pendingInitial: DialIn | undefined = initial?.dialIn;
@@ -70,8 +72,10 @@
     const resolved = b ? resolveDialIn(b, profileRoot, app.batches) : { dialIn: {}, source: 'profile-default' as const };
     const fromShot = pendingInitial;
     pendingInitial = undefined;
-    const d = fromShot ? { ...resolved.dialIn, ...fromShot } : resolved.dialIn;
-    source = fromShot ? 'shot' : resolved.source;
+    // Untracked: what was last used untracked with this profile (this session), else the profile's own.
+    const untracked = id === UNTRACKED ? app.untrackedDialIn[profileRoot] : undefined;
+    const d = fromShot ? { ...resolved.dialIn, ...fromShot } : untracked ?? resolved.dialIn;
+    source = fromShot ? 'shot' : id === UNTRACKED ? 'untracked' : resolved.source;
     const g = d.grind !== undefined ? Number.parseFloat(d.grind) : NaN;
     grind = Number.isFinite(g) ? g : undefined;
     dose = d.dose ?? app.workflow.context?.targetDoseWeight ?? 18;
@@ -152,6 +156,7 @@
     try {
       await app.applySelection(profileRoot, forBatch, dialIn);
       lastSent = key;
+      if (!forBatch && batchId === UNTRACKED) app.untrackedDialIn[profileRoot] = dialIn;
       const dialKey = JSON.stringify(dialIn);
       if (forBatch && dialKey !== loadedKey) {
         await app.saveDialIn(forBatch, profileRoot, dialIn);
@@ -222,7 +227,7 @@
   <section class="bags" aria-label="Bag">
     <div class="bag-head">
       <h3>Bag</h3>
-      {#if batchId && bags.length > 1}
+      {#if batchId && batchId !== UNTRACKED && bags.length > 1}
         <button class="default glass" class:on={defaultId === batchId} aria-pressed={defaultId === batchId} onclick={toggleDefault}>
           {defaultId === batchId ? '★ Default' : 'Set as default'}
         </button>
@@ -231,7 +236,7 @@
     {#if defaultError}<p class="none">Couldn't save the default. Try again.</p>{/if}
     {#if bags.length === 0}
       <p class="none">No open bags. Add one in the Beans tab.</p>
-    {:else}
+    {/if}
       <div class="bag-list" role="radiogroup" aria-label="Bag">
         {#each bags as { batch: b, bean } (b.id)}
           <button class="bag glass" style:--bag={app.coffeeColours[b.beanId] ?? undefined} class:coloured={!!app.coffeeColours[b.beanId]} class:lit={b.id === batchId} class:selected={b.id === batchId} role="radio" aria-checked={b.id === batchId} onclick={() => (batchId = b.id)}>
@@ -248,13 +253,20 @@
             </span>
           </button>
         {/each}
+        <!-- Freezer doses, samples, someone else's beans: brew without a bag. -->
+        <button class="bag glass untracked" class:lit={batchId === UNTRACKED} class:selected={batchId === UNTRACKED} role="radio" aria-checked={batchId === UNTRACKED} onclick={() => (batchId = UNTRACKED)}>
+          <span class="swatch" aria-hidden="true">–</span>
+          <span class="bag-text">
+            <span class="bean">Don't track</span>
+            <span class="sub">Freezer dose or a one-off: no bag, nothing saved</span>
+          </span>
+        </button>
       </div>
-    {/if}
   </section>
 
   <section class="dial" aria-label="Dial-in">
     <div class="source-row">
-      <p class="source">{source === 'shot' ? 'From the shot you picked' : SOURCE_TEXT[source]}</p>
+      <p class="source">{source === 'shot' ? 'From the shot you picked' : source === 'untracked' ? 'Not tracked: nothing is saved to a bag' : SOURCE_TEXT[source]}</p>
       {#if batch && record && hasLast}<button class="last glass" onclick={() => (showingLast = true)}>Last shot</button>{/if}
     </div>
     {#if source === 'shot' && initial?.note}<p class="source note">{initial.note}</p>{/if}
@@ -387,6 +399,7 @@
     font-size: var(--t-lg);
     font-weight: 750;
   }
+  .untracked .swatch { background: transparent; color: var(--paper-dim); border: 2px dashed rgb(255 255 255 / 0.3); }
   .bag-text { display: grid; min-width: 0; }
   .bean { font-weight: 650; font-size: var(--t-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .sub { color: var(--paper-dim); font-size: var(--t-xs); }
