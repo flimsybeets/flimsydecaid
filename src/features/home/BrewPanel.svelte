@@ -5,6 +5,7 @@
   import { resolveDialIn, type DialIn, type DialInSource } from '../../lib/dialIn';
   import { baseTemperature } from '../../lib/profiles';
   import { doseCheck } from '../../lib/guide';
+  import { ratioText } from '../../lib/history';
   import Stepper from '../../components/Stepper.svelte';
   import type { BeanBatch } from '../../api/types';
   import { startBag } from '../../lib/defaultBag';
@@ -53,6 +54,8 @@
   // The first load takes the shot's numbers (once); changing bag afterwards goes back to what each bag remembers.
   // svelte-ignore state_referenced_locally
   let pendingInitial: DialIn | undefined = initial?.dialIn;
+  // Brew ratio from the dose and yield, shown with the Yield stepper (1:2.0).
+  const ratio = $derived(ratioText(dose, yieldG));
   let starting = $state(false);
   let startError = $state<string | null>(null);
 
@@ -275,7 +278,7 @@
       <Stepper compact label="Grind" bind:value={grind} min={gc.min} max={gc.max} step={gc.step} decimals={gc.decimals} placeholder="Not set" />
       <Stepper compact label="Temperature" bind:value={temp} min={(base ?? 90) - 10} max={(base ?? 90) + 10} step={0.5} decimals={1} unit="°C" disabled={base === null} />
       <div class="dose {weigh?.state ?? ''}"><Stepper compact label="Dose" bind:value={dose} min={5} max={30} step={0.1} decimals={1} unit="g" /></div>
-      <Stepper compact label="Yield" bind:value={yieldG} min={0} max={400} step={0.5} decimals={1} unit="g" placeholder="Off" />
+      <Stepper compact label={ratio ? `Yield · ${ratio}` : 'Yield'} bind:value={yieldG} min={0} max={400} step={0.5} decimals={1} unit="g" placeholder="Off" />
     </div>
     {#if base !== null && temp !== undefined && temp !== base}
       <p class="offset">{temp > base ? '+' : ''}{(temp - base).toFixed(1)}° from the profile's {base}°</p>
