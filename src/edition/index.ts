@@ -13,6 +13,8 @@ export interface Edition {
   id: 'personal' | 'public';
   /** The skin's name, as Decaid shows it (e.g. the back link from Decaid's settings). */
   name: string;
+  /** The skin id in public/skin-manifest.json (install folder; used to look up the installed version). */
+  skinId: string;
   /** Extra screensaver art shown instead of the clock, with its Settings toggle (theme.halloween); none = no toggle. */
   screensaverExtra?: { label: string; note: string; load: () => Promise<{ default: Component }> };
   guide: {
@@ -26,6 +28,7 @@ export interface Edition {
 export const EDITION: Edition = {
   id: 'personal',
   name: 'FlimsyDecaid',
+  skinId: 'flimsydecaid',
   screensaverExtra: {
     label: 'Halloween screensaver',
     note: 'Ghosts drift over your screensaver photo instead of the clock.',

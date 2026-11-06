@@ -807,7 +807,7 @@ class AppState {
   async checkSkinUpdates(): Promise<SkinUpdateResult> {
     try {
       await gateway.checkSkinUpdates();
-      return skinUpdateResult(__APP_VERSION__, await gateway.installedSkinVersion('flimsydecaid').catch(() => null));
+      return skinUpdateResult(__APP_VERSION__, await gateway.installedSkinVersion(EDITION.skinId).catch(() => null));
     } catch (e) {
       return { kind: 'failed', message: updateErrorText(e instanceof HttpError ? e.body : (e as Error).message) };
     }
