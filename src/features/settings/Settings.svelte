@@ -204,11 +204,11 @@
       {#if EDITION.screensaverExtra}
       <div class="row">
         <button class="button glass toggle theme-toggle" class:lit={app.halloween} role="switch" aria-checked={app.halloween} onclick={() => app.setHalloween(!app.halloween)}>
-          Halloween screensaver <b>{app.halloween ? 'On' : 'Off'}</b>
+          {EDITION.screensaverExtra.label} <b>{app.halloween ? 'On' : 'Off'}</b>
         </button>
         <button class="button glass" disabled={!app.screensaverImage} onclick={() => (app.screensaverPreview = true)}>Preview</button>
       </div>
-      <p class="small">Ghosts drift over your screensaver photo instead of the clock.{app.screensaverImage ? '' : ' Choose a screensaver image first.'}</p>
+      <p class="small">{EDITION.screensaverExtra.note}{app.screensaverImage ? '' : ' Choose a screensaver image first.'}</p>
       {/if}
 
       <h3>Panel colour</h3>

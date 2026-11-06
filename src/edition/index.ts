@@ -8,11 +8,15 @@ import type { Component } from 'svelte';
 
 export interface Edition {
   id: 'personal' | 'public';
-  /** Extra screensaver art behind the Halloween toggle; the toggle is hidden without it. */
-  screensaverExtra?: () => Promise<{ default: Component }>;
+  /** Extra screensaver art shown instead of the clock, with its Settings toggle (theme.halloween); none = no toggle. */
+  screensaverExtra?: { label: string; note: string; load: () => Promise<{ default: Component }> };
 }
 
 export const EDITION: Edition = {
   id: 'personal',
-  screensaverExtra: () => import('./Ghosts.svelte'),
+  screensaverExtra: {
+    label: 'Halloween screensaver',
+    note: 'Ghosts drift over your screensaver photo instead of the clock.',
+    load: () => import('./Ghosts.svelte'),
+  },
 };

@@ -14,7 +14,7 @@ export function parsePanelTint(raw: unknown): PanelTint {
 }
 
 export interface ThemeOptions {
-  /** Ghosts instead of the clock on the screensaver. */
+  /** The edition's screensaver art instead of the clock (stored as "halloween", the first such art). */
   halloween: boolean;
   /** The big clock on the screensaver (on unless turned off). */
   clock: boolean;
@@ -28,7 +28,7 @@ export interface ThemeOptions {
 
 export const DEFAULT_THEME: ThemeOptions = { halloween: false, clock: true, tilePreview: 'shot', bgTone: DEFAULT_TONE, panelTint: 'dark' };
 
-/** A stored value → options; a missing or odd value means the defaults (Halloween off, clock on). */
+/** A stored value → options; a missing or odd value means the defaults (edition screensaver art off, clock on). */
 export function parseTheme(raw: unknown): ThemeOptions {
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return { ...DEFAULT_THEME };
   const r = raw as { halloween?: unknown; clock?: unknown; tilePreview?: unknown; bgTone?: unknown; panelTint?: unknown };

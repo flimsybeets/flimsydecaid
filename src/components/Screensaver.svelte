@@ -18,13 +18,13 @@
   });
   const time = $derived(clockText(now));
 
-  // Extra screensaver art from this edition (the personal one has Halloween
-  // ghosts), loaded only when it's switched on.
+  // Extra screensaver art from this edition (if it has any), loaded only
+  // when it's switched on in Settings.
   let Extra = $state<Component | null>(null);
   $effect(() => {
     if (!app.halloween || Extra || !EDITION.screensaverExtra) return;
     let live = true;
-    void EDITION.screensaverExtra().then((m) => { if (live) Extra = m.default; });
+    void EDITION.screensaverExtra.load().then((m) => { if (live) Extra = m.default; });
     return () => (live = false);
   });
 
