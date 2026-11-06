@@ -18,6 +18,7 @@
 .art.set-generic.wdt, .art.set-generic.distribute, .art.set-generic.basket, .art.set-generic.tamp, .art.set-generic.puckscreen,
 .art.set-generic.paper, .art.set-generic.pull, .art.set-generic.done { --acc: var(--go); }
 .art.set-generic.steam { --acc: var(--paper); }
+.art.set-generic.shake { --acc: var(--g-flow); }
 
 /* weigh: beans fall into the cup and settle until the dose is right; live weight on the display */
 .art.set-generic .k-beans { opacity: 0; transition: opacity 300ms ease; }
@@ -147,13 +148,30 @@
 @keyframes gn-puck { 0%, 19% { opacity: 0; translate: 0 var(--hit); } 20% { opacity: 1; translate: 0 var(--hit); } 42% { opacity: 1; translate: 0 calc(var(--hit) + var(--fall)); } 46%, 100% { opacity: 0; translate: 0 calc(var(--hit) + var(--fall)); } }
 
 /* steam: the milk swirls and rises, puffs drift off the wand */
-.art.set-generic.steam .k-swirl { animation: gn-swirl 1.4s linear infinite; }
+.art.set-generic.steam .k-swirl { stroke-dasharray: 22 18; animation: gn-swirl 1.4s linear infinite; }
+.art.set-generic.steam .k-swirl.s2 { stroke-dasharray: 12 10; animation-duration: 0.9s; animation-direction: reverse; }
+.art.set-generic.steam .k-ripple { animation: gn-ripple-s 2s ease-out infinite; }
+@keyframes gn-ripple-s { 0% { opacity: 0; transform: scale(0.5); } 15% { opacity: 1; } 100% { opacity: 0; transform: scale(2.3); } }
 .art.set-generic .k-milk { animation: gn-milk 8s ease-in-out infinite; }
 @keyframes gn-milk { 0%, 100% { translate: 0 5px; } 50%, 70% { translate: 0 -3px; } }
 .art.set-generic .k-puff { opacity: 0; animation: gn-puff 3s ease-out infinite; }
 .art.set-generic .k-puff.p1 { animation-delay: 1s; }
 .art.set-generic .k-puff.p2 { animation-delay: 2s; }
 @keyframes gn-puff { 0% { opacity: 0; translate: 0 6px; } 25% { opacity: 0.8; } 100% { opacity: 0; translate: 0 -26px; } }
+
+/* shake: the shaker is pumped hard along its length with a little twist, motion lines flick, frost sparkles twinkle */
+.art.set-generic .k-shaker { animation: gn-shaker 0.44s ease-in-out infinite; }
+@keyframes gn-shaker { 0%, 100% { transform: translate(calc(var(--ax) * -1), calc(var(--ay) * -1)) rotate(-2.6deg); } 50% { transform: translate(var(--ax), var(--ay)) rotate(2.6deg); } }
+.art.set-generic .k-mline { opacity: 0; animation: gn-mline 0.44s ease-in-out infinite; }
+.art.set-generic .k-mline.m1, .art.set-generic .k-mline.m3 { animation-delay: -0.22s; }
+@keyframes gn-mline { 0%, 100% { opacity: 0; translate: 0 6px; } 50% { opacity: 0.85; translate: 0 -6px; } }
+.art.set-generic .k-spark { opacity: 0; transform-box: fill-box; transform-origin: center; animation: gn-spark 1.8s ease-in-out infinite; }
+.art.set-generic .k-spark.sp1 { animation-delay: -0.3s; }
+.art.set-generic .k-spark.sp2 { animation-delay: -0.6s; }
+.art.set-generic .k-spark.sp3 { animation-delay: -0.9s; }
+.art.set-generic .k-spark.sp4 { animation-delay: -1.2s; }
+.art.set-generic .k-spark.sp5 { animation-delay: -1.5s; }
+@keyframes gn-spark { 0%, 100% { opacity: 0; transform: scale(0.3) rotate(0deg); } 35% { opacity: 1; transform: scale(1) rotate(45deg); } 70% { opacity: 0; transform: scale(0.5) rotate(90deg); } }
 
 /* done: the cup steams */
 .art.set-generic .k-curl { opacity: 0; animation: gn-curl 4s ease-out infinite; }

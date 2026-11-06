@@ -79,6 +79,14 @@
       <path d="M22 40h20" />
       <circle class="acc" cx="32" cy="22" r="9" />
       <path class="acc" d="M32 8v-2" />
+    {:else if kind === 'shake'}
+      <g transform="rotate(16 32 36)">
+        <path d="M22 22h20l-3 30a3 3 0 0 1-3 3h-8a3 3 0 0 1-3-3z" />
+        <path d="M24 22v-5h16v5" />
+        <path d="M28 17v-4h8v4" />
+        <path d="M24 31h16" />
+      </g>
+      <path class="acc" d="M13 26q-4 8 0 16M7 22q-6 12 0 24M51 26q4 8 0 16M57 22q6 12 0 24" />
     {:else}
       <rect x="12" y="10" width="40" height="44" rx="6" />
       <path d="M20 22h4M20 32h4M20 42h4" />

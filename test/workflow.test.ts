@@ -20,6 +20,23 @@ describe('library', () => {
   });
 });
 
+describe('shake step', () => {
+  it('is a plain template with a 15 s timer from the library, in no preset', () => {
+    expect(TEMPLATE_KEYS).toContain('shake');
+    expect(STEP_LIBRARY.shake.kind).toBe('Shake it');
+    expect(libraryStep('shake')).toMatchObject({ id: 'shake', template: 'shake', title: 'Shake it', label: 'Shake', timer: 15 });
+    expect(addableTemplates(simple())).toContain('shake');
+    for (const p of PRESETS) expect(templates(p.workflow)).not.toContain('shake');
+  });
+  it('can be added more than once and survives cleaning, timer included', () => {
+    let w = addStep(simple(), 'shake').workflow;
+    w = addStep(w, 'shake').workflow;
+    expect(templates(w).filter((t) => t === 'shake')).toHaveLength(2);
+    const clean = normaliseWorkflow(JSON.parse(JSON.stringify(w)), simple());
+    expect(clean.steps.filter((s) => s.template === 'shake').map((s) => s.timer)).toEqual([15, 15]);
+  });
+});
+
 describe('presets', () => {
   it('are valid as they are, with one pull and done last', () => {
     expect(PRESETS.length).toBeGreaterThanOrEqual(3);
