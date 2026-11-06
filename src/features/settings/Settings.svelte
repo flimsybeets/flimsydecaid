@@ -7,6 +7,7 @@
   import type { SkinUpdateResult } from '../../lib/skinUpdate';
   import { toneLabel } from '../../lib/background';
   import Segmented from '../../components/Segmented.svelte';
+  import { EDITION } from '../../edition';
   import type { PanelTint } from '../../lib/theme';
   const TINTS: { value: PanelTint; label: string }[] = [
     { value: 'dark', label: 'Dark' }, { value: 'teal', label: 'Teal' }, { value: 'coffee', label: 'Coffee' }, { value: 'plum', label: 'Plum' },
@@ -200,6 +201,7 @@
 
     <section class="glass frost">
       <h2>Theme options</h2>
+      {#if EDITION.screensaverExtra}
       <div class="row">
         <button class="button glass toggle theme-toggle" class:lit={app.halloween} role="switch" aria-checked={app.halloween} onclick={() => app.setHalloween(!app.halloween)}>
           Halloween screensaver <b>{app.halloween ? 'On' : 'Off'}</b>
@@ -207,6 +209,7 @@
         <button class="button glass" disabled={!app.screensaverImage} onclick={() => (app.screensaverPreview = true)}>Preview</button>
       </div>
       <p class="small">Ghosts drift over your screensaver photo instead of the clock.{app.screensaverImage ? '' : ' Choose a screensaver image first.'}</p>
+      {/if}
 
       <h3>Panel colour</h3>
       <p class="small">The frosted glass of the brew panel, dialogs and graphs.</p>

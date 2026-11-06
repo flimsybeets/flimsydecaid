@@ -1,4 +1,4 @@
-// Generates src/components/ghostFrames.ts: one low-poly ghost modelled in 3D,
+// Generates src/edition/ghostFrames.ts: one low-poly ghost modelled in 3D,
 // flat-shaded from a fixed light and projected orthographically at N yaw
 // angles. No runtime 3D: the screensaver just shows one frame at a time.
 //   node scripts/ghost-art/build.cjs            (npm run art:ghost)
@@ -256,5 +256,5 @@ export const GHOST_ASPECT = ${(vw / vh).toFixed(4)};
 /** Hidden-SVG markup: a <style> plus one <symbol id="gf{k}"> per frame. */
 export const GHOST_DEFS = ${JSON.stringify(`<style>${styles}</style>` + symbols.join(''))};
 `;
-fs.writeFileSync(path.join(__dirname, '../../src/components/ghostFrames.ts'), ts);
+fs.writeFileSync(path.join(__dirname, '../../src/edition/ghostFrames.ts'), ts);
 console.log(`ghostFrames.ts: ${N} frames, ${(ts.length / 1024).toFixed(0)} KB, viewBox ${VB}`);
