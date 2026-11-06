@@ -134,6 +134,15 @@ function grinder(S, cam, o = {}) {
     S.face(sp.ring(79, 10.4), 'rgb(0 0 0 / .6)');
     out.spout = cam.P(cupX, 78, 0);
   }
+  if (o.hopper === false) {
+    // hopper off: the burr carrier shows in the middle of the ring
+    const col = stackLathe(cam, 0, 0, [[ringTop + 3, 30], [ringTop + 2, 31, 1], [ringTop, 31.4]], 3);
+    S.solid(col.sil, 'metal', { under: false, rim: 0.9 });
+    S.face(col.ring(ringTop + 3, 30), 'rgb(0 0 0 / .45)');
+    const cone = stackLathe(cam, 0, 0, [[ringTop + 17, 5], [ringTop + 13, 11], [ringTop + 6, 19], [ringTop + 3, 24]], 4);
+    S.solid(cone.sil, 'brushed', { rim: 0.8 });
+    S.hl(cone.streak(ringTop + 14, ringTop + 6, 14, 150), 0.5);
+  } else {
   // hopper: glass cone full of beans, dark lid
   const hprof = [[ringTop + hopH, 40], [ringTop + hopH - 2, 41.4, 1], [ringTop + 24, 37], [ringTop + 5, 33], [ringTop, 32]];
   const hop = stackLathe(cam, 0, 0, hprof, 5);
@@ -162,6 +171,7 @@ function grinder(S, cam, o = {}) {
   S.face(lid.ring(ringTop + hopH + 9, 12), `rgb(${PAPER} / .1)`);
   wallStreak(S, cam, 0, 0, [[ringTop + hopH + 9, 12], [ringTop + hopH + 8, 22], [ringTop + hopH + 4, 36], [ringTop + hopH, 42]], ringTop + hopH + 8, ringTop + hopH + 1, 150, 0.5, 1.8);
   S.close();
+  }
   out.hopTop = ringTop + hopH + 9;
   return out;
 }

@@ -3,6 +3,7 @@ const G = require('./geo.cjs');
 const { Cam, ellD, lathe, stackLathe, f, pt, crD, polyD, tube, add3, norm3 } = G;
 const O = require('./objects.cjs');
 const T = require('./tools.cjs');
+const Mo = require('./more.cjs');
 const M = require('./machines.cjs');
 const { circle, groundShadow, aboveClip, clipTo, px, bean, beanHeap, dosingCup, scale } = O;
 const YAW = -32;
@@ -32,7 +33,7 @@ scenes.weigh = (S) => {
   });
   S.raw('</g></g>');
   S.slot();
-  return { lcd: sc.lcd, lcdAt: sc.lcdAt, extra: { top: 20 } };
+  return { lcd: sc.lcd, lcdAt: sc.lcdAt, extra: { top: 34 } };
 };
 
 
@@ -73,7 +74,7 @@ scenes.funnel = (S) => {
     S.raw(`<g style="--fall:${f(34 - k)}px"><circle class="k-grain g${i}" cx="${f(gp[0] + dx)}" cy="${f(gp[1] - 70 - k * 4)}" r="${1.5 + (i % 3) * 0.35}" fill="#b07a4c"/></g>`);
   });
   S.raw('</g></g>');
-  return { extra: { top: 30 } };
+  return { extra: { top: 44 } };
 };
 
 scenes.wdt = (S) => {
@@ -164,7 +165,7 @@ scenes.spray = (S) => {
 
 scenes.grinder = (S) => {
   const cam = Cam(YAW, 40, 1.9, 200, 330);
-  const g = M.grinder(S, cam, { full: false, big: true, dialCls: 'k-dial', hopCls: '' });
+  const g = M.grinder(S, cam, { full: false, big: true, dialCls: 'k-dial', hopper: false });
   // readout tag to the right of the ring, with a leader to the pointer
   const pin = cam.P(0, M.GR.ringTop, M.GR.ringR - 14);
   const num = cam.P(M.GR.ringR + 54, M.GR.ringTop - 6, 40);
@@ -199,6 +200,168 @@ scenes.grind = (S) => {
   const vb = cam.P(-M.GR.r - 8, 120, 0);
   S.raw(`<path class="k-vib fx" d="M${f(vb[0])} ${f(vb[1] - 14)}q-5 14 0 28M${f(vb[0] - 7)} ${f(vb[1] - 20)}q-7 20 0 40" fill="none" stroke="var(--acc)" stroke-width="1.4" stroke-linecap="round"/>`);
   return {};
+};
+
+
+// ---- machine scenes: the DE1 seen from the front-left, framed on what matters
+const W = 448, H = 320;
+function frameAround(pts, pad = 0.05) {
+  let x0 = Math.min(...pts.map((p) => p[0])), x1 = Math.max(...pts.map((p) => p[0]));
+  let y0 = Math.min(...pts.map((p) => p[1])), y1 = Math.max(...pts.map((p) => p[1]));
+  let w = x1 - x0, h = y1 - y0; const p = Math.max(w, h) * pad;
+  x0 -= p; y0 -= p; w += 2 * p; h += 2 * p;
+  if (w / h > W / H) { const nh = w * H / W; y0 -= (nh - h) / 2; h = nh; } else { const nw = h * W / H; x0 -= (nw - w) / 2; w = nw; }
+  return [x0, y0, w, h].map((v) => +v.toFixed(1)).join(' ');
+}
+const { DE } = M;
+const MC = () => Cam(YAW, 28, 1, 0, 0);
+
+scenes.minerals = (S) => {
+  const cam = Cam(YAW, 22, 1.5, 200, 300);
+  const bx = -56, bz = -14, cx = 34, cz = 26;
+  const restY = 52 + 14;
+  const capY = 15, lift = 93 * cam.s * cam.cp;
+  const inB = cam.P(bx, capY, bz), atC = cam.P(cx - 4, restY, cz);
+  const dp = [];
+  S.open('k-shake', ` style="transform-origin:${px(cam.P(bx, 0, bz)[0])} ${px(cam.P(bx, 0, bz)[1])}"`);
+  Mo.dropperBottle(S, cam, bx, bz, {
+    dropper: () => {
+      S.raw(`<g class="k-dropper" style="--dx:${px(inB[0] - atC[0])};--dy:${px(inB[1] - atC[1])};--lift:${px(lift)}">`);
+      dp.push(Mo.dropper(S, cam, cx - 4, restY, cz, { bulbCls: 'k-bulb' }));
+      S.raw('</g>');
+    },
+  });
+  S.close();
+  const cup = O.espressoCup(S, cam, cx, 0, cz);
+  const t = dp[0].tip;
+  const dc = aboveClip(S, cup.ell(cup.rimY, cup.rimR));
+  S.raw(`<g clip-path="url(#${dc})"><path class="k-drip" style="--dfall:${px(14 * cam.s * cam.cp)};fill:var(--acc)" d="${O.drop(t[0], t[1] + 7, 2.6)}"/></g>`);
+  S.raw(`<ellipse class="k-ripple fx" cx="${f(cup.ell(cup.rimY - 4, 10).cx)}" cy="${f(cup.ell(cup.rimY - 4, 10).cy)}" rx="${f(cup.ell(0, 12).rx)}" ry="${f(cup.ell(0, 12).ry)}" fill="none" style="stroke:var(--acc)" stroke-width="1.4"/>`);
+  return { extra: { top: 4 } };
+};
+
+scenes.pull = (S) => {
+  const cam = MC();
+  const { gx, gz } = DE;
+  const cz = gz + 4, ty = DE.FY - 2;
+  const pf0 = DE.pf;
+  let sc, cup;
+  M.de1(S, cam, {
+    wand: true,
+    under: () => {
+      sc = scale(S, cam, gx, cz, ty);
+      cup = O.espressoCup(S, cam, gx, sc.top, cz, {
+        inside: (c) => {
+          const lv = sc.top + 30;
+          const e = c.ell(lv, 20);
+          S.raw(`<g class="k-fill"><ellipse cx="${f(e.cx)}" cy="${f(e.cy)}" rx="${f(e.rx)}" ry="${f(e.ry)}" fill="url(#${S.id}coffee)"/><ellipse cx="${f(e.cx)}" cy="${f(e.cy)}" rx="${f(e.rx * 0.8)}" ry="${f(e.ry * 0.7)}" fill="url(#${S.id}crema)"/></g>`);
+        },
+      });
+    },
+    pf: () => T.portafilter(S, cam, gx, pf0, gz, { content: 'none', ang: 150, tilt: -2 }),
+    water: () => {
+      // streams from the bottomless basket into the cup
+      const top = pf0 - 16, bot = sc.top + 36;
+      const ac = aboveClip(S, cup.ell(cup.rimY, cup.rimR));
+      S.raw(`<g clip-path="url(#${ac})">`);
+      let d = '';
+      for (const [dx, dz] of [[-9, -4], [-3, 5], [4, -3], [9, 4], [0, -9], [-6, 8]]) d += `M${pt(cam.P(gx + dx, top, gz + dz))}L${pt(cam.P(gx + dx * 0.25, bot, cz + dz * 0.25))}`;
+      S.raw(`<path class="k-stream fx" d="${d}" fill="none" stroke="url(#${S.id}crema)" stroke-width="2" stroke-linecap="round" stroke-dasharray="9 5"/>`);
+      S.raw('</g>');
+    },
+  });
+  const e = cam.ell(gx, DE.gTop, gz, DE.gR);
+  return { vb: frameAround([[e.cx - e.rx - 56, e.cy - e.ry - 6], [e.cx + e.rx + 56, e.cy - e.ry - 6], cam.P(gx - 60, ty - 4, gz + 90), cam.P(gx + 70, ty - 4, gz + 80), cam.P(-66, pf0 - 8, 168)], 0.03) };
+};
+
+scenes.rinse = (S) => {
+  const cam = MC();
+  const { gx, gz } = DE;
+  const y0 = 196;
+  M.de1(S, cam, {
+    wand: true,
+    pf: () => T.portafilter(S, cam, gx, y0, gz, { content: 'empty', ang: 150, tilt: 3, inside: (h) => { S.raw(`<path class="k-pool" d="${h.ring(y0 - 14, 27.5)}" style="fill:var(--acc)" fill-opacity=".34"/>`); } }),
+    water: () => {
+      let d = '';
+      for (const [dx, dz] of [[-14, -6], [-6, 4], [2, -2], [10, 6], [16, -4], [-2, 12], [6, -12]]) d += `M${pt(cam.P(gx + dx, DE.pf - 1, gz + dz))}L${pt(cam.P(gx + dx * 0.9, y0 - 12, gz + dz * 0.9))}`;
+      S.raw(`<path class="k-water" d="${d}" fill="none" stroke="var(--acc)" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="7 6"/>`);
+    },
+  });
+  const e = cam.ell(gx, DE.gTop, gz, DE.gR);
+  return { vb: frameAround([[e.cx - e.rx - 56, e.cy - e.ry - 6], [e.cx + e.rx + 56, e.cy - e.ry - 6], cam.P(gx - 60, 150, gz + 90), cam.P(gx + 60, 150, gz + 80), cam.P(-66, y0 + 4, 172)], 0.03) };
+};
+
+scenes.steam = (S) => {
+  const cam = MC();
+  const jx = 184, jz = 98, ty = DE.FY - 2, wx = 201;
+  let jug;
+  const jugTop = ty + 92;
+  const rim = cam.ell(jx, jugTop - 0.6, jz, 38.4);
+  M.de1(S, cam, {
+    wand: false,
+    under: () => {
+      jug = Mo.milkJug(S, cam, jx, ty, jz, {
+        inside: ({ body, h }) => {
+          const lv = ty + h - 20;
+          const e = body.ell(lv, 38);
+          S.raw(`<g class="k-milk"><ellipse cx="${f(e.cx)}" cy="${f(e.cy)}" rx="${f(e.rx)}" ry="${f(e.ry)}" fill="url(#${S.id}milk)"/><ellipse cx="${f(e.cx - 4)}" cy="${f(e.cy - 1)}" rx="${f(e.rx * 0.62)}" ry="${f(e.ry * 0.58)}" fill="#fff" fill-opacity=".35"/></g>`);
+          S.raw(`<path class="k-swirl fx" d="M${f(e.cx - e.rx * 0.6)} ${f(e.cy)}A${f(e.rx * 0.6)} ${f(e.ry * 0.6)} 0 0 0 ${f(e.cx + e.rx * 0.2)} ${f(e.cy + e.ry * 0.58)}" fill="none" style="stroke:var(--acc)" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="10 8"/>`);
+        },
+      });
+    },
+  });
+  // the wand, dipped into the jug: only the part above the rim's centre line and
+  // through the opening shows
+  const ac = aboveClip(S, rim);
+  M.steamWand(S, cam, wx, { tipY: ty + 92 - 56, clipId: ac });
+  const tp = cam.P(wx, ty + 92 + 14, 78);
+  S.raw(`<g class="k-puffs fx">`);
+  for (let i = 0; i < 3; i++) S.raw(`<path class="k-puff p${i}" d="M${f(tp[0] + i * 7 - 6)} ${f(tp[1])}c-6 -10 6 -16 0 -26" fill="none" stroke="rgb(${S.PAPER} / .7)" stroke-width="2" stroke-linecap="round"/>`);
+  S.raw('</g>');
+  return { vb: frameAround([cam.P(40, ty + 150, 130), cam.P(jx + 90, ty + 150, jz), cam.P(jx + 60, ty - 6, jz + 50), cam.P(jx - 80, ty - 6, jz + 60), cam.P(wx, 250, 78)], 0.03) };
+};
+
+scenes.knock = (S) => {
+  const cam = Cam(YAW, 26, 1.3, 210, 330);
+  const { by, br, bz } = Mo.KB;
+  const pz = bz + 26, hitY = by + br, restY = hitY + 30;
+  const hit = (restY - hitY) * cam.s * cam.cp;
+  const fall = (hitY + 8 - 14) * cam.s * cam.cp;
+  Mo.knockBox(S, cam, {
+    inside: () => {
+      S.raw(`<g class="k-puck fx" style="--hit:${px(hit)};--fall:${px(fall)}">`);
+      const py = restY + 8;
+      const pk = lathe(cam, 2, pz, [[py + 11, 28.2], [py + 1.2, 28.4], [py, 27.8]]);
+      S.solid(pk.sil, 'coffee', { under: false, rim: 0.6 });
+      S.face(pk.ring(py + 11, 28.2), 'rgb(0 0 0 / .22)');
+      S.hl(pk.streak(py + 10, py + 2, 28.3, 150), 0.25);
+      S.raw(`<path d="${pk.front(py + 0.8, 28)}" stroke="#f4f5f1" stroke-width="2.4" fill="none"/>`);
+      S.raw('</g>');
+    },
+  });
+  S.open('k-knock', ` style="--hit:${px(hit)}"`);
+  T.invertedPortafilter(S, cam, 2, restY, pz, 150);
+  S.close();
+  return { extra: { top: 20 } };
+};
+
+scenes.done = (S) => {
+  const cam = Cam(YAW, 22, 1.7, 200, 300);
+  const cx = 0, cz = 0;
+  O.saucer(S, cam, cx, 0, cz);
+  const cup = O.espressoCup(S, cam, cx, 5, cz, {
+    inside: (c) => {
+      const e = c.ell(5 + 46, 27);
+      S.raw(`<ellipse cx="${f(e.cx)}" cy="${f(e.cy)}" rx="${f(e.rx)}" ry="${f(e.ry)}" fill="url(#${S.id}coffee)"/><ellipse cx="${f(e.cx)}" cy="${f(e.cy)}" rx="${f(e.rx * 0.86)}" ry="${f(e.ry * 0.82)}" fill="url(#${S.id}crema)"/><ellipse cx="${f(e.cx - e.rx * 0.2)}" cy="${f(e.cy - e.ry * 0.2)}" rx="${f(e.rx * 0.4)}" ry="${f(e.ry * 0.3)}" fill="#fff" fill-opacity=".22"/>`);
+    },
+  });
+  const t = cam.P(cx, 5 + 52, cz);
+  S.raw('<g class="k-steam fx">');
+  [[-14, 0], [0, 1], [14, 2]].forEach(([dx, i]) => {
+    S.raw(`<path class="k-curl c${i}" d="M${f(t[0] + dx)} ${f(t[1] - 8)}c-9 -12 9 -22 0 -34c-8 -10 7 -20 0 -30" fill="none" stroke="rgb(${S.PAPER} / .6)" stroke-width="2.6" stroke-linecap="round"/>`);
+  });
+  S.raw('</g>');
+  return { extra: { top: 60 } };
 };
 
 module.exports = scenes;

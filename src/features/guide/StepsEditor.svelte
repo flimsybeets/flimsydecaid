@@ -245,11 +245,11 @@
 
 <style>
   .bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .two { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; }
+  .two { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 10px; }
   .name { flex: 1; min-width: 180px; }
   .tools { display: flex; gap: 8px; flex-wrap: wrap; }
   label, .field { display: grid; gap: 4px; color: var(--paper-dim); font-size: var(--t-sm); min-width: 0; }
-  input, textarea { min-height: var(--touch); padding: 0 12px; border-radius: var(--radius-control); border: 1px solid rgb(255 255 255 / 0.08); color: var(--paper); font-size: var(--t-md); user-select: text; font-family: inherit; }
+  input, textarea { min-width: 0; width: 100%; box-sizing: border-box; min-height: var(--touch); padding: 0 12px; border-radius: var(--radius-control); border: 1px solid rgb(255 255 255 / 0.08); color: var(--paper); font-size: var(--t-md); user-select: text; font-family: inherit; }
   textarea { padding: 8px 12px; resize: none; line-height: 1.3; min-height: 0; }
   textarea.code { font-family: ui-monospace, monospace; font-size: var(--t-xs); }
   input:focus, textarea:focus { outline: none; border-color: rgb(255 255 255 / 0.45); }
@@ -277,7 +277,7 @@
   .mini { flex: none; width: 40px; height: 40px; border-radius: 10px; color: var(--paper-dim); font-size: var(--t-xs); }
   .mini.danger { color: #ffb3ab; }
   .mini:disabled { opacity: 0.25; }
-  .detail { display: grid; gap: 8px; max-height: 320px; overflow-y: auto; align-content: start; padding: 2px; }
+  .detail { display: grid; gap: 8px; max-height: 320px; overflow-y: auto; overflow-x: hidden; align-content: start; padding: 2px; }
   .kind { color: rgb(var(--accent, 143 211 192)); font-size: var(--t-xs); font-weight: 650; text-transform: uppercase; letter-spacing: 0.06em; }
   .field > span, label > span { color: var(--paper-dim); }
   .empty { color: var(--paper-faint); padding: 8px 4px; }
