@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GHOSTS, MAX_OPACITY, ghostOpacity, ghostPose, yawFrame, type GhostSpec } from '../src/lib/ghostPath';
+import { GHOSTS, MAX_OPACITY, ghostOpacity, ghostPose, yawFrame, type GhostSpec } from '../../src/edition/ghostPath';
 
 const N = 24;
 const plain: GhostSpec = { size: 100, left: 0, top: 0, cycle: 40, offset: 0, ax: 10, ay: 4, px: 12, py: 20, phx: 0, phy: 0, bob: 5, events: [] };

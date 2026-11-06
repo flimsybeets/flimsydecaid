@@ -1,0 +1,59 @@
+# Publishes a GitHub Release with the installable zip:
+# - on every push to main whose package.json version has no v<version> tag
+#   yet (so merging a version bump releases it; other merges just build),
+# - on a pushed tag like v0.2.0, or a manual run on main.
+# Then on the tablet: Launcher → Skins → cog → Install skin → GitHub Release
+# → flimsybeets/flimsydecent. "Check for updates" picks up later releases.
+name: Release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - name: Release tag
+        id: tag
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "name=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+          elif [[ "$GITHUB_REF" == refs/heads/main ]]; then
+            tag="v$(node -p "require('./package.json').version")"
+            if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
+              echo "$tag is already released; nothing to publish."
+            else
+              echo "name=$tag" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+      - name: Package
+        run: npm run package
+        env:
+          SKIN_VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: skin-zip
+          path: release/*.zip
+      - name: Publish release
+        if: steps.tag.outputs.name != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.name }}
+          target_commitish: ${{ github.sha }}
+          files: release/*.zip
+          generate_release_notes: true

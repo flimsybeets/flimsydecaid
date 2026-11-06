@@ -5,7 +5,7 @@
 
 import type { Gateway, Subscriptions } from './gateway';
 import type {
-  Bean, BeanBatch, DevicesState, MachineSnapshot, MachineState, MachineSubstate,
+  Bean, BeanBatch, DevicesState, Grinder, MachineSnapshot, MachineState, MachineSubstate,
   Profile, ProfileRecord, ProfileStep, ShotMeasurement, ShotRecord, ShotSummary, Workflow, WorkflowPatch,
 } from './types';
 
@@ -412,6 +412,10 @@ export function createMockGateway(): Gateway {
       if (i < 0) throw new Error('Bean not found');
       beans[i] = { ...beans[i]!, ...patch, updatedAt: now() };
       return clone(beans[i]!);
+    },
+    async getGrinders(): Promise<Grinder[]> {
+      await delay();
+      return [{ id: 'mock-grinder', model: 'Test grinder', archived: false, settingType: 'numeric', settingSmallStep: 0.25, settingBigStep: 1 }];
     },
     async getBatches() { await delay(); return clone(batches); },
     async getBatch(id) {

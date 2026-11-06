@@ -5,7 +5,7 @@
 import type { GatewayConfig } from './config';
 import { openSocket, type ManagedSocket, type SocketStatus } from './socket';
 import type {
-  Bean, BeanBatch, DevicesState, DisplayState, MachineInfo, MachineSnapshot, MachineState, PluginInfo, Profile, ProfileRecord,
+  Bean, BeanBatch, DevicesState, DisplayState, Grinder, MachineInfo, MachineSnapshot, MachineState, PluginInfo, Profile, ProfileRecord,
   ScaleFrame, ShotAnnotations, ShotPage, ShotQuery, ShotRecord, ShotSummary, WaterLevels, Workflow, WorkflowPatch,
 } from './types';
 
@@ -57,6 +57,9 @@ export interface Gateway {
   getWorkflow(): Promise<Workflow>;
   /** Deep-merge update; returns the workflow as Decaid stored it. */
   updateWorkflow(patch: WorkflowPatch): Promise<Workflow>;
+
+  /** The grinders Decaid has on record (not archived). */
+  getGrinders(): Promise<Grinder[]>;
 
   getBeans(): Promise<Bean[]>;
   createBean(bean: Partial<Bean> & Pick<Bean, 'roaster' | 'name'>): Promise<Bean>;
@@ -184,6 +187,7 @@ export function createHttpGateway(config: GatewayConfig): Gateway {
     createBean: (bean) => call('POST', '/beans', bean),
     updateBean: (id, patch) => call('PUT', `/beans/${encodeURIComponent(id)}`, patch),
     getBatches: () => call('GET', '/bean-batches?includeArchived=true'),
+    getGrinders: () => call('GET', '/grinders'),
     getBatch: (id) => call('GET', `/bean-batches/${encodeURIComponent(id)}`),
     createBatch: (beanId, batch) => call('POST', `/beans/${encodeURIComponent(beanId)}/batches`, batch),
     updateBatch: (id, patch) => call('PUT', `/bean-batches/${encodeURIComponent(id)}`, patch),

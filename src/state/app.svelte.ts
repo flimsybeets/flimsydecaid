@@ -7,7 +7,7 @@ import { createHttpGateway, HttpError, type Gateway } from '../api/gateway';
 import { createMockGateway } from '../api/mock';
 import type { SocketStatus } from '../api/socket';
 import type {
-  Bean, BeanBatch, DeviceInfo, MachineSnapshot, Profile, ProfileRecord, ScaleFrame, ShotAnnotations, ShotPage, ShotQuery, ShotRecord, ShotSummary,
+  Bean, BeanBatch, DeviceInfo, Grinder, MachineSnapshot, Profile, ProfileRecord, ScaleFrame, ShotAnnotations, ShotPage, ShotQuery, ShotRecord, ShotSummary,
   SteamSettings, WaterLevels, Workflow,
 } from '../api/types';
 import { CATEGORIES_KEY, parseCategories, removeProfileEverywhere, type CategoryDoc } from '../lib/categories';
@@ -27,6 +27,10 @@ import { clampRefill, waterState } from '../lib/water';
 import { parseSettings, pluginState, VISUALIZER_ID, type PluginState, type VisualizerSettings } from '../lib/visualizer';
 import { saveProfile, type SaveResult } from '../lib/profileEdit';
 import { GUIDE_KEY, parseGuideSetup, type GuideSetup } from '../lib/guide';
+import { EDITION } from '../edition';
+import { cloneWorkflow } from '../lib/workflowPresets';
+import { normaliseWorkflow, orphanedStepIds, stepPhotoKey, WORKFLOW_KEY, type TemplateKey, type Workflow as GuideWorkflow } from '../lib/workflow';
+import { currentGrinder, grindControl as grindControlOf } from '../lib/grinder';
 import { hideOrder, indexProfiles, latestPerLineage, lineageRoot, shiftTemperature } from '../lib/profiles';
 import { ShotRecorder, samplesFromMeasurements, type ShotSample } from '../lib/shot';
 import { clampSteamFlow, clampSteamTemp, LAST_STEAM_TEMP_KEY, STEAM_DEFAULT_C } from '../lib/steam';
@@ -99,6 +103,17 @@ class AppState {
   /** "Guide me": the profile + coffee it's set to (null until set up), and whether it's running. */
   guide = $state<GuideSetup | null>(null);
   guiding = $state(false);
+  /** The kind of step Guide me is on (null while it is closed): steam and flush views leave the guide's own steps alone. */
+  guideTemplate = $state<TemplateKey | null>(null);
+  /** The guide's steps (KV guideWorkflow); the edition's first preset until one is saved. */
+  guideWorkflow = $state<GuideWorkflow>(cloneWorkflow(EDITION.guide.presets[0]!.workflow));
+  /** Step photos by step id (KV guidePhoto:<id>), loaded on demand. Missing = not known yet, null = none. */
+  stepPhotos = $state<Record<string, string | null>>({});
+  private stepPhotoLoads = new Set<string>();
+  /** The grinders Decaid has on record. */
+  grinders = $state<Grinder[]>([]);
+  /** Step, range and name for the grind stepper: from the grinder the workflow names (or the only one), else today's defaults. */
+  grindControl = $derived(grindControlOf(currentGrinder(this.grinders, this.workflow.context?.grinderId)));
 
   /** Screen brightness (0-100) while the screensaver shows. 100 = don't dim. */
   screensaverDim = $state(SCREENSAVER_BRIGHTNESS);
@@ -106,8 +121,8 @@ class AppState {
   water = $state.raw<WaterLevels | null>(null);
   waterStatus = $derived(waterState(this.water, this.machine.state?.state === 'needsWater'));
 
-  /** Theme option: ghosts instead of the clock on the screensaver. */
-  halloween = $state(false);
+  /** Theme option: the edition's screensaver art instead of the clock (EDITION.screensaverExtra; stored as theme.halloween). */
+  screensaverArt = $state(false);
   /** Show the big clock on the screensaver (Settings → Screensaver). */
   screensaverClock = $state(true);
   /** Graph on each profile tile on Home (theme.tilePreview). */
@@ -155,7 +170,7 @@ class AppState {
 
   async reload(): Promise<void> {
     try {
-      const [profiles, workflow, categories, beans, batches, guide, defaultBags, coffeeColours] = await Promise.all([
+      const [profiles, workflow, categories, beans, batches, guide, defaultBags, coffeeColours, guideWorkflow, grinders] = await Promise.all([
         gateway.getProfiles(),
         gateway.getWorkflow(),
         gateway.storeGet(CATEGORIES_KEY),
@@ -164,7 +179,11 @@ class AppState {
         gateway.storeGet(GUIDE_KEY).catch(() => null),
         gateway.storeGet(DEFAULT_BAGS_KEY).catch(() => null),
         gateway.storeGet(COFFEE_COLOURS_KEY).catch(() => null),
+        gateway.storeGet(WORKFLOW_KEY).catch(() => null),
+        gateway.getGrinders().catch(() => [] as Grinder[]),
       ]);
+      this.guideWorkflow = normaliseWorkflow(guideWorkflow, cloneWorkflow(EDITION.guide.presets[0]!.workflow));
+      this.grinders = Array.isArray(grinders) ? grinders : [];
       this.guide = parseGuideSetup(guide);
       this.defaultBags = parseDefaultBags(defaultBags);
       this.coffeeColours = parseBagColours(coffeeColours);
@@ -531,6 +550,36 @@ class AppState {
     this.guide = setup;
   }
 
+  /** Save the guide's steps. Photos of steps that went away are deleted. */
+  async saveGuideWorkflow(next: GuideWorkflow): Promise<void> {
+    const before = this.guideWorkflow;
+    await gateway.storeSet(WORKFLOW_KEY, next);
+    this.guideWorkflow = next;
+    for (const id of orphanedStepIds(before, next)) {
+      if (this.stepPhotos[id]) void gateway.storeDelete(stepPhotoKey(id)).catch(() => {});
+      delete this.stepPhotos[id];
+    }
+  }
+
+  async loadStepPhoto(stepId: string): Promise<void> {
+    if (stepId in this.stepPhotos || this.stepPhotoLoads.has(stepId)) return;
+    this.stepPhotoLoads.add(stepId);
+    const raw = await gateway.storeGet<string>(stepPhotoKey(stepId)).catch(() => null);
+    this.stepPhotoLoads.delete(stepId);
+    if (stepId in this.stepPhotos) return; // a save or remove that finished meanwhile wins
+    this.stepPhotos[stepId] = typeof raw === 'string' && raw.startsWith('data:image/') ? raw : null;
+  }
+
+  async saveStepPhoto(stepId: string, dataUrl: string): Promise<void> {
+    await gateway.storeSet(stepPhotoKey(stepId), dataUrl);
+    this.stepPhotos[stepId] = dataUrl;
+  }
+
+  async removeStepPhoto(stepId: string): Promise<void> {
+    await gateway.storeDelete(stepPhotoKey(stepId));
+    this.stepPhotos[stepId] = null;
+  }
+
   async removeGuide(): Promise<void> {
     await gateway.storeDelete(GUIDE_KEY);
     this.guide = null;
@@ -546,15 +595,15 @@ class AppState {
     this.screensaverImage = typeof url === 'string' && url.startsWith('data:image/') ? url : null;
     this.screensaverDim = parseDim(await gateway.storeGet(SCREENSAVER_DIM_KEY).catch(() => null));
     const theme = parseTheme(await gateway.storeGet(THEME_KEY).catch(() => null));
-    this.halloween = theme.halloween;
+    this.screensaverArt = theme.halloween;
     this.screensaverClock = theme.clock;
     this.tilePreview = theme.tilePreview;
     this.bgTone = theme.bgTone;
     this.panelTint = theme.panelTint;
   }
 
-  async setHalloween(on: boolean): Promise<void> {
-    this.halloween = on;
+  async setScreensaverArt(on: boolean): Promise<void> {
+    this.screensaverArt = on;
     await this.saveTheme();
   }
 
@@ -602,7 +651,7 @@ class AppState {
   }
 
   private saveTheme(): Promise<void> {
-    return gateway.storeSet(THEME_KEY, { halloween: this.halloween, clock: this.screensaverClock, tilePreview: this.tilePreview, bgTone: this.bgTone, panelTint: this.panelTint }).catch(() => {});
+    return gateway.storeSet(THEME_KEY, { halloween: this.screensaverArt, clock: this.screensaverClock, tilePreview: this.tilePreview, bgTone: this.bgTone, panelTint: this.panelTint }).catch(() => {});
   }
 
   private dimSaveTimer: ReturnType<typeof setTimeout> | null = null;

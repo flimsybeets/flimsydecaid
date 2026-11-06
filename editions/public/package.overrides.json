@@ -1,0 +1,6 @@
+{
+  "name": "flimsydecent",
+  "description": "A Decaid skin for the Decent DE1: profiles in categories, per-bag dial-in, live shot dials and a Guide me walkthrough you set up yourself",
+  "version": "0.1.0",
+  "dropScripts": ["art:guide", "art:ghost"]
+}

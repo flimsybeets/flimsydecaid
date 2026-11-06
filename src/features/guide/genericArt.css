@@ -1,0 +1,173 @@
+/* Animations for the shared (brand-neutral) Guide me art. The generated scenes
+   (genericScenes.ts) are plain SVG with k-* classes; everything that moves is
+   here, scoped to .art.set-generic. One accent per scene (--acc). Only
+   transform, opacity and stroke-dashoffset animate (weak tablet GPU); no
+   filters. Reduced motion: no animation, decorative .fx parts hidden, every
+   scene static and complete. */
+
+.art.set-generic .bp { stroke: rgb(238 243 239 / 0.42); stroke-width: 1; fill: none; }
+.art.set-generic .bs { stroke: rgb(238 243 239 / 0.2); stroke-width: 0.9; fill: none; }
+.art.set-generic .bh { stroke: rgb(255 255 255 / 0.62); stroke-width: 1.6; fill: none; }
+.art.set-generic .ic { fill: none; stroke: rgb(238 243 239 / 0.8); stroke-width: 1.1; vector-effect: non-scaling-stroke; }
+.art.set-generic .as { fill: none; stroke: var(--acc); stroke-width: 1.4; }
+.art.set-generic .af { fill: var(--acc); }
+
+.art.set-generic.weigh { --acc: rgb(var(--accent)); }
+.art.set-generic.spray, .art.set-generic.minerals, .art.set-generic.rinse { --acc: var(--g-flow); }
+.art.set-generic.grinder, .art.set-generic.grind, .art.set-generic.funnel, .art.set-generic.knock { --acc: var(--warn); }
+.art.set-generic.wdt, .art.set-generic.distribute, .art.set-generic.basket, .art.set-generic.tamp, .art.set-generic.puckscreen,
+.art.set-generic.paper, .art.set-generic.pull, .art.set-generic.done { --acc: var(--go); }
+.art.set-generic.steam { --acc: var(--paper); }
+
+/* weigh: beans fall into the cup and settle until the dose is right; live weight on the display */
+.art.set-generic .k-beans { opacity: 0; transition: opacity 300ms ease; }
+.art.set-generic:not(.ws-empty) .k-beans { opacity: 1; }
+.art.set-generic.ws-ok .k-fall { opacity: 0; }
+.art.set-generic .k-drop { opacity: 0; animation: gn-drop 2.2s cubic-bezier(.5, 0, .9, .6) infinite; }
+.art.set-generic .k-drop.d1 { animation-delay: 0.4s; }
+.art.set-generic .k-drop.d2 { animation-delay: 0.8s; }
+.art.set-generic .k-drop.d3 { animation-delay: 1.2s; }
+.art.set-generic .k-drop.d4 { animation-delay: 1.6s; }
+@keyframes gn-drop { 0% { translate: 0 0; opacity: 0; } 10% { opacity: 1; } 68% { translate: 0 var(--fall); opacity: 1; animation-timing-function: linear; } 86% { translate: 0 var(--fall); opacity: 1; } 100% { translate: 0 var(--fall); opacity: 0; } }
+
+/* spray: two pumps, a soft mist drifts onto the beans */
+.art.set-generic .k-trigger { animation: gn-pump 5s ease-in-out infinite; }
+@keyframes gn-pump { 0%, 8%, 16%, 22%, 30%, 100% { rotate: 0deg; } 11%, 25% { rotate: 9deg; } }
+.art.set-generic .k-mist circle { opacity: 0; transform-box: fill-box; transform-origin: center; animation: gn-mist 5s cubic-bezier(.2, .6, .4, 1) infinite; animation-delay: calc(var(--i) * 0.07s); }
+@keyframes gn-mist { 0%, 10% { opacity: 0; transform: translate(0, 0) scale(0.3); } 16% { opacity: 1; } 50% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1.5); } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1.5); } }
+.art.set-generic .k-dew { animation: gn-dew 5s ease infinite; }
+@keyframes gn-dew { 0%, 30% { opacity: 0; } 45%, 90% { opacity: 1; } 100% { opacity: 0; } }
+
+/* grinder: the ring turns until the setting sits under the pointer; the arc follows */
+.art.set-generic .k-dial { transform: rotate(var(--dial)); animation: gn-dial 6s cubic-bezier(.45, 0, .2, 1) infinite; }
+@keyframes gn-dial { 0%, 8% { transform: rotate(calc(var(--dial) + 50deg)); } 45%, 100% { transform: rotate(var(--dial)); } }
+.art.set-generic .dial-arc { fill: none; stroke: var(--acc); stroke-width: 2.4; stroke-linecap: butt; stroke-dasharray: var(--arc) 200; animation: gn-arc 6s cubic-bezier(.45, 0, .2, 1) infinite; }
+.art.set-generic .dial-arc.glow { stroke-width: 6; stroke-opacity: 0.22; }
+.art.set-generic.noarc .dial-arc { display: none; }
+@keyframes gn-arc { 0%, 8% { stroke-dasharray: var(--arc-from) 200; } 45%, 100% { stroke-dasharray: var(--arc) 200; } }
+
+/* grind: power on, grounds fall and the pile grows, power off */
+.art.set-generic .k-btn { animation: gn-btn 9s ease infinite; }
+@keyframes gn-btn { 0%, 6%, 11%, 74%, 79%, 100% { transform: scale(1); } 8.5%, 76.5% { transform: scale(0.84); } }
+.art.set-generic .k-btnring { opacity: 0; animation: gn-btnring 9s ease-out infinite; }
+@keyframes gn-btnring { 0%, 6% { opacity: 0; transform: scale(0.9); } 8.5% { opacity: 1; transform: scale(1); } 16% { opacity: 0; transform: scale(1.8); } 16.1%, 74% { opacity: 0; transform: scale(0.9); } 76.5% { opacity: 1; transform: scale(1); } 84%, 100% { opacity: 0; transform: scale(1.8); } }
+.art.set-generic .k-grains { opacity: 0; animation: gn-grains 9s linear infinite; }
+@keyframes gn-grains { 0%, 11% { opacity: 0; } 14%, 72% { opacity: 1; } 76%, 100% { opacity: 0; } }
+.art.set-generic.grind .k-grain { animation: gn-grain 0.6s linear infinite; }
+.art.set-generic .k-grain.g1, .art.set-generic .k-grain.g4 { animation-delay: -0.2s; }
+.art.set-generic .k-grain.g2, .art.set-generic .k-grain.g5 { animation-delay: -0.4s; }
+@keyframes gn-grain { from { translate: 0 0; } to { translate: 0 var(--fall, 14px); } }
+.art.set-generic .k-pile { animation: gn-pile 9s ease-out infinite; }
+@keyframes gn-pile { 0%, 10% { opacity: 0; transform: scale(0.3); } 18% { opacity: 1; } 74%, 94% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1); } }
+.art.set-generic .k-hopper { animation: gn-hopper 9s linear infinite; }
+@keyframes gn-hopper { 0%, 12% { opacity: 1; } 72%, 94% { opacity: 0.55; } 100% { opacity: 1; } }
+.art.set-generic .k-vib { opacity: 0; animation: gn-grains 9s linear infinite, gn-wob 0.18s linear infinite alternate; }
+@keyframes gn-wob { to { translate: -2px 0; } }
+
+/* wdt: needles dip in and stir, clumps even out */
+.art.set-generic .k-stir { animation: gn-stir 6s ease-in-out infinite; }
+@keyframes gn-stir { 0%, 8% { translate: 0 -30px; } 20% { translate: 0 0; } 28% { translate: 8px 2px; } 36% { translate: 0 6px; } 44% { translate: -8px 2px; } 52% { translate: 6px 0; } 62% { translate: 0 0; } 76%, 100% { translate: 0 -30px; } }
+.art.set-generic .k-clump { animation: gn-clump 6s linear infinite; }
+@keyframes gn-clump { 0%, 40% { opacity: 1; } 56%, 96% { opacity: 0; } 100% { opacity: 1; } }
+.art.set-generic .k-even { animation: gn-even 6s linear infinite; }
+@keyframes gn-even { 0%, 40% { opacity: 0; } 56%, 96% { opacity: 1; } 100% { opacity: 0; } }
+
+/* distribute: the tool comes down, turns, a swirl shows the spin */
+.art.set-generic .k-tool { animation: gn-tool 6s ease-in-out infinite; }
+@keyframes gn-tool { 0%, 6% { translate: 0 -34px; } 20%, 74% { translate: 0 0; } 90%, 100% { translate: 0 -34px; } }
+.art.set-generic .k-spin { animation: gn-spin 3s linear infinite; }
+@keyframes gn-spin { to { rotate: 360deg; } }
+.art.set-generic .k-swirl { stroke-dasharray: 16 24; animation: gn-swirl 1.4s linear infinite; }
+@keyframes gn-swirl { to { stroke-dashoffset: -40; } }
+.art.set-generic.distribute .k-swirl { opacity: 0; animation: gn-swirl 1.4s linear infinite, gn-on 6s linear infinite; }
+@keyframes gn-on { 0%, 18% { opacity: 0; } 24%, 70% { opacity: 1; } 76%, 100% { opacity: 0; } }
+
+/* funnel: grounds pour in, the heap builds */
+.art.set-generic .k-mound { animation: gn-mound 6s ease-out infinite; }
+@keyframes gn-mound { 0%, 10% { opacity: 0; translate: 0 6px; } 50%, 94% { opacity: 1; translate: 0 0; } 100% { opacity: 0; translate: 0 0; } }
+.art.set-generic.funnel .k-grains { animation: gn-funnel-grains 6s linear infinite; }
+@keyframes gn-funnel-grains { 0%, 6% { opacity: 0; } 10%, 50% { opacity: 1; } 56%, 100% { opacity: 0; } }
+.art.set-generic.funnel .k-grain { animation: gn-grain 0.7s linear infinite; }
+.art.set-generic.funnel .k-grain.g3, .art.set-generic.funnel .k-grain.g6 { animation-delay: -0.5s; }
+
+/* basket: drops into the holder, then the tick */
+.art.set-generic .k-basket { animation: gn-basket 6s cubic-bezier(.45, 0, .3, 1) infinite; }
+@keyframes gn-basket { 0% { opacity: 0; translate: 0 -112px; } 8%, 36% { opacity: 1; translate: 0 -112px; } 56%, 92% { opacity: 1; translate: 0 0; } 98%, 100% { opacity: 0; translate: 0 0; } }
+.art.set-generic .k-check { animation: gn-check 6s ease infinite; }
+@keyframes gn-check { 0%, 58% { opacity: 0; transform: scale(0.4); } 64% { opacity: 1; transform: scale(1.1); } 67%, 90% { opacity: 1; transform: scale(1); } 96%, 100% { opacity: 0; transform: scale(1); } }
+
+/* tamp: tamper in, press, lift away */
+.art.set-generic .k-tamper { animation: gn-tamper 8s cubic-bezier(.4, 0, .3, 1) infinite; }
+@keyframes gn-tamper { 0%, 8% { opacity: 0; translate: 0 -90px; } 14% { opacity: 1; } 28%, 68% { opacity: 1; translate: 0 0; } 82%, 100% { opacity: 0; translate: 0 -90px; } }
+.art.set-generic .k-press { animation: gn-press 8s cubic-bezier(.6, 0, .2, 1) infinite; }
+@keyframes gn-press { 0%, 36% { translate: 0 0; } 44%, 52% { translate: 0 9px; } 58%, 100% { translate: 0 0; } }
+.art.set-generic .k-hit { opacity: 0; animation: gn-hit 8s linear infinite; }
+@keyframes gn-hit { 0%, 43% { opacity: 0; } 44.5% { opacity: 1; } 54%, 100% { opacity: 0; } }
+.art.set-generic .k-loose { animation: gn-loose 8s linear infinite; }
+@keyframes gn-loose { 0%, 44% { opacity: 1; } 45%, 95% { opacity: 0; } 98%, 100% { opacity: 1; } }
+.art.set-generic .k-tamped { animation: gn-tamped 8s linear infinite; }
+@keyframes gn-tamped { 0%, 44% { opacity: 0; } 45%, 95% { opacity: 1; } 98%, 100% { opacity: 0; } }
+
+/* puck screen and paper: float down onto the puck */
+.art.set-generic .k-screen { animation: gn-screen 5s cubic-bezier(.3, .5, .3, 1) infinite; }
+@keyframes gn-screen { 0%, 4% { opacity: 0; transform: translate(6px, -76px); } 12% { opacity: 1; } 34% { transform: translate(-5px, -36px); } 52% { transform: translate(2px, -8px); } 62%, 92% { opacity: 1; transform: translate(0, 0); } 98%, 100% { opacity: 0; transform: translate(0, 0); } }
+.art.set-generic .k-paper { animation: gn-paper 5s cubic-bezier(.3, .5, .3, 1) infinite; }
+@keyframes gn-paper { 0%, 4% { opacity: 0; transform: translate(-8px, -80px); } 12% { opacity: 1; } 30% { transform: translate(7px, -42px); } 48% { transform: translate(-3px, -10px); } 58%, 92% { opacity: 1; transform: translate(0, 0); } 98%, 100% { opacity: 0; transform: translate(0, 0); } }
+
+/* minerals: shake, dropper out and over the cup, squeeze, one drop */
+.art.set-generic .k-shake { animation: gn-shake 10s ease-in-out infinite; }
+@keyframes gn-shake { 0%, 2%, 16%, 100% { rotate: 0deg; } 4%, 8%, 12% { rotate: -6deg; } 6%, 10%, 14% { rotate: 6deg; } }
+.art.set-generic .k-dropper { animation: gn-dropper 10s cubic-bezier(.45, 0, .3, 1) infinite; }
+@keyframes gn-dropper { 0%, 18% { translate: var(--dx) var(--dy); } 27% { translate: var(--dx) calc(var(--dy) - var(--lift)); } 38% { translate: 0 calc(var(--dy) - var(--lift)); } 44%, 72% { translate: 0 0; } 78% { translate: 0 calc(var(--dy) - var(--lift)); } 88% { translate: var(--dx) calc(var(--dy) - var(--lift)); } 96%, 100% { translate: var(--dx) var(--dy); } }
+.art.set-generic .k-bulb { animation: gn-bulb 10s ease-in-out infinite; }
+@keyframes gn-bulb { 0%, 48%, 60%, 100% { scale: 1 1; } 52%, 56% { scale: 1.1 0.82; } }
+.art.set-generic .k-drip { transform-box: fill-box; transform-origin: 50% 0; animation: gn-drip 10s cubic-bezier(.5, 0, 1, .6) infinite; }
+@keyframes gn-drip { 0%, 51% { opacity: 0; transform: scale(0.2); } 55% { opacity: 1; transform: scale(1); } 56% { transform: translateY(0); } 62% { opacity: 1; transform: translateY(var(--dfall, 26px)); } 63%, 100% { opacity: 0; transform: translateY(var(--dfall, 26px)); } }
+.art.set-generic .k-ripple { opacity: 0; transform-box: fill-box; transform-origin: center; animation: gn-ripple 10s ease-out infinite; }
+@keyframes gn-ripple { 0%, 62% { opacity: 0; transform: scale(0.3); } 64% { opacity: 1; } 74%, 100% { opacity: 0; transform: scale(1.5); } }
+
+/* pull: espresso streams into the cup, the cup fills */
+.art.set-generic .k-stream { opacity: 0; animation: gn-stream 10s linear infinite, gn-flow 0.5s linear infinite; }
+@keyframes gn-stream { 0%, 12% { opacity: 0; } 16%, 80% { opacity: 1; } 86%, 100% { opacity: 0; } }
+@keyframes gn-flow { to { stroke-dashoffset: -14; } }
+.art.set-generic .k-fill { animation: gn-fill 10s ease-out infinite; }
+@keyframes gn-fill { 0%, 14% { translate: 0 12px; opacity: 0; } 20% { opacity: 1; } 82%, 94% { translate: 0 0; opacity: 1; } 100% { translate: 0 0; opacity: 0; } }
+
+/* rinse: water runs through the group into the basket while the machine rinses */
+.art.set-generic .k-water { opacity: 0; transition: opacity 400ms ease; }
+.art.set-generic.on .k-water { opacity: 1; animation: gn-water 0.45s linear infinite; }
+@keyframes gn-water { to { stroke-dashoffset: -13; } }
+.art.set-generic.rinse .k-pool { opacity: 0; transition: opacity 600ms ease; }
+.art.set-generic.rinse.on .k-pool { opacity: 1; }
+
+/* knock: upturned portafilter knocks on the bar, the puck drops in */
+.art.set-generic .k-knock { animation: gn-knock 4s cubic-bezier(.6, 0, .4, 1) infinite; }
+@keyframes gn-knock { 0%, 8%, 100% { translate: 0 0; } 20% { translate: 0 var(--hit); } 28% { translate: 0 calc(var(--hit) - 14px); } 36% { translate: 0 var(--hit); } 60% { translate: 0 0; } }
+.art.set-generic .k-puck { opacity: 0; animation: gn-puck 4s cubic-bezier(.5, 0, 1, .6) infinite; }
+@keyframes gn-puck { 0%, 19% { opacity: 0; translate: 0 var(--hit); } 20% { opacity: 1; translate: 0 var(--hit); } 42% { opacity: 1; translate: 0 calc(var(--hit) + var(--fall)); } 46%, 100% { opacity: 0; translate: 0 calc(var(--hit) + var(--fall)); } }
+
+/* steam: the milk swirls and rises, puffs drift off the wand */
+.art.set-generic.steam .k-swirl { animation: gn-swirl 1.4s linear infinite; }
+.art.set-generic .k-milk { animation: gn-milk 8s ease-in-out infinite; }
+@keyframes gn-milk { 0%, 100% { translate: 0 5px; } 50%, 70% { translate: 0 -3px; } }
+.art.set-generic .k-puff { opacity: 0; animation: gn-puff 3s ease-out infinite; }
+.art.set-generic .k-puff.p1 { animation-delay: 1s; }
+.art.set-generic .k-puff.p2 { animation-delay: 2s; }
+@keyframes gn-puff { 0% { opacity: 0; translate: 0 6px; } 25% { opacity: 0.8; } 100% { opacity: 0; translate: 0 -26px; } }
+
+/* done: the cup steams */
+.art.set-generic .k-curl { opacity: 0; animation: gn-curl 4s ease-out infinite; }
+.art.set-generic .k-curl.c1 { animation-delay: 1.3s; }
+.art.set-generic .k-curl.c2 { animation-delay: 2.6s; }
+@keyframes gn-curl { 0% { opacity: 0; translate: 0 8px; } 25% { opacity: 0.8; } 100% { opacity: 0; translate: 0 -14px; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .art.set-generic .k-dial { transform: rotate(var(--dial)); }
+  .art.set-generic .dial-arc { stroke-dasharray: var(--arc) 200; }
+  .art.set-generic.on .k-water { opacity: 1; }
+  .art.set-generic .k-curl, .art.set-generic .k-puff { opacity: 0.7; }
+  .art.set-generic .k-drop { opacity: 1; }
+  .art.set-generic .k-grain { opacity: 1; }
+  .art.set-generic.grind .k-grains { opacity: 1; }
+  .art.set-generic .k-clump, .art.set-generic .k-loose { opacity: 0; }
+}

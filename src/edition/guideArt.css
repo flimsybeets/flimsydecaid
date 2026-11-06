@@ -1,0 +1,171 @@
+/* The personal edition's guide animations. The generated scenes
+   (guideScenes.ts) are plain SVG with k-* classes; everything that moves is
+   here, scoped to .art.set-flimsy so it can't touch another set's art.
+   Only transform, opacity and dashoffset animate (weak tablet GPU). */
+
+/* The generator's stroke classes. */
+.art.set-flimsy .bp { stroke: rgb(238 243 239 / 0.42); stroke-width: 1; fill: none; }
+.art.set-flimsy .bs { stroke: rgb(238 243 239 / 0.2); stroke-width: 0.9; fill: none; }
+.art.set-flimsy .bh { stroke: rgb(255 255 255 / 0.62); stroke-width: 1.6; fill: none; }
+.art.set-flimsy .ic { fill: none; stroke: rgb(238 243 239 / 0.8); stroke-width: 1.1; vector-effect: non-scaling-stroke; }
+.art.set-flimsy .as { fill: none; stroke: var(--acc); stroke-width: 1.4; }
+.art.set-flimsy .af { fill: var(--acc); }
+
+.art.set-flimsy.weigh { --acc: rgb(var(--accent)); }
+.art.set-flimsy.spray, .art.set-flimsy.minerals, .art.set-flimsy.rinse { --acc: var(--g-flow); }
+.art.set-flimsy.grinder { --acc: var(--warn); }
+.art.set-flimsy.grind, .art.set-flimsy.funnel, .art.set-flimsy.knock, .art.set-flimsy.done { --acc: #e2a86c; }
+.art.set-flimsy.basket, .art.set-flimsy.tamp, .art.set-flimsy.paper, .art.set-flimsy.pull { --acc: var(--go); }
+
+/* weigh: beans fall into the cup (in front of its back wall, behind the lip) and settle on the pile until the dose is right; live weight on the display */
+.art.set-flimsy .k-beans { opacity: 0; transition: opacity 300ms ease; }
+.art.set-flimsy:not(.ws-empty) .k-beans { opacity: 1; }
+.art.set-flimsy.ws-ok .k-fall { opacity: 0; }
+.art.set-flimsy .k-drop { opacity: 0; animation: fl-k-drop 2.2s cubic-bezier(.5, 0, .9, .6) infinite; }
+.art.set-flimsy .k-drop.d1 { animation-delay: 0.4s; }
+.art.set-flimsy .k-drop.d2 { animation-delay: 0.8s; }
+.art.set-flimsy .k-drop.d3 { animation-delay: 1.2s; }
+.art.set-flimsy .k-drop.d4 { animation-delay: 1.6s; }
+@keyframes fl-k-drop { 0% { translate: 0 0; opacity: 0; } 10% { opacity: 1; } 68% { translate: 0 var(--fall); opacity: 1; animation-timing-function: linear; } 86% { translate: 0 var(--fall); opacity: 1; } 100% { translate: 0 var(--fall); opacity: 0; } }
+
+/* spray: two pumps, a soft mist drifts onto the beans */
+.art.set-flimsy .k-pump { animation: fl-k-pump 5s ease-in-out infinite; }
+@keyframes fl-k-pump { 0%, 8%, 16%, 22%, 30%, 100% { translate: 0 0; } 11%, 25% { translate: 0 3px; } }
+.art.set-flimsy .k-mist circle { opacity: 0; transform-box: fill-box; transform-origin: center; animation: fl-k-mist 5s cubic-bezier(.2, .6, .4, 1) infinite; animation-delay: calc(var(--i) * 0.07s); }
+@keyframes fl-k-mist { 0%, 10% { opacity: 0; transform: translate(0, 0) scale(0.3); } 16% { opacity: 1; } 50% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1.5); } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1.5); } }
+.art.set-flimsy .k-dew { animation: fl-k-dew 5s ease infinite; }
+@keyframes fl-k-dew { 0%, 30% { opacity: 0; } 45%, 90% { opacity: 1; } 100% { opacity: 0; } }
+
+/* dial: the ring turns until the setting sits under the pointer */
+.art.set-flimsy .k-dial { transform: rotate(var(--dial)); animation: fl-k-dial 6s cubic-bezier(.45, 0, .2, 1) infinite; }
+@keyframes fl-k-dial { 0%, 8% { transform: rotate(calc(var(--dial) + 50deg)); } 45%, 100% { transform: rotate(var(--dial)); } }
+/* the setting arc: butt ends so it stops exactly at the number; it shortens in step with the ring's turn */
+.art.set-flimsy .dial-arc { fill: none; stroke: var(--acc); stroke-width: 2.4; stroke-linecap: butt; stroke-dasharray: var(--arc) 200; animation: fl-k-arc 6s cubic-bezier(.45, 0, .2, 1) infinite; }
+.art.set-flimsy .dial-arc.glow { stroke-width: 6; stroke-opacity: 0.22; }
+.art.set-flimsy.noarc .dial-arc { display: none; }
+@keyframes fl-k-arc { 0%, 8% { stroke-dasharray: var(--arc-from) 200; } 45%, 100% { stroke-dasharray: var(--arc) 200; } }
+
+/* grind: lid off, beans in, lid on, power on (callout), grinding, off, tap the bellows */
+.art.set-flimsy .k-lid { animation: fl-k-lid 12s ease-in-out infinite; }
+@keyframes fl-k-lid { 0%, 3% { transform: translate(0, 0) rotate(0); } 9%, 27% { transform: translate(34px, -30px) rotate(14deg); } 33%, 74% { transform: translate(0, 0) rotate(0); } 77%, 79% { transform: translate(0, 8px); } 81% { transform: translate(0, 0); } 84%, 86% { transform: translate(0, 8px); } 89%, 100% { transform: translate(0, 0); } }
+.art.set-flimsy .k-bellows { animation: fl-k-bellows 12s ease-in-out infinite; }
+@keyframes fl-k-bellows { 0%, 74%, 81%, 89%, 100% { transform: scaleY(1); } 77%, 79%, 84%, 86% { transform: scaleY(0.82); } }
+.art.set-flimsy .k-pour { opacity: 0; animation: fl-k-pour 12s ease-in-out infinite; }
+@keyframes fl-k-pour { 0%, 6% { opacity: 0; transform: translate(-30px, -16px) rotate(0); } 10% { opacity: 1; transform: translate(0, 0) rotate(0); } 15%, 22% { opacity: 1; transform: rotate(-58deg); } 27% { opacity: 1; transform: rotate(0); } 31%, 100% { opacity: 0; transform: translate(-30px, -16px); } }
+.art.set-flimsy .k-in g { opacity: 0; animation: fl-k-in 12s ease-in infinite; }
+.art.set-flimsy .k-in .b1 { animation-delay: 0.25s; } .art.set-flimsy .k-in .b2 { animation-delay: 0.5s; }
+.art.set-flimsy .k-in .b3 { animation-delay: 0.75s; } .art.set-flimsy .k-in .b4 { animation-delay: 1s; }
+@keyframes fl-k-in { 0%, 15% { opacity: 0; translate: 0 0; } 16% { opacity: 1; } 21% { opacity: 1; translate: 0 26px; } 22%, 100% { opacity: 0; translate: 0 30px; } }
+.art.set-flimsy .k-power { opacity: 0; animation: fl-k-power 12s ease infinite; }
+@keyframes fl-k-power { 0%, 35% { opacity: 0; } 37%, 66% { opacity: 1; } 68%, 100% { opacity: 0; } }
+/* power button callout (back of the base): pressed at "on" and "off" */
+.art.set-flimsy .k-btn { animation: fl-k-btn 12s ease infinite; }
+@keyframes fl-k-btn { 0%, 33%, 36.5%, 63%, 66.5%, 100% { transform: scale(1); } 34.5%, 64.5% { transform: scale(0.84); } }
+.art.set-flimsy .k-btnring { opacity: 0; animation: fl-k-btnring 12s ease-out infinite; }
+@keyframes fl-k-btnring { 0%, 33% { opacity: 0; transform: scale(0.9); } 34.5% { opacity: 1; transform: scale(1); } 41% { opacity: 0; transform: scale(1.8); } 41.1%, 63% { opacity: 0; transform: scale(0.9); } 64.5% { opacity: 1; transform: scale(1); } 71%, 100% { opacity: 0; transform: scale(1.8); } }
+.art.set-flimsy .k-callout { opacity: 0.35; animation: fl-k-callout 12s ease infinite; }
+@keyframes fl-k-callout { 0%, 31%, 42%, 61%, 72%, 100% { opacity: 0.35; } 34%, 38%, 64%, 68% { opacity: 1; } 36%, 66% { opacity: 0.6; } }
+.art.set-flimsy .k-vib { opacity: 0; animation: fl-k-power 12s ease infinite, fl-k-wob 0.18s linear infinite alternate; }
+@keyframes fl-k-wob { to { translate: -2px 0; } }
+.art.set-flimsy .k-grains { opacity: 0; animation: fl-k-grains 12s linear infinite; }
+@keyframes fl-k-grains { 0%, 39% { opacity: 0; } 41%, 65% { opacity: 1; } 67%, 100% { opacity: 0; } }
+.art.set-flimsy .k-grains circle { animation: fl-k-grain 0.6s linear infinite; }
+.art.set-flimsy .k-grains .g1, .art.set-flimsy .k-grains .g4 { animation-delay: -0.2s; }
+.art.set-flimsy .k-grains .g2, .art.set-flimsy .k-grains .g5 { animation-delay: -0.4s; }
+@keyframes fl-k-grain { from { translate: 0 0; } to { translate: 0 14px; } }
+
+/* basket: the tapered basket hangs above the holder (sloped walls on show), drops in, then the tick */
+.art.set-flimsy .k-basket { animation: fl-k-basket 6s cubic-bezier(.45, 0, .3, 1) infinite; }
+@keyframes fl-k-basket { 0% { opacity: 0; translate: 0 -112px; } 8%, 36% { opacity: 1; translate: 0 -112px; } 56%, 92% { opacity: 1; translate: 0 0; } 98%, 100% { opacity: 0; translate: 0 0; } }
+.art.set-flimsy .k-check { animation: fl-k-check 6s ease infinite; }
+@keyframes fl-k-check { 0%, 58% { opacity: 0; transform: scale(0.4); } 64% { opacity: 1; transform: scale(1.1); } 67%, 90% { opacity: 1; transform: scale(1); } 96%, 100% { opacity: 0; transform: scale(1); } }
+
+/* funnel: the bell lifts out, the cup comes off, two taps to settle */
+.art.set-flimsy .k-bell { animation: fl-k-bell 9s cubic-bezier(.45, 0, .3, 1) infinite; }
+@keyframes fl-k-bell { 0%, 10% { translate: 0 0; } 26%, 88% { translate: 0 -46px; } 92%, 100% { translate: 0 0; } }
+.art.set-flimsy .k-cup { animation: fl-k-cup 9s cubic-bezier(.45, 0, .3, 1) infinite; }
+@keyframes fl-k-cup { 0%, 32% { opacity: 1; translate: 0 0; } 44% { opacity: 0; translate: 0 -50px; } 88% { opacity: 0; translate: 0 -50px; } 96%, 100% { opacity: 1; translate: 0 0; } }
+.art.set-flimsy .k-stack { animation: fl-k-stack 9s ease-in infinite; }
+@keyframes fl-k-stack { 0%, 52%, 57%, 61%, 66%, 100% { translate: 0 0; } 54.5%, 63.5% { translate: 0 -9px; } }
+.art.set-flimsy .k-mound { animation: fl-k-mound 9s ease-out infinite; }
+@keyframes fl-k-mound { 0%, 16% { opacity: 0; translate: 0 6px; } 30%, 94% { opacity: 1; translate: 0 0; } 100% { opacity: 0; translate: 0 0; } }
+.art.set-flimsy .k-tapline { opacity: 0; animation: fl-k-tapline 9s linear infinite; }
+@keyframes fl-k-tapline { 0%, 56% { opacity: 0; } 57% { opacity: 1; } 59%, 65% { opacity: 0; } 66% { opacity: 1; } 68%, 100% { opacity: 0; } }
+
+/* tamp: funnel off, tamper on, press, lift away */
+.art.set-flimsy .k-funnel { animation: fl-k-funnel 8s ease-in-out infinite; }
+@keyframes fl-k-funnel { 0%, 4% { opacity: 1; translate: 0 0; } 14%, 90% { opacity: 0; translate: 0 -50px; } 98%, 100% { opacity: 1; translate: 0 0; } }
+.art.set-flimsy .k-tamper { animation: fl-k-tamper 8s cubic-bezier(.4, 0, .3, 1) infinite; }
+@keyframes fl-k-tamper { 0%, 14% { opacity: 0; translate: 0 -90px; } 18% { opacity: 1; } 30%, 66% { opacity: 1; translate: 0 0; } 78%, 100% { opacity: 0; translate: 0 -90px; } }
+.art.set-flimsy .k-press { animation: fl-k-press 8s cubic-bezier(.6, 0, .2, 1) infinite; }
+@keyframes fl-k-press { 0%, 38% { translate: 0 0; } 46%, 52% { translate: 0 9px; } 58%, 100% { translate: 0 0; } }
+.art.set-flimsy .k-hit { opacity: 0; animation: fl-k-hit 8s linear infinite; }
+@keyframes fl-k-hit { 0%, 45% { opacity: 0; } 46.5% { opacity: 1; } 54%, 100% { opacity: 0; } }
+.art.set-flimsy .k-loose { animation: fl-k-loose 8s linear infinite; }
+@keyframes fl-k-loose { 0%, 46% { opacity: 1; } 47%, 95% { opacity: 0; } 98%, 100% { opacity: 1; } }
+.art.set-flimsy .k-tamped { animation: fl-k-tamped 8s linear infinite; }
+@keyframes fl-k-tamped { 0%, 46% { opacity: 0; } 47%, 95% { opacity: 1; } 98%, 100% { opacity: 0; } }
+
+/* paper: floats down onto the puck */
+.art.set-flimsy .k-paper { animation: fl-k-paper 5s cubic-bezier(.3, .5, .3, 1) infinite; }
+@keyframes fl-k-paper { 0%, 4% { opacity: 0; transform: translate(-8px, -80px); } 12% { opacity: 1; } 30% { transform: translate(7px, -42px); } 48% { transform: translate(-3px, -10px); } 58%, 92% { opacity: 1; transform: translate(0, 0); } 98%, 100% { opacity: 0; transform: translate(0, 0); } }
+
+/* minerals: shake, dropper out and over the cup, squeeze, one drop */
+.art.set-flimsy .k-shake { animation: fl-k-shake 10s ease-in-out infinite; }
+@keyframes fl-k-shake { 0%, 2%, 16%, 100% { rotate: 0deg; } 4%, 8%, 12% { rotate: -6deg; } 6%, 10%, 14% { rotate: 6deg; } }
+.art.set-flimsy .k-dropper { animation: fl-k-dropper 10s cubic-bezier(.45, 0, .3, 1) infinite; }
+@keyframes fl-k-dropper { 0%, 18% { translate: var(--dx) var(--dy); } 27% { translate: var(--dx) calc(var(--dy) - 92px); } 36% { translate: 0 -12px; } 41%, 72% { translate: 0 0; } 78% { translate: 0 -12px; } 86% { translate: var(--dx) calc(var(--dy) - 92px); } 94%, 100% { translate: var(--dx) var(--dy); } }
+.art.set-flimsy .k-bulb { animation: fl-k-bulb 10s ease-in-out infinite; }
+@keyframes fl-k-bulb { 0%, 46%, 58%, 100% { scale: 1 1; } 50%, 53% { scale: 1.1 0.8; } }
+.art.set-flimsy .k-drip { transform-box: fill-box; transform-origin: 50% 0; animation: fl-k-drip 10s cubic-bezier(.5, 0, 1, .6) infinite; }
+@keyframes fl-k-drip { 0%, 49% { opacity: 0; transform: scale(0.2); } 53% { opacity: 1; transform: scale(1); } 54% { transform: translateY(0); } 61% { opacity: 1; transform: translateY(84px); } 62%, 100% { opacity: 0; transform: translateY(84px); } }
+.art.set-flimsy .k-ripple { opacity: 0; animation: fl-k-ripple 10s ease-out infinite; }
+@keyframes fl-k-ripple { 0%, 61% { opacity: 0; transform: scale(0.3); } 63% { opacity: 1; } 74%, 100% { opacity: 0; transform: scale(1.4); } }
+.art.set-flimsy.minerals .k-pool { animation: fl-k-pool 10s ease infinite; }
+@keyframes fl-k-pool { 0%, 61% { opacity: 0; } 64%, 96% { opacity: 1; } 100% { opacity: 0; } }
+
+/* pull + rinse: the button to press glows on the group head */
+.art.set-flimsy .k-lit { animation: fl-k-lit 2.4s ease-in-out infinite; }
+@keyframes fl-k-lit { 0%, 100% { opacity: 0.55; transform: scale(0.85); } 50% { opacity: 1; transform: scale(1.2); } }
+.art.set-flimsy .k-ring { opacity: 0; animation: fl-k-ripple2 2.4s ease-out infinite; }
+@keyframes fl-k-ripple2 { 0% { opacity: 0.9; transform: scale(0.9); } 70%, 100% { opacity: 0; transform: scale(2.2); } }
+.art.set-flimsy.rinse.on .k-lit { animation: none; opacity: 1; }
+.art.set-flimsy.rinse.on .k-ring { animation: none; opacity: 0; }
+.art.set-flimsy .k-water { opacity: 0; transition: opacity 400ms ease; }
+.art.set-flimsy.on .k-water { opacity: 1; animation: fl-k-water 0.45s linear infinite; }
+@keyframes fl-k-water { to { stroke-dashoffset: -13; } }
+.art.set-flimsy.rinse .k-pool { opacity: 0; transition: opacity 600ms ease; }
+.art.set-flimsy.rinse.on .k-pool { opacity: 1; }
+
+/* knock: upturned portafilter knocks on the bar, the puck drops in */
+.art.set-flimsy .k-knock { animation: fl-k-knock 4s cubic-bezier(.6, 0, .4, 1) infinite; }
+@keyframes fl-k-knock { 0%, 8%, 100% { translate: 0 0; } 20% { translate: 0 var(--hit); } 28% { translate: 0 calc(var(--hit) - 14px); } 36% { translate: 0 var(--hit); } 60% { translate: 0 0; } }
+.art.set-flimsy .k-puck { opacity: 0; animation: fl-k-puck 4s cubic-bezier(.5, 0, 1, .6) infinite; }
+@keyframes fl-k-puck { 0%, 19% { opacity: 0; translate: 0 var(--hit); } 20% { opacity: 1; translate: 0 var(--hit); } 42% { opacity: 1; translate: 0 calc(var(--hit) + var(--fall)); } 46%, 100% { opacity: 0; translate: 0 calc(var(--hit) + var(--fall)); } }
+
+/* enjoy: shake the iced latte, cap off, pour into the glass, foam on top */
+.art.set-flimsy .k-shaker { animation: fl-k-shaker 10s ease-in-out infinite; }
+@keyframes fl-k-shaker {
+  0%, 2% { transform: translate(0, 0) rotate(0); }
+  5% { transform: translate(4px, -12px) rotate(9deg); } 8% { transform: translate(-3px, 4px) rotate(-7deg); }
+  11% { transform: translate(4px, -12px) rotate(9deg); } 14% { transform: translate(-3px, 4px) rotate(-7deg); }
+  17% { transform: translate(4px, -12px) rotate(9deg); } 20% { transform: translate(-3px, 4px) rotate(-7deg); }
+  24%, 44% { transform: translate(0, 0) rotate(0); }
+  54%, 74% { transform: translate(var(--tx), var(--ty)) rotate(118deg); }
+  84%, 100% { transform: translate(0, 0) rotate(0); }
+}
+.art.set-flimsy .k-cap { animation: fl-k-cap 10s ease-in-out infinite; }
+@keyframes fl-k-cap { 0%, 30% { opacity: 1; translate: 0 0; } 38%, 86% { opacity: 0; translate: -10px -30px; } 92%, 100% { opacity: 1; translate: 0 0; } }
+.art.set-flimsy .k-shadow { animation: fl-k-shadow 10s ease-in-out infinite; }
+@keyframes fl-k-shadow { 0%, 44%, 84%, 100% { opacity: 1; } 54%, 74% { opacity: 0; } }
+.art.set-flimsy .k-stream { opacity: 0; animation: fl-k-stream 10s linear infinite; }
+@keyframes fl-k-stream { 0%, 54% { opacity: 0; stroke-dashoffset: 80; } 56% { opacity: 1; } 72% { opacity: 1; stroke-dashoffset: 0; } 76%, 100% { opacity: 0; stroke-dashoffset: -60; } }
+.art.set-flimsy .k-fill { animation: fl-k-fill 10s ease-out infinite; }
+@keyframes fl-k-fill { 0%, 55% { transform: scaleY(0.03); opacity: 0; } 57% { opacity: 1; } 74%, 95% { transform: scaleY(1); opacity: 1; } 100% { transform: scaleY(1); opacity: 0; } }
+.art.set-flimsy .k-foam { animation: fl-k-foam 10s ease infinite; }
+@keyframes fl-k-foam { 0%, 68% { opacity: 0; } 76%, 95% { opacity: 1; } 100% { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .art.set-flimsy .k-dial { transform: rotate(var(--dial)); }
+  .art.set-flimsy .dial-arc { stroke-dasharray: var(--arc) 200; }
+}
