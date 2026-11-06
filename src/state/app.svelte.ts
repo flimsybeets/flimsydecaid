@@ -121,8 +121,8 @@ class AppState {
   water = $state.raw<WaterLevels | null>(null);
   waterStatus = $derived(waterState(this.water, this.machine.state?.state === 'needsWater'));
 
-  /** Theme option: ghosts instead of the clock on the screensaver. */
-  halloween = $state(false);
+  /** Theme option: the edition's screensaver art instead of the clock (EDITION.screensaverExtra; stored as theme.halloween). */
+  screensaverArt = $state(false);
   /** Show the big clock on the screensaver (Settings → Screensaver). */
   screensaverClock = $state(true);
   /** Graph on each profile tile on Home (theme.tilePreview). */
@@ -595,15 +595,15 @@ class AppState {
     this.screensaverImage = typeof url === 'string' && url.startsWith('data:image/') ? url : null;
     this.screensaverDim = parseDim(await gateway.storeGet(SCREENSAVER_DIM_KEY).catch(() => null));
     const theme = parseTheme(await gateway.storeGet(THEME_KEY).catch(() => null));
-    this.halloween = theme.halloween;
+    this.screensaverArt = theme.halloween;
     this.screensaverClock = theme.clock;
     this.tilePreview = theme.tilePreview;
     this.bgTone = theme.bgTone;
     this.panelTint = theme.panelTint;
   }
 
-  async setHalloween(on: boolean): Promise<void> {
-    this.halloween = on;
+  async setScreensaverArt(on: boolean): Promise<void> {
+    this.screensaverArt = on;
     await this.saveTheme();
   }
 
@@ -651,7 +651,7 @@ class AppState {
   }
 
   private saveTheme(): Promise<void> {
-    return gateway.storeSet(THEME_KEY, { halloween: this.halloween, clock: this.screensaverClock, tilePreview: this.tilePreview, bgTone: this.bgTone, panelTint: this.panelTint }).catch(() => {});
+    return gateway.storeSet(THEME_KEY, { halloween: this.screensaverArt, clock: this.screensaverClock, tilePreview: this.tilePreview, bgTone: this.bgTone, panelTint: this.panelTint }).catch(() => {});
   }
 
   private dimSaveTimer: ReturnType<typeof setTimeout> | null = null;

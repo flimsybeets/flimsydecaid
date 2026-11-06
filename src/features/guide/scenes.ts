@@ -1,6 +1,6 @@
 // What an illustration set looks like. A set is one lazy chunk of generated
-// SVG scenes keyed by step template (src/edition/guideScenes.ts for the
-// personal art, genericScenes.ts for the shared art).
+// SVG scenes keyed by step template: an edition's own art
+// (EDITION.guide.scenes) or the shared generic art (genericScenes.ts).
 
 export interface GuideScene {
   vb: string;

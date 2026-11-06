@@ -11,6 +11,8 @@ import { FLIMSY_BEETS } from './presets';
 
 export interface Edition {
   id: 'personal' | 'public';
+  /** The skin's name, as Decaid shows it (e.g. the back link from Decaid's settings). */
+  name: string;
   /** Extra screensaver art shown instead of the clock, with its Settings toggle (theme.halloween); none = no toggle. */
   screensaverExtra?: { label: string; note: string; load: () => Promise<{ default: Component }> };
   guide: {
@@ -23,6 +25,7 @@ export interface Edition {
 
 export const EDITION: Edition = {
   id: 'personal',
+  name: 'FlimsyDecaid',
   screensaverExtra: {
     label: 'Halloween screensaver',
     note: 'Ghosts drift over your screensaver photo instead of the clock.',

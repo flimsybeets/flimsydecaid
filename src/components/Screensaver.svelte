@@ -22,7 +22,7 @@
   // when it's switched on in Settings.
   let Extra = $state<Component | null>(null);
   $effect(() => {
-    if (!app.halloween || Extra || !EDITION.screensaverExtra) return;
+    if (!app.screensaverArt || Extra || !EDITION.screensaverExtra) return;
     let live = true;
     void EDITION.screensaverExtra.load().then((m) => { if (live) Extra = m.default; });
     return () => (live = false);
@@ -46,7 +46,7 @@
 
 <button class="saver" out:fade|global={{ duration: 250 }} onclick={onDismiss} aria-label={preview ? 'Close preview' : 'Wake the machine'}>
   {#if image}<img src={image} alt="" decoding="async" />{/if}
-  {#if app.halloween && EDITION.screensaverExtra}
+  {#if app.screensaverArt && EDITION.screensaverExtra}
     {#if Extra}<Extra />{/if}
   {:else if app.screensaverClock}
     <span class="clock" aria-hidden="true">{time}</span>

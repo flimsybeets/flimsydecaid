@@ -28,7 +28,7 @@
 
   // Decaid's bundled settings plugin covers machine, scale and app settings,
   // so we hand off to it rather than rebuilding them.
-  const decaidSettings = `${gw.httpBase}/api/v1/plugins/settings.reaplugin/ui?backName=FlimsyDecaid`;
+  const decaidSettings = `${gw.httpBase}/api/v1/plugins/settings.reaplugin/ui?backName=${encodeURIComponent(EDITION.name)}`;
 
   // Screensaver photo. A plain file input (no capture) opens the tablet's
   // own file picker, so any photo saved on the tablet can be used.
@@ -203,8 +203,8 @@
       <h2>Theme options</h2>
       {#if EDITION.screensaverExtra}
       <div class="row">
-        <button class="button glass toggle theme-toggle" class:lit={app.halloween} role="switch" aria-checked={app.halloween} onclick={() => app.setHalloween(!app.halloween)}>
-          {EDITION.screensaverExtra.label} <b>{app.halloween ? 'On' : 'Off'}</b>
+        <button class="button glass toggle theme-toggle" class:lit={app.screensaverArt} role="switch" aria-checked={app.screensaverArt} onclick={() => app.setScreensaverArt(!app.screensaverArt)}>
+          {EDITION.screensaverExtra.label} <b>{app.screensaverArt ? 'On' : 'Off'}</b>
         </button>
         <button class="button glass" disabled={!app.screensaverImage} onclick={() => (app.screensaverPreview = true)}>Preview</button>
       </div>
