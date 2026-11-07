@@ -6,9 +6,11 @@
   import ConfirmDialog from '../../components/ConfirmDialog.svelte';
   import Stepper from '../../components/Stepper.svelte';
   import StepPhotoField from './StepPhotoField.svelte';
+  import GuideArt from './GuideArt.svelte';
+  import StepIcon from './StepIcon.svelte';
   import { cloneWorkflow, type WorkflowPreset } from '../../lib/workflowPresets';
   import {
-    addableTemplates, addStep, canRemove, inspectWorkflow, isSmart, itemsToLines, linesToItems, moveStep, normaliseWorkflow, removeStep,
+    addableTemplates, addStep, canRemove, inspectWorkflow, isSmart, itemsToLines, linesToItems, fillText, timerText, moveStep, normaliseWorkflow, removeStep,
     STEP_LIBRARY, updateStep, workflowEquals, MAX_STEPS, type Workflow,
   } from '../../lib/workflow';
 
@@ -38,15 +40,27 @@
   const shownPhoto = (id: string) => (photos[id] !== undefined ? photos[id]! : (app.stepPhotos[id] ?? null));
 
   // The list box is plain text while editing, so a trailing newline survives typing.
+  let listEl = $state<HTMLElement>();
   let itemsText = $state('');
   $effect(() => {
     const id = selectedId;
     if (id) {
       itemsText = itemsToLines(draft.steps.find((s) => s.id === id)?.items);
       void app.loadStepPhoto(id);
-      void tick().then(() => document.querySelector('.row-item.lit')?.scrollIntoView({ block: 'nearest' }));
+      void tick().then(() => {
+        const row = listEl?.querySelector<HTMLElement>('.row-item.lit');
+        if (listEl && row) {
+          if (row.offsetTop < listEl.scrollTop) listEl.scrollTop = row.offsetTop;
+          else if (row.offsetTop + row.offsetHeight > listEl.scrollTop + listEl.clientHeight) listEl.scrollTop = row.offsetTop + row.offsetHeight - listEl.clientHeight;
+        }
+      });
     }
   });
+
+  // Sample values for the preview's {tokens}.
+  const sample = { dose: '18.0', beans: 'beans of your coffee', coffee: 'Your coffee', grind: '14', source: 'From your last shot with this bag', start: 'start' };
+  const previewTitle = $derived(sel ? fillText(sel.title, sample) : '');
+  const previewBody = $derived(sel ? fillText(sel.body, sample) : '');
 
   const patch = (p: Parameters<typeof updateStep>[2]) => { if (sel) draft = updateStep(draft, sel.id, p); };
   const move = (id: string, by: -1 | 1) => { draft = moveStep(draft, id, by); };
@@ -143,7 +157,10 @@
     <div class="panel">
       <div class="adds">
         {#each addableTemplates(draft) as t (t)}
-          <button class="chip glass" onclick={() => add(t)}>{STEP_LIBRARY[t].kind}</button>
+          <button class="card glass" onclick={() => add(t)}>
+            <span class="thumb"><GuideArt sceneKey={t} stepId="thumb-{t}" photoUrl={null} still /></span>
+            <span class="cname">{STEP_LIBRARY[t].kind}</span>
+          </button>
         {/each}
       </div>
     </div>
@@ -172,12 +189,13 @@
     </div>
   {/if}
 
-  <div class="cols">
-    <ol class="list" aria-label="Steps">
+  <div class="cols" class:hide={panel === 'add'}>
+    <ol class="list" aria-label="Steps" bind:this={listEl}>
       {#each draft.steps as s, i (s.id)}
         <li class="row-item" class:lit={s.id === selectedId}>
           <button class="pick" onclick={() => (selectedId = s.id)} aria-current={s.id === selectedId}>
             <span class="n">{i + 1}</span>
+            <span class="ico"><StepIcon kind={s.template} /></span>
             <span class="t"><b>{s.title}</b><small>{STEP_LIBRARY[s.template].kind}{s.timer ? ` · ${s.timer} s timer` : ''}{shownPhoto(s.id) ? ' · photo' : ''}</small></span>
           </button>
           <button class="mini glass" aria-label="Move up" disabled={i === 0 || s.template === 'done'} onclick={() => move(s.id, -1)}>▲</button>
@@ -190,6 +208,18 @@
     <div class="detail">
       {#if sel}
         <p class="kind">{STEP_LIBRARY[sel.template].kind}{isSmart(sel.template) ? ' · follows the scale or machine' : ''}</p>
+        <div class="preview glass" aria-label="Preview of this step in the guide">
+          <div class="pic">{#key sel.template}<GuideArt sceneKey={sel.template} stepId={sel.id} photoUrl={shownPhoto(sel.id)} still />{/key}</div>
+          <div class="pcopy">
+            <b>{previewTitle}</b>
+            {#if previewBody}<p>{previewBody}</p>{/if}
+            {#if sel.items?.length}
+              <ol>{#each sel.items.slice(0, 3) as g, i (i)}<li>{g}</li>{/each}</ol>
+              {#if sel.items.length > 3}<span class="tm">+ {sel.items.length - 3} more</span>{/if}
+            {/if}
+            {#if sel.timer}<span class="tm">Timer · {timerText(sel.timer)}</span>{/if}
+          </div>
+        </div>
         <div class="two">
           <label><span>Title</span><input class="well" value={sel.title} maxlength="80" oninput={(e) => patch({ title: e.currentTarget.value })} /></label>
           <label><span>Progress bar name</span><input class="well" value={sel.label} maxlength="16" oninput={(e) => patch({ label: e.currentTarget.value })} /></label>
@@ -198,7 +228,7 @@
           <textarea class="well" rows="2" maxlength="400" value={sel.body} oninput={(e) => patch({ body: e.currentTarget.value })}></textarea>
         </label>
         <label><span>List, one line each</span>
-          <textarea class="well" rows="2" bind:value={itemsText} oninput={() => patch({ items: linesToItems(itemsText) })}></textarea>
+          <textarea class="well" rows={Math.min(8, Math.max(3, itemsText.split("\n").length))} bind:value={itemsText} oninput={() => patch({ items: linesToItems(itemsText) })}></textarea>
         </label>
         {#if !isSmart(sel.template)}
           <Stepper compact label="Timer" hint="0 = none" unit=" s" min={0} max={3600} step={5} bind:value={() => sel.timer ?? 0, (v) => patch({ timer: v && v > 0 ? v : undefined })} />
@@ -263,10 +293,24 @@
   .opts { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
   .opt { width: 100%; min-height: 52px; padding: 6px 12px; border-radius: 12px; text-align: left; display: grid; color: var(--paper); }
   .opt small { color: var(--paper-faint); font-weight: 500; font-size: var(--t-xs); }
-  .adds { display: flex; flex-wrap: wrap; gap: 8px; }
+  .adds { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; max-height: 275px; overflow-y: auto; padding: 2px; }
+  .card { min-height: 0; padding: 6px 6px 8px; border-radius: 12px; display: grid; gap: 4px; color: var(--paper); text-align: center; justify-items: center; }
+  .thumb { display: block; width: 100%; height: 64px; overflow: hidden; border-radius: 8px; }
+  .thumb :global(svg), .thumb :global(img) { width: 100%; height: 100%; }
+  .cname { font-size: var(--t-xs); font-weight: 650; line-height: 1.15; }
+  .ico { flex: none; width: 28px; height: 28px; display: grid; }
+  .preview { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 10px; align-items: center; padding: 8px; border-radius: 14px; }
+  .pic { height: 110px; min-width: 0; display: grid; overflow: hidden; border-radius: 10px; }
+  .pic :global(svg), .pic :global(img) { width: 100%; height: 100%; }
+  .pcopy { display: grid; gap: 3px; min-width: 0; align-content: center; max-height: 110px; overflow: hidden; }
+  .pcopy b { font-size: var(--t-md); line-height: 1.15; overflow-wrap: anywhere; }
+  .pcopy p { color: var(--paper-dim); font-size: var(--t-xs); line-height: 1.25; margin: 0; }
+  .pcopy ol { margin: 0; padding-left: 1.2em; font-size: var(--t-xs); line-height: 1.25; color: var(--paper); }
+  .tm { color: var(--paper-faint); font-size: var(--t-xs); }
 
+  .cols.hide { display: none; }
   .cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
-  .list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 320px; overflow-y: auto; align-content: start; }
+  .list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 275px; overflow-y: auto; align-content: start; }
   .row-item { display: flex; align-items: center; gap: 4px; padding: 2px; border-radius: 12px; }
   .row-item.lit { background: rgb(255 255 255 / 0.1); box-shadow: inset 0 0 0 2px var(--go); }
   .pick { flex: 1; min-width: 0; min-height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 8px; text-align: left; color: var(--paper); }
@@ -277,7 +321,7 @@
   .mini { flex: none; width: 40px; height: 40px; border-radius: 10px; color: var(--paper-dim); font-size: var(--t-xs); }
   .mini.danger { color: #ffb3ab; }
   .mini:disabled { opacity: 0.25; }
-  .detail { display: grid; gap: 8px; max-height: 320px; overflow-y: auto; overflow-x: hidden; align-content: start; padding: 2px; }
+  .detail { display: grid; gap: 8px; max-height: 275px; overflow-y: auto; overflow-x: hidden; align-content: start; padding: 2px; }
   .kind { color: rgb(var(--accent, 143 211 192)); font-size: var(--t-xs); font-weight: 650; text-transform: uppercase; letter-spacing: 0.06em; }
   .field > span, label > span { color: var(--paper-dim); }
   .empty { color: var(--paper-faint); padding: 8px 4px; }
@@ -285,8 +329,9 @@
   .secondary { color: var(--paper-dim); }
   .primary:disabled { opacity: 0.4; }
 
-  @media (max-width: 700px) { .cols { grid-template-columns: 1fr; } .list, .detail { max-height: none; } }
+  @media (max-width: 700px) { .cols { grid-template-columns: 1fr; } .preview { grid-template-columns: 1fr; } .list, .detail { max-height: none; } }
   /* While typing, the keyboard takes the room: a short list, the form on top. */
   :global(html.kb-open) .list { max-height: 120px; }
   :global(html.kb-open) .detail { max-height: none; }
+  :global(html.kb-open) .preview, :global(html.kb-open) .adds { display: none; }
 </style>

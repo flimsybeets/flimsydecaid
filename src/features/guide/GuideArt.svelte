@@ -38,6 +38,8 @@
     weighState = 'empty',
     grind = null,
     active = false,
+    still = false,
+    photoUrl,
   }: {
     sceneKey: TemplateKey;
     stepId: string;
@@ -46,12 +48,16 @@
     grind?: string | null;
     /** Rinse / steam: the machine is running. */
     active?: boolean;
+    /** A static frame (previews, thumbnails): no animation, like reduced motion. */
+    still?: boolean;
+    /** Use this picture (null = none) instead of the saved one, and don't fetch it: drafts and thumbnails. */
+    photoUrl?: string | null;
   } = $props();
 
   load();
-  $effect(() => { void app.loadStepPhoto(stepId); });
-  const photo = $derived(app.stepPhotos[stepId] ?? null);
-  const photoKnown = $derived(stepId in app.stepPhotos);
+  $effect(() => { if (photoUrl === undefined) void app.loadStepPhoto(stepId); });
+  const photo = $derived(photoUrl !== undefined ? photoUrl : (app.stepPhotos[stepId] ?? null));
+  const photoKnown = $derived(photoUrl !== undefined || stepId in app.stepPhotos);
   const found = $derived.by(() => {
     if (!sets) return null;
     for (const set of [sets.edition, sets.generic]) {
@@ -100,7 +106,7 @@
 {#if photo}
   <img class="photo" src={photo} alt="" />
 {:else if found && scene}
-  <svg viewBox={scene.vb} class="art set-{found.set.id} {sceneKey} ws-{weighState}" class:on={active} style="--dial: {dialTo}deg; --arc: {arc ? arc.dash : 0}; --arc-from: {dashFrom}" class:noarc={!arc} aria-hidden="true">
+  <svg viewBox={scene.vb} class="art set-{found.set.id} {sceneKey} ws-{weighState}" class:on={active} class:still style="--dial: {dialTo}deg; --arc: {arc ? arc.dash : 0}; --arc-from: {dashFrom}" class:noarc={!arc} aria-hidden="true">
     <defs>{@html found.set.COMMON_DEFS}</defs>
     {@html parts[0]}
     {#if scene.lcd}
@@ -140,6 +146,9 @@
   .dial-num text { fill: var(--acc); font-size: 17px; font-weight: 800; }
   .dial-num text.small { font-size: 11px; }
 
+  .photo { background: rgb(0 0 0 / 0.2); }
+  .art.still :global(*) { animation: none !important; transition: none !important; }
+  .art.still :global(.fx) { display: none; }
   @media (prefers-reduced-motion: reduce) {
     .art :global(*) { animation: none !important; transition: none !important; }
     .art :global(.fx) { display: none; }
