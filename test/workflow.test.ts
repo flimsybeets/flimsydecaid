@@ -203,4 +203,13 @@ describe('text', () => {
     expect(new Set(w.steps.map((s) => s.id)).size).toBe(4);
     expect(libraryStep('tamp').id).toBe('tamp');
   });
+  it('the steam step carries a list and no purge, and saved text is kept', () => {
+    const lib = STEP_LIBRARY.steam;
+    expect(lib.items!.length).toBeGreaterThanOrEqual(5);
+    expect(JSON.stringify(lib).toLowerCase()).not.toContain('purge');
+    expect(libraryStep('steam').items).toEqual(lib.items);
+    const w = normaliseWorkflow({ version: 1, name: 'x', steps: [{ template: 'steam', title: 'Milk', body: 'Purge the wand.' }, { template: 'pull' }, { template: 'done' }] }, simple());
+    expect(w.steps[0]).toMatchObject({ title: 'Milk', body: 'Purge the wand.' });
+    expect(w.steps[0]!.items).toBeUndefined();
+  });
 });

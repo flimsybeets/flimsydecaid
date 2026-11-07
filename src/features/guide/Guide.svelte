@@ -179,7 +179,7 @@
 
       <div class="copy">
         {#key cur.id}
-          <div class="copy-in">
+          <div class="copy-in" class:dense={(cur.items?.length ?? 0) > 4}>
             <p class="count">Step {index + 1} of {steps.length}</p>
             <h1>{title}</h1>
             {#if kind === 'grinder' && app.grindControl.name}<p class="grinder">{app.grindControl.name}</p>{/if}
@@ -343,6 +343,12 @@
 
   .steps { margin: 2px 0 0; padding: 0; list-style: none; counter-reset: g; display: grid; gap: 7px; max-width: 34ch; }
   .steps li { counter-increment: g; display: flex; gap: 10px; align-items: baseline; color: var(--paper); font-size: var(--t-md); line-height: 1.2; }
+  /* A long list (the steam steps) tightens everything so it fits beside the picture. */
+  .copy-in.dense { gap: 6px; }
+  .copy-in.dense h1 { font-size: clamp(22px, 3.4vw, 32px); }
+  .copy-in.dense .body { max-width: none; font-size: var(--t-sm); }
+  .copy-in.dense .steps { gap: 6px; max-width: 36ch; }
+  .copy-in.dense .steps li { font-size: var(--t-sm); line-height: 1.18; }
   .steps.beats li { animation: beat 10s linear infinite; animation-delay: calc(var(--i) * 2s - 10s); }
   @keyframes beat { 0%, 20% { opacity: 1; } 24%, 96% { opacity: 0.5; } 100% { opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { .steps.beats li { animation: none; } }
