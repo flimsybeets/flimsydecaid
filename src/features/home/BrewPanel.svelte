@@ -106,6 +106,17 @@
     }, 300);
     return () => { live = false; clearTimeout(t); };
   });
+  // Reset: dose, yield and temperature back to the profile's own (profiles carry no
+  // dose, so it goes back to the usual 18 g). Grind is left alone: it belongs to the bag.
+  const PROFILE_DOSE = 18;
+  const profileYield = $derived(record?.profile.target_weight || undefined);
+  const canReset = $derived(dose !== PROFILE_DOSE || yieldG !== profileYield || (base !== null && temp !== base));
+  function resetToProfile() {
+    dose = PROFILE_DOSE;
+    yieldG = profileYield;
+    if (base !== null) temp = base;
+  }
+
   function useLastShot(d: DialIn) {
     const g = d.grind !== undefined ? Number.parseFloat(d.grind) : NaN;
     if (Number.isFinite(g)) grind = g;
@@ -271,6 +282,7 @@
   <section class="dial" aria-label="Dial-in">
     <div class="source-row">
       <p class="source">{source === 'shot' ? 'From the shot you picked' : source === 'untracked' ? 'Not tracked: nothing is saved to a bag' : SOURCE_TEXT[source]}</p>
+      {#if record && canReset}<button class="last glass" title="Dose, yield and temperature back to the profile's" onclick={resetToProfile}>Reset</button>{/if}
       {#if batch && record && hasLast}<button class="last glass" onclick={() => (showingLast = true)}>Last shot</button>{/if}
     </div>
     {#if source === 'shot' && initial?.note}<p class="source note">{initial.note}</p>{/if}
@@ -412,6 +424,7 @@
   .dial { display: grid; gap: 10px; align-content: start; }
   .source { color: var(--paper-dim); font-size: var(--t-xs); }
   .source-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .source-row .source { flex: 1 1 auto; min-width: 0; }
   .last { flex: none; min-height: 40px; padding: 0 14px; border-radius: var(--radius-pill); font-size: var(--t-xs); font-weight: 650; color: var(--paper); }
   .source.note { color: var(--warn); margin-top: -6px; }
   .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px 10px; }
