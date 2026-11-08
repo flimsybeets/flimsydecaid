@@ -302,11 +302,14 @@
   <div class="go">
     <!-- Pinned here, always in view, while beans are on the scale. -->
     {#if weigh && dose}
+      <!-- One line, in place of the sync note (a failed sync still shows), so the panel doesn't grow. -->
       <div class="weigh {weigh.state}" role="status" aria-label="Beans on the scale">
+        <p class="amount"><b>{(app.weight ?? 0).toFixed(1)}</b> of {dose.toFixed(1)} g</p>
         <div class="bar"><div class="fill" style="width: {Math.min(100, ((app.weight ?? 0) / dose) * 100)}%"></div></div>
-        <p><b>{(app.weight ?? 0).toFixed(1)}</b> of {dose.toFixed(1)} g <span>{weighText}</span></p>
+        <span class="say">{weighText}</span>
       </div>
     {/if}
+    {#if !(weigh && dose) || sync === 'failed'}
     <p class="sync {sync}" role="status">
       {#if sync === 'failed'}
         Not on the machine: {syncError} <button onclick={() => { lastSent = ''; void flush(); }}>Try again</button>
@@ -318,6 +321,7 @@
         Updating the machine…
       {/if}
     </p>
+    {/if}
     {#if startError}<p class="msg bad" role="alert">Couldn't start: {startError}</p>{/if}
     {#if app.ghc}
       <p class="ghc">Start the shot on the group head.</p>
@@ -378,7 +382,8 @@
   .body { display: contents; }
   .head { grid-area: head; display: flex; align-items: center; gap: 12px; }
   .bags { grid-area: bags; display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; }
-  .dial { grid-area: dial; min-height: 0; }
+  /* Scrolls rather than spilling under Start shot if it ever runs out of room. */
+  .dial { grid-area: dial; min-height: 0; overflow-y: auto; }
   .go { grid-area: go; }
   h2 { font-size: var(--t-lg); font-weight: 700; line-height: 1.1; letter-spacing: -0.01em; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   h3 { font-size: var(--t-sm); font-weight: 500; color: var(--paper-dim); margin-bottom: 6px; }
@@ -429,15 +434,16 @@
   .source.note { color: var(--warn); margin-top: -6px; }
   .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px 10px; }
   /* Beans on the scale vs the dose: amber under, green spot on, coral over. */
-  .weigh { --c: 242 179 61; display: grid; gap: 6px; }
+  .weigh { --c: 242 179 61; display: flex; align-items: center; gap: 10px; min-height: 24px; }
+  .weigh .bar { flex: 1 1 auto; min-width: 60px; }
   .weigh.ok { --c: 76 230 140; }
   .weigh.over { --c: 255 111 97; }
   .weigh .bar { height: 10px; border-radius: var(--radius-pill); background: var(--well); box-shadow: var(--well-shadow); overflow: hidden; }
   .weigh .fill { height: 100%; border-radius: inherit; background: rgb(var(--c)); box-shadow: 0 0 12px rgb(var(--c) / 0.7); transition: width 120ms linear, background 250ms ease; }
-  .weigh p { display: flex; align-items: baseline; gap: 6px; color: var(--paper-dim); font-size: var(--t-sm); }
+  .weigh .amount { flex: none; display: flex; align-items: baseline; gap: 6px; color: var(--paper-dim); font-size: var(--t-sm); }
   .weigh b { color: rgb(var(--c)); font-size: var(--t-md); }
-  .weigh span { margin-left: auto; color: rgb(var(--c)); font-weight: 700; }
-  .weigh.ok span::before { content: '✓ '; }
+  .weigh .say { flex: none; color: rgb(var(--c)); font-weight: 700; font-size: var(--t-sm); }
+  .weigh.ok .say::before { content: '✓ '; }
   .dose :global(.row) { transition: box-shadow 250ms ease; }
   .dose.under :global(.row) { box-shadow: 0 0 0 2px rgb(242 179 61 / 0.7), var(--well-shadow); }
   .dose.ok :global(.row) { box-shadow: 0 0 0 2px rgb(76 230 140), 0 0 18px rgb(76 230 140 / 0.55); }
