@@ -54,6 +54,17 @@
   // The first load takes the shot's numbers (once); changing bag afterwards goes back to what each bag remembers.
   // svelte-ignore state_referenced_locally
   let pendingInitial: DialIn | undefined = initial?.dialIn;
+  // Editing the profile (Edit, then Save) can change its own temperature: keep the
+  // same offset from it rather than the same absolute number.
+  let lastBase: number | null = null;
+  $effect(() => {
+    const b = base;
+    untrack(() => {
+      if (lastBase !== null && b !== null && b !== lastBase && temp !== undefined) temp = Math.round((temp - lastBase + b) * 10) / 10;
+      lastBase = b;
+    });
+  });
+
   // Brew ratio from the dose and yield, shown with the Yield stepper (1:2.0).
   const ratio = $derived(ratioText(dose, yieldG));
   let starting = $state(false);
@@ -164,7 +175,8 @@
   }
 
   async function send(dialIn: DialIn, forBatch: BeanBatch | null) {
-    const key = JSON.stringify({ profileRoot, batch: forBatch?.id ?? null, dialIn });
+    // The profile's id too: saving an edit makes a new version under the same root, and that must go to the machine.
+    const key = JSON.stringify({ profileRoot, profileId: record?.id ?? null, batch: forBatch?.id ?? null, dialIn });
     if (key === lastSent) { if (sync !== 'failed') sync = 'ok'; return; }
     if (app.shotActive) { sync = 'pending'; return; } // picked up when the shot ends
     sync = 'sending';
@@ -187,7 +199,7 @@
 
   // Any change (and opening the panel) schedules a send.
   $effect(() => {
-    void [profileRoot, batchId, grind, dose, yieldG, temp];
+    void [profileRoot, record?.id, batchId, grind, dose, yieldG, temp];
     untrack(schedule);
   });
   // A change made mid-shot goes on once the shot is over.
@@ -387,7 +399,8 @@
   .go { grid-area: go; }
   h2 { font-size: var(--t-lg); font-weight: 700; line-height: 1.1; letter-spacing: -0.01em; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   h3 { font-size: var(--t-sm); font-weight: 500; color: var(--paper-dim); margin-bottom: 6px; }
-  .bag-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  /* Room between the Set as default button and the first bag (the list's negative margin pulls it up). */
+  .bag-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; }
   .bag-head h3 { margin-bottom: 0; }
   .default { min-height: 40px; padding: 0 14px; border-radius: var(--radius-pill); font-size: var(--t-xs); font-weight: 650; color: var(--paper-dim); }
   .default.on { color: var(--paper); }
