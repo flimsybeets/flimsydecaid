@@ -54,11 +54,34 @@ All pictures are taken from the built-in demo mode (`?mock=1`), so the machine, 
 
 To retake the pictures and the video, run the dev server and `node scripts/capture-docs.cjs` (it needs Playwright and ffmpeg; see the comment at the top of the script).
 
-## Install on the tablet
+## Install
 
-Decaid → Launcher → Skins → cog menu → Install skin → GitHub Release → `flimsybeets/flimsydecent`. Settings → Connection → "Check for skin updates" picks up new releases.
+You need [Decaid](https://github.com/decentespresso/decaid) on the tablet, connected to your DE1. The tablet also needs internet access for the install.
 
-From your laptop over Wi-Fi:
+1. **Go to Decaid's launcher.** If another skin is open, leave it for the Decent dashboard (the launcher).
+2. **Open Skins.** Tap **Skins** (the palette icon). This opens the Web Interface page.
+3. **Install from GitHub.** Tap the cog at the top right, then **Install skin → GitHub Release**.
+4. **Enter the repository.** Type `flimsybeets/flimsydecent` in **Repository** and leave **Asset name** empty. Tap **Install**. Decaid downloads the latest release and shows "Skin installed from GitHub".
+5. **Choose it.** Pick **FlimsyDecent** in the skin list. Decaid keeps it as your skin from then on, also after a restart.
+6. **Open it.** Tap **Go to skin**.
+
+To get to the launcher later, use Decaid's own way back to the dashboard. Decaid shows a short navigation guide the first time a skin opens.
+
+### Updates
+
+In FlimsyDecent, open **Settings → Connection → Check for skin updates**. If a newer version is installed, tap **Reload** to use it.
+
+You can also update from Decaid: **Skins → cog → Check for updates** re-fetches every skin from where it was installed.
+
+### Camera
+
+The camera is used for coffee and step photos. The first time you tap **Take photo**, Decaid asks whether FlimsyDecent may use the camera. You can change your answer later on the Skins page.
+
+### Other ways to install
+
+**ZIP file.** Download `flimsydecent-<version>.zip` from [Releases](https://github.com/flimsybeets/flimsydecent/releases) onto the tablet. Then use **Skins → cog → Install skin → ZIP file**. A ZIP install is selected and opened straight away. It has no source to update from, so install a newer zip the same way.
+
+**From your laptop over Wi-Fi** (for development):
 
 ```bash
 npm install
