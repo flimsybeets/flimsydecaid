@@ -176,32 +176,40 @@ scenes.grinder = (S) => {
 };
 
 scenes.grind = (S) => {
-  // close on the chute: grounds fall into a steel dosing cup and the pile grows
+  // just the grinder's spout, fading out above, pouring grounds into a steel
+  // dosing cup; the pile grows
   const cam = Cam(YAW, 18, 1, 0, 0);
-  const pileY = 14 + 50 - 24;
-  const g = M.grinder(S, cam, {
-    btnCls: 'k-btn', hopCls: 'k-hopper',
-    cup: {
-      tone: 'brushed',
-      inside: ({ R }) => {
-        const e = cam.ell(M.GR.cupX, pileY - 1.5, 0, R - 8);
-        S.open('k-pile', ` style="transform-origin:${px(e.cx)} ${px(e.cy)}"`);
-        T.groundsMound(S, cam, M.GR.cupX, pileY, 0, '', { r: R - 8, rise: 9 });
-        S.close();
-      },
+  const X = 0, cupH = 50, pileY = cupH - 10;
+  const cup = dosingCup(S, cam, X, 0, 0, {
+    h: cupH, r: 34, tone: 'brushed',
+    inside: ({ R }) => {
+      const e = cam.ell(X, pileY - 1.5, 0, R - 8);
+      S.open('k-pile', ` style="transform-origin:${px(e.cx)} ${px(e.cy)}"`);
+      T.groundsMound(S, cam, X, pileY, 0, '', { r: R - 8, rise: 9 });
+      S.close();
     },
   });
-  // grounds dropping from the chute into the cup
-  const ac = aboveClip(S, g.cup.inner);
-  const fall = (78 - (pileY + 6)) * cam.s * cam.cp;
+  // the spout: a dark tube coming down out of nowhere, its mouth over the cup
+  const sTop = 160, sBot = 74;
+  const top = cam.P(X, sTop - 12, 0), solid = cam.P(X, sBot + 18, 0);
+  const gid = S.uid('sf'), mid = S.uid('sm');
+  S.raw(`<linearGradient id="${gid}" gradientUnits="userSpaceOnUse" x1="0" y1="${f(top[1])}" x2="0" y2="${f(solid[1])}"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#fff"/></linearGradient>`);
+  S.raw(`<mask id="${mid}" maskUnits="userSpaceOnUse" x="-2000" y="-2000" width="4000" height="4000"><rect x="-2000" y="-2000" width="4000" height="4000" fill="url(#${gid})"/></mask><g mask="url(#${mid})">`);
+  const sp = stackLathe(cam, X, 0, [[sTop, 11], [sBot + 12, 11], [sBot + 9, 14], [sBot + 3, 12.4], [sBot, 10.8]], 4);
+  S.solid(sp.sil, 'dark', { rim: 0.9 });
+  S.hl(lathe(cam, X, 0, [[sTop, 11], [sBot + 12, 11]]).streak(sTop - 4, sBot + 14, 11, 150), 0.45);
+  S.raw('</g>');
+  S.face(sp.ring(sBot, 10.8), 'rgb(0 0 0 / .6)');
+  // grounds dropping from the spout into the cup
+  const ac = aboveClip(S, cup.inner);
+  const fall = (sBot - (pileY + 6)) * cam.s * cam.cp;
   S.raw(`<g clip-path="url(#${ac})" class="fx"><g class="k-grains">`);
   for (let i = 0; i < 9; i++) {
-    const p = cam.P(M.GR.cupX - 7 + (i % 4) * 4.6, 77 - (i % 3) * 3, (i % 3 - 1) * 3);
+    const p = cam.P(X - 7 + (i % 4) * 4.6, sBot - 4 - (i % 3) * 3, (i % 3 - 1) * 3);
     S.raw(`<g style="--fall:${f(fall)}px"><circle class="k-grain g${i % 6}" cx="${f(p[0])}" cy="${f(p[1])}" r="${1.1 + (i % 3) * 0.3}" fill="#b07a4c"/></g>`);
   }
   S.raw('</g></g>');
-  const X = M.GR.cupX;
-  return { vb: frameAround([cam.P(X - 62, 0, 40), cam.P(X + 52, 0, 40), cam.P(X - 62, 128, 0), cam.P(X + 52, 128, 0)], 0.04) };
+  return { vb: frameAround([cam.P(X - 60, 0, 40), cam.P(X + 60, 0, 40), cam.P(X - 60, sTop - 10, 0), cam.P(X + 60, sTop - 10, 0)], 0.04) };
 };
 
 
