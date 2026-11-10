@@ -82,31 +82,40 @@ function knockBox(S, cam, o = {}) {
   return KB;
 }
 
-// Milk jug: polished steel pitcher, spout to the left, handle on the right.
+// Milk jug: polished steel pitcher, near-straight sides that narrow a little
+// towards the rim, a soft rounded base, a tall pointed pouring spout on the -x
+// side and an angular flat-strip handle on the +x side (out along the top,
+// then a straight run back down to the lower body).
 // Opening centre (cx, topY, cz). o.inside(clip) draws milk in the opening.
 // o.flip: spout to the right, handle to the left. o.shadow false: no ground shadow.
 function milkJug(S, cam, cx, y0, cz, o = {}) {
   const h = 92, sg = o.flip ? -1 : 1;
-  if (o.shadow !== false) groundShadow(S, cam, cx, cz, 50, y0, 1.1);
-  // handle first (right side)
-  const hd = tube(cam, [[cx + 40 * sg, y0 + h - 14, cz], [cx + 66 * sg, y0 + h - 16, cz], [cx + 70 * sg, y0 + 52, cz], [cx + 46 * sg, y0 + 22, cz]], 4.6, 8);
+  if (o.shadow !== false) groundShadow(S, cam, cx, cz, 46, y0, 1.1);
+  // handle: a flat strip with sharp-ish corners (straight runs, short bends)
+  const seg = (a, b, n) => Array.from({ length: n }, (_, i) => a.map((v, k) => v + (b[k] - v) * (i / n)));
+  const H0 = [cx + 37 * sg, y0 + h - 7, cz], H1 = [cx + 64 * sg, y0 + h - 8, cz], H2 = [cx + 68 * sg, y0 + h - 15, cz], H3 = [cx + 41 * sg, y0 + 26, cz];
+  const hp = [...seg(H0, H1, 4), ...seg(H1, H2, 2), ...seg(H2, H3, 6), H3];
+  const hd = tube(cam, hp, 4.2, 6);
   S.solid(hd.d, 'metal', { under: false, rim: 0.9 });
-  const prof = [[y0 + h, 41], [y0 + h - 1.4, 42.2, 1], [y0 + h - 10, 40.4], [y0 + 48, 45], [y0 + 22, 42.4], [y0 + 4, 33], [y0, 30]];
+  S.raw(`<path d="${crD(hp.map((p) => cam.P(p[0], p[1] + 2.2, p[2] + 2)))}" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="1.1"/>`);
+  const prof = [[y0 + h, 38.6], [y0 + h - 1.2, 39.4, 1], [y0 + h - 8, 39.2], [y0 + 46, 41.6], [y0 + 16, 43], [y0 + 7, 41.6], [y0 + 2, 37.4], [y0, 34]];
   const body = stackLathe(cam, cx, cz, prof, 6);
-  // spout: a rolled pouring lip at the rim, on the -x side (+x when flipped)
-  const sp = cam.P(cx - 41 * sg, y0 + h, cz), dd = -sg;
-  const q = (x, y) => `${f(sp[0] + x * dd)} ${f(sp[1] + y)}`;
-  const spd = `M${q(-9, -3.4)}L${q(5, -3.2)}Q${q(15, -2.4)} ${q(18, 1.6)}Q${q(11, 5)} ${q(2, 16)}L${q(-9, 14)}Z`;
   S.solid(body.sil, 'metal');
-  S.solid(spd, 'metal', { rim: 0.9 });
-  S.face(body.ring(y0 + h, 41), 'top');
-  S.face(body.ring(y0 + h - 0.6, 38.4), 'hole');
-  if (o.inside) { clipTo(S, body.ring(y0 + h - 0.6, 38.4)); o.inside({ body, y0, h }); S.raw('</g>'); }
-  S.line(body.ring(y0 + h, 41), 'p');
-  S.line(body.ring(y0 + h - 0.6, 38.4), 's');
-  wallStreak(S, cam, cx, cz, prof, y0 + h - 8, y0 + 12, 150, 0.7, 2.2);
-  wallStreak(S, cam, cx, cz, prof, y0 + h - 14, y0 + 30, 50, 0.22, 1.6);
-  return { ...body, topY: y0 + h, rimR: 38.4, h };
+  // spout: the rim on the -x side rises to a point and leans out; its crease
+  // runs down the wall
+  const P = (dx, dy, dz = 0) => cam.P(cx + dx * sg * -1, y0 + h + dy, cz + dz);
+  const spd = `M${pt(P(36, -2, -16))}Q${pt(P(44, 6, -7))} ${pt(P(55, 18, 0))}Q${pt(P(44, 7, 7))} ${pt(P(36, -2, 16))}L${pt(P(38.8, -30, 10))}Q${pt(P(43, -14, 0))} ${pt(P(38.8, -30, -10))}Z`;
+  S.solid(spd, 'metal', { rim: 0.9, under: false });
+  S.raw(`<path d="M${pt(P(39.5, -28, 0))}Q${pt(P(43, -8, 0))} ${pt(P(54, 16, 0))}" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="1.1"/>`);
+  S.face(body.ring(y0 + h, 38.6), 'top');
+  S.face(body.ring(y0 + h - 0.6, 36.4), 'hole');
+  if (o.inside) { clipTo(S, body.ring(y0 + h - 0.6, 36.4)); o.inside({ body, y0, h }); S.raw('</g>'); }
+  S.line(body.ring(y0 + h, 38.6), 'p');
+  S.line(body.ring(y0 + h - 0.6, 36.4), 's');
+  wallStreak(S, cam, cx, cz, prof, y0 + h - 8, y0 + 10, 150, 0.75, 2.4);
+  wallStreak(S, cam, cx, cz, prof, y0 + h - 10, y0 + 14, 128, 0.22, 4);
+  wallStreak(S, cam, cx, cz, prof, y0 + h - 14, y0 + 24, 50, 0.22, 1.6);
+  return { ...body, topY: y0 + h, rimR: 36.4, h };
 }
 
 module.exports = { dropperBottle, dropper, knockBox, KB, milkJug };

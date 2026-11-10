@@ -32,6 +32,8 @@
 @keyframes gn-drop { 0% { translate: 0 0; opacity: 0; } 10% { opacity: 1; } 68% { translate: 0 var(--fall); opacity: 1; animation-timing-function: linear; } 86% { translate: 0 var(--fall); opacity: 1; } 100% { translate: 0 var(--fall); opacity: 0; } }
 
 /* spray: two pumps, a soft mist drifts onto the beans */
+.art.set-generic .k-pump { animation: gn-pump-head 5s ease-in-out infinite; }
+@keyframes gn-pump-head { 0%, 8%, 16%, 22%, 30%, 100% { translate: 0 0; } 11%, 25% { translate: 0 3px; } }
 .art.set-generic .k-trigger { animation: gn-pump 5s ease-in-out infinite; }
 @keyframes gn-pump { 0%, 8%, 16%, 22%, 30%, 100% { rotate: 0deg; } 11%, 25% { rotate: 9deg; } }
 .art.set-generic .k-mist circle { opacity: 0; transform-box: fill-box; transform-origin: center; animation: gn-mist 5s cubic-bezier(.2, .6, .4, 1) infinite; animation-delay: calc(var(--i) * 0.07s); }
