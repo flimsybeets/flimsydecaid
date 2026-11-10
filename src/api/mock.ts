@@ -522,6 +522,17 @@ export function createMockGateway(): Gateway {
         shot.annotations = { ...(shot.annotations ?? {}), extras: { ...(shot.annotations?.extras ?? {}), visualizerId: vid } };
         return { visualizer_id: vid, tag_sync_pending: true } as T;
       }
+      if (endpoint === 'import') {
+        // Any 4-character code works except XXXX (an expired one); the shot's
+        // profile is a copy of a built-in one under a new title.
+        if (!vizSignedIn()) throw new Error('401 {"success":false,"error":"Username or password not configured"}');
+        if (!b.shareCode || b.shareCode === 'XXXX') throw new Error('400 {"success":false,"error":"No shared shots found for this code"}');
+        const src = clone(PROFILES[0]!.profile);
+        const profile = { ...src, title: `Visualizer ${b.shareCode}`, author: 'Visualizer', steps: src.steps.map((st, i) => (i === 0 ? { ...st, seconds: st.seconds + 1 } : st)) };
+        const id = executionId(profile);
+        if (!profiles.some((r) => r.id === id)) profiles.push({ id, profile, parentId: null, visibility: 'visible', isDefault: false, createdAt: now(), updatedAt: now() });
+        return { success: true, profileTitle: profile.title, profileId: id, shotId: 'viz-shot' } as T;
+      }
       throw new Error('404 Unknown plugin endpoint');
     },
 
