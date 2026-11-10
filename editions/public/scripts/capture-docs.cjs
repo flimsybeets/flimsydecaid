@@ -81,7 +81,8 @@ async function setPhotos(p, pics) {
 }
 async function setBackground(p, pic) {
   await tab(p, 'Settings'); await wait(p, 800);
-  await p.locator('input[type=file]').nth(1).setInputFiles(pic); await wait(p, 2000);
+  await p.locator('nav.rail button', { hasText: 'Look' }).click(); await wait(p, 600);
+  await p.locator('input[type=file]').first().setInputFiles(pic); await wait(p, 2000);
 }
 async function home(p) { await tab(p, 'Home'); await wait(p, 300); await tab(p, 'Home'); await wait(p, 600); }
 async function openProfile(p, cat, profile) {
