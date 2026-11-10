@@ -50,7 +50,7 @@ All pictures are taken from the built-in demo mode (`?mock=1`), so the machine, 
 | | |
 |:--|:--|
 | ![The profile editor: a planned-shape chart, a step strip and every step setting.](docs/profile-editor.webp) | ![Settings over an app background photo.](docs/settings.webp) |
-| **Profile editor.** Planned curve, every step setting, undo and redo. | **Settings.** Your own background photo, panel colour, screensaver, Visualizer. |
+| **Profile editor.** Planned curve, every step setting, undo and redo. Start a new profile from scratch, a Visualizer share code or a .json file. | **Settings.** Your own background photo, panel colour, screensaver, Visualizer. |
 
 To retake the pictures and the video, run the dev server and `node scripts/capture-docs.cjs` (it needs Playwright and ffmpeg; see the comment at the top of the script).
 

@@ -539,6 +539,20 @@ class AppState {
   }
   /** Plugin endpoints: status, verifyCredentials, upload. */
   visualizerCall<T>(endpoint: string, body?: unknown): Promise<T> { return gateway.callPlugin<T>(VISUALIZER_ID, endpoint, body); }
+  /**
+   * New profile → From Visualizer: the plugin looks up the share code, fetches
+   * that shot's profile and saves it in Decaid. Returns the saved record (newest
+   * version of its lineage), so the editor can open it.
+   */
+  async importFromVisualizer(code: string): Promise<ProfileRecord | null> {
+    const r = await gateway.callPlugin<{ profileId?: string | null; profileTitle?: string }>(VISUALIZER_ID, 'import', { shareCode: code });
+    this.profiles = await gateway.getProfiles();
+    const byId = r.profileId ? this.profiles.find((p) => p.id === r.profileId) : undefined;
+    const found = byId ?? [...this.profiles].reverse().find((p) => p.profile.title === r.profileTitle);
+    if (!found) return null;
+    const root = lineageRoot(found.id, this.profilesById);
+    return this.profileLineages.get(root) ?? found;
+  }
   /** Upload one shot through the plugin. Returns the Visualizer id. */
   async uploadToVisualizer(shotId: string): Promise<string> {
     const r = await gateway.callPlugin<{ visualizer_id?: string | number }>(VISUALIZER_ID, 'upload', { shotId });

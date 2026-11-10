@@ -4,12 +4,21 @@
   import { baseTemperature } from '../../lib/profiles';
   import BrewPanel from '../home/BrewPanel.svelte';
   import { copyProfile } from '../../lib/profileEdit';
-  import type { ProfileRecord } from '../../api/types';
+  import type { Profile, ProfileRecord } from '../../api/types';
+  import NewProfileDialog from './NewProfileDialog.svelte';
 
   // Duplicate opens the editor on a new, unsaved copy (Decaid needs a changed
   // step or target before it will store it as a different profile).
   function duplicate(record: ProfileRecord) {
     app.editSeed = copyProfile(record.profile);
+    app.editing = null;
+  }
+
+  // New profile asks where it starts: scratch, Visualizer, or a file.
+  let choosing = $state(false);
+  function openDraft(profile: Profile) {
+    choosing = false;
+    app.editSeed = profile;
     app.editing = null;
   }
 
@@ -44,6 +53,14 @@
   }
 </script>
 
+{#if choosing}
+  <NewProfileDialog
+    onScratch={() => { choosing = false; app.editing = null; }}
+    onDraft={(p) => openDraft(p)}
+    onImported={(r) => { choosing = false; app.editing = r; }}
+    onClose={() => (choosing = false)} />
+{/if}
+
 {#if brewing}
   {#key brewing}
     <div class="brewing"><BrewPanel profileRoot={brewing} onClose={() => (brewing = null)} /></div>
@@ -56,7 +73,7 @@
       <button class="glass" role="radio" aria-checked={filter === 'all'} class:active={filter === 'all'} onclick={() => (filter = 'all')}>All</button>
       <button class="glass" role="radio" aria-checked={filter === 'uncategorised'} class:active={filter === 'uncategorised'} onclick={() => (filter = 'uncategorised')}>Not in a category</button>
     </div>
-    <button class="new glass solid" onclick={() => (app.editing = null)}>New profile</button>
+    <button class="new glass solid" onclick={() => (choosing = true)}>New profile</button>
   </div>
 
   {#if app.categories.categories.length === 0}
