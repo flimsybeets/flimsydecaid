@@ -8,7 +8,7 @@ import { createMockGateway } from '../api/mock';
 import type { SocketStatus } from '../api/socket';
 import type {
   Bean, BeanBatch, DeviceInfo, Grinder, MachineSnapshot, Profile, ProfileRecord, ScaleFrame, ShotAnnotations, ShotPage, ShotQuery, ShotRecord, ShotSummary,
-  SteamSettings, WaterLevels, Workflow,
+  SteamSettings, WaterLevels, Workflow, WorkflowPatch,
 } from '../api/types';
 import { CATEGORIES_KEY, parseCategories, removeProfileEverywhere, type CategoryDoc } from '../lib/categories';
 import { huntDelay, shouldHunt } from '../lib/scaleHunt';
@@ -45,6 +45,8 @@ export type Tab = 'home' | 'profiles' | 'history' | 'beans' | 'settings';
 class AppState {
   // Navigation
   tab = $state<Tab>('home');
+  /** Which Settings tab is open (kept while the skin runs). */
+  settingsTab = $state<string>('look');
   /** Beans → Shots: the bag History should open filtered to (read once, then cleared). */
   historyBag = $state<string | null>(null);
 
@@ -880,6 +882,11 @@ class AppState {
       next.targetTemperature = clampSteamTemp(last ?? STEAM_DEFAULT_C);
     }
     this.workflow = await gateway.updateWorkflow({ steamSettings: next });
+  }
+
+  /** Settings → Machine: hot water and flush, through the workflow (Decaid writes them to the machine). */
+  async saveWaterSettings(patch: Pick<WorkflowPatch, 'hotWaterData' | 'rinseData'>): Promise<void> {
+    this.workflow = await gateway.updateWorkflow(patch);
   }
 }
 

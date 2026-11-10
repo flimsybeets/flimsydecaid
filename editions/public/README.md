@@ -13,6 +13,7 @@ A [Decaid](https://github.com/decentespresso/decaid) skin for the Decent DE1, fo
 - **History.** Touch the graph to read every value, rate and note shots, brew one again with the same settings, upload to Visualizer.
 - **Beans.** Coffees with photos (the card takes its colour from the photo), bags that count down as you brew.
 - **Looks.** Frosted glass over your own background photo, a photo screensaver with a clock, and a panel colour to taste.
+- **Every setting in one place.** The machine, scale, sleep and wake times, tablet charging and Decaid itself, in plain words, with tabs down the side.
 
 Beans, bags and shots use Decaid's own APIs, so they show up in other skins and in shot history.
 
@@ -50,7 +51,7 @@ All pictures are taken from the built-in demo mode (`?mock=1`), so the machine, 
 | | |
 |:--|:--|
 | ![The profile editor: a planned-shape chart, a step strip and every step setting.](docs/profile-editor.webp) | ![Settings over an app background photo.](docs/settings.webp) |
-| **Profile editor.** Planned curve, every step setting, undo and redo. Start a new profile from scratch, a Visualizer share code or a .json file. | **Settings.** Your own background photo, panel colour, screensaver, Visualizer. |
+| **Profile editor.** Planned curve, every step setting, undo and redo. Start a new profile from scratch, a Visualizer share code or a .json file. | **Settings.** Tabs for the look, screensaver, machine, shots and scale, sleep and wake, tablet, Visualizer and more. |
 
 To retake the pictures and the video, run the dev server and `node scripts/capture-docs.cjs` (it needs Playwright and ffmpeg; see the comment at the top of the script).
 
@@ -69,7 +70,7 @@ To get to the launcher later, use Decaid's own way back to the dashboard. Decaid
 
 ### Updates
 
-In FlimsyDecent, open **Settings → Connection → Check for skin updates**. If a newer version is installed, tap **Reload** to use it.
+In FlimsyDecent, open **Settings → About → Check for skin updates**. If a newer version is installed, tap **Reload** to use it.
 
 You can also update from Decaid: **Skins → cog → Check for updates** re-fetches every skin from where it was installed.
 

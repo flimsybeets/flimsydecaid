@@ -1,347 +1,138 @@
 <script lang="ts">
   import { app } from '../../state/app.svelte';
-  import { resolveGateway } from '../../api/config';
-  import Stepper from '../../components/Stepper.svelte';
-  import { REFILL_MAX_MM, REFILL_MIN_MM } from '../../lib/water';
-  import { credentialsPatch } from '../../lib/visualizer';
-  import type { SkinUpdateResult } from '../../lib/skinUpdate';
-  import { toneLabel } from '../../lib/background';
-  import Segmented from '../../components/Segmented.svelte';
-  import { EDITION } from '../../edition';
-  import type { PanelTint } from '../../lib/theme';
-  const TINTS: { value: PanelTint; label: string }[] = [
-    { value: 'dark', label: 'Dark' }, { value: 'teal', label: 'Teal' }, { value: 'coffee', label: 'Coffee' }, { value: 'plum', label: 'Plum' },
-  ];
+  import LookPane from './LookPane.svelte';
+  import ScreensaverPane from './ScreensaverPane.svelte';
+  import MachinePane from './MachinePane.svelte';
+  import ShotsPane from './ShotsPane.svelte';
+  import SleepPane from './SleepPane.svelte';
+  import TabletPane from './TabletPane.svelte';
+  import VisualizerPane from './VisualizerPane.svelte';
+  import AdvancedPane from './AdvancedPane.svelte';
+  import AboutPane from './AboutPane.svelte';
 
-  const gw = resolveGateway();
-  const version = __APP_VERSION__;
-
-  // Check for skin updates: Decaid fetches any newer release and installs it;
-  // the new version runs after a reload.
-  let updating = $state(false);
-  let update = $state<SkinUpdateResult | null>(null);
-  async function checkUpdates() {
-    updating = true;
-    update = null;
-    try { update = await app.checkSkinUpdates(); } finally { updating = false; }
-  }
-
-  // Decaid's bundled settings plugin covers machine, scale and app settings,
-  // so we hand off to it rather than rebuilding them.
-  const decaidSettings = `${gw.httpBase}/api/v1/plugins/settings.reaplugin/ui?backName=${encodeURIComponent(EDITION.name)}`;
-
-  // Screensaver photo. A plain file input (no capture) opens the tablet's
-  // own file picker, so any photo saved on the tablet can be used.
-  let picker: HTMLInputElement;
-  let saverBusy = $state<'saving' | 'removing' | null>(null);
-  let saverError = $state<string | null>(null);
-
-  async function onPick(e: Event) {
-    const input = e.currentTarget as HTMLInputElement;
-    const file = input.files?.[0];
-    input.value = '';
-    if (!file) return;
-    saverBusy = 'saving';
-    saverError = null;
-    try {
-      await app.setScreensaver(file);
-    } catch (err) {
-      saverError = `Couldn't use that image: ${(err as Error).message}`;
-    } finally {
-      saverBusy = null;
-    }
-  }
-
-  // App background: same picking and shrinking as the screensaver photo.
-  let bgPicker: HTMLInputElement;
-  let bgBusy = $state<'saving' | 'removing' | null>(null);
-  let bgError = $state<string | null>(null);
-  async function onPickBg(e: Event) {
-    const input = e.currentTarget as HTMLInputElement;
-    const file = input.files?.[0];
-    input.value = '';
-    if (!file) return;
-    bgBusy = 'saving';
-    bgError = null;
-    try { await app.setAppBackground(file); }
-    catch (err) { bgError = `Couldn't use that image: ${(err as Error).message}`; }
-    finally { bgBusy = null; }
-  }
-  async function removeBg() {
-    bgBusy = 'removing';
-    bgError = null;
-    try { await app.removeAppBackground(); }
-    catch (err) { bgError = `Couldn't remove it: ${(err as Error).message}`; }
-    finally { bgBusy = null; }
-  }
-
-  // Visualizer, through Decaid's bundled plugin. The stored password is never
-  // read back: the field stays empty and a blank means "keep what's saved".
-  let vizUser = $state('');
-  let vizPass = $state('');
-  let vizPassSet = $state(false);
-  let vizAuto = $state(true);
-  let vizLoaded = $state(false);
-  let vizBusy = $state(false);
-  let vizOnline = $state<boolean | null>(null);
-  let vizResult = $state<{ ok: boolean; text: string } | null>(null);
-
-  async function loadViz() {
-    await app.loadVisualizer();
-    if (app.visualizer === 'missing') { vizLoaded = true; return; }
-    try {
-      const s = await app.visualizerSettings();
-      vizUser = s.username;
-      vizPassSet = s.passwordSet;
-      vizAuto = s.autoUpload;
-    } catch { /* shown as not set up */ }
-    vizLoaded = true;
-    void checkViz();
-  }
-  async function checkViz() {
-    vizOnline = null;
-    if (app.visualizer !== 'on') return;
-    vizOnline = await app.visualizerCall('status').then(() => true, () => false);
-  }
-  $effect(() => { void loadViz(); });
-
-  async function toggleViz() {
-    vizBusy = true;
-    vizResult = null;
-    try {
-      await app.setVisualizerEnabled(app.visualizer !== 'on');
-      await checkViz();
-    } catch (e) {
-      vizResult = { ok: false, text: `Couldn't change it: ${(e as Error).message}` };
-    } finally {
-      vizBusy = false;
-    }
-  }
-  async function toggleAuto() {
-    const next = !vizAuto;
-    vizAuto = next;
-    try { await app.saveVisualizerSettings({ AutoUpload: next }); } catch (e) {
-      vizAuto = !next;
-      vizResult = { ok: false, text: `Couldn't save: ${(e as Error).message}` };
-    }
-  }
-  async function saveViz(e: Event) {
-    e.preventDefault();
-    vizBusy = true;
-    vizResult = null;
-    const typed = vizPass;
-    try {
-      const s = await app.saveVisualizerSettings(credentialsPatch(vizUser, typed));
-      vizPassSet = s.passwordSet;
-      vizPass = '';
-      if (app.visualizer === 'on' && typed !== '') {
-        const r = await app.visualizerCall<{ valid?: boolean }>('verifyCredentials', { username: vizUser.trim(), password: typed });
-        vizResult = r.valid ? { ok: true, text: 'Signed in to Visualizer.' } : { ok: false, text: 'Visualizer didn’t accept that username and password.' };
-      } else {
-        vizResult = { ok: true, text: 'Saved.' };
-      }
-    } catch (err) {
-      vizResult = { ok: false, text: `Couldn't save: ${(err as Error).message}` };
-    } finally {
-      vizBusy = false;
-    }
-  }
-
-  async function removeSaver() {
-    saverBusy = 'removing';
-    saverError = null;
-    try {
-      await app.removeScreensaver();
-    } catch (err) {
-      saverError = `Couldn't remove it: ${(err as Error).message}`;
-    } finally {
-      saverBusy = null;
-    }
+  // Settings: tabs down the side, one pane at a time. The skin's own options
+  // (look, screensaver, Visualizer) and Decaid's settings for the machine, the
+  // scale, sleep and the tablet, in plain words. Each pane writes its changes
+  // to Decaid a moment after the last touch.
+  const TABS = [
+    { id: 'look', label: 'Look', icon: 'M12 3a9 9 0 1 0 0 18c1 0 1.6-.8 1.6-1.6 0-1-.8-1.4-.8-2.4 0-.9.7-1.6 1.6-1.6H17a4 4 0 0 0 4-4c0-4.6-4-8.4-9-8.4zM7.5 12a1.3 1.3 0 1 1 0-.1zM10 7.8a1.3 1.3 0 1 1 0-.1zM14.5 7.8a1.3 1.3 0 1 1 0-.1z' },
+    { id: 'screensaver', label: 'Screensaver', icon: 'M4 5h16v11H4zM9 20h6M12 16v4M8 12l3-3 2 2 3-3' },
+    { id: 'machine', label: 'Machine', icon: 'M5 4h14v6H5zM7 10v4h10v-4M9 14v2h6v-2M8 20h8M10 7h4' },
+    { id: 'shots', label: 'Shots & scale', icon: 'M4 16h16v3H4zM7 16l1-6h8l1 6M10 10V7h4v3' },
+    { id: 'sleep', label: 'Sleep & wake', icon: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z' },
+    { id: 'tablet', label: 'Tablet', icon: 'M6 3h12v18H6zM11 18h2M9 9h6v5H9z' },
+    { id: 'visualizer', label: 'Visualizer', icon: 'M4 18l5-7 4 4 7-10M15 5h5v5' },
+    { id: 'advanced', label: 'Advanced', icon: 'M4 7h10M18 7h2M4 17h4M12 17h8M14 5v4M8 15v4' },
+    { id: 'about', label: 'About', icon: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 11v6M12 7.5v.5' },
+  ] as const;
+  type TabId = (typeof TABS)[number]['id'];
+  const current = $derived<TabId>((TABS.some((t) => t.id === app.settingsTab) ? app.settingsTab : 'look') as TabId);
+  let content = $state<HTMLDivElement>();
+  function go(id: TabId) {
+    app.settingsTab = id;
+    content?.scrollTo({ top: 0 });
   }
 </script>
 
-<div class="page">
-  <div class="col">
-    <section class="glass frost">
-      <h2>Machine and app settings</h2>
-      <p>Decaid's own settings screen handles the machine, scale, and app.</p>
-      <a class="button glass solid" href={decaidSettings}>Open Decaid settings</a>
-    </section>
-
-    <section class="glass frost">
-      <h2>Screensaver</h2>
-      <p>Shown while the machine is asleep{app.screensaverClock ? ', with a big clock over it' : ''}. Tap it to wake the machine.</p>
-      {#if app.screensaverImage}
-        <img class="saver-preview" src={app.screensaverImage} alt="Your screensaver" />
-      {/if}
-      <div class="row">
-        <button class="button glass solid" disabled={saverBusy !== null} onclick={() => picker.click()}>
-          {saverBusy === 'saving' ? 'Saving…' : app.screensaverImage ? 'Choose another image' : 'Choose an image'}
-        </button>
-        {#if app.screensaverImage}
-          <button class="button glass" disabled={saverBusy !== null} onclick={() => (app.screensaverPreview = true)}>Preview</button>
-          <button class="button glass" disabled={saverBusy !== null} onclick={removeSaver}>{saverBusy === 'removing' ? 'Removing…' : 'Remove'}</button>
-        {/if}
+<div class="settings">
+  <nav class="rail glass frost" aria-label="Settings sections">
+    {#each TABS as t (t.id)}
+      <button class="tab" class:on={current === t.id} aria-current={current === t.id ? 'page' : undefined} onclick={() => go(t.id)}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d={t.icon} /></svg>
+        <span>{t.label}</span>
+      </button>
+    {/each}
+  </nav>
+  <div class="content" bind:this={content}>
+    <h1>{TABS.find((t) => t.id === current)?.label}</h1>
+    {#key current}
+      <div class="pane">
+        {#if current === 'look'}<LookPane />
+        {:else if current === 'screensaver'}<ScreensaverPane />
+        {:else if current === 'machine'}<MachinePane />
+        {:else if current === 'shots'}<ShotsPane />
+        {:else if current === 'sleep'}<SleepPane />
+        {:else if current === 'tablet'}<TabletPane />
+        {:else if current === 'visualizer'}<VisualizerPane />
+        {:else if current === 'advanced'}<AdvancedPane />
+        {:else}<AboutPane />{/if}
       </div>
-      <div class="row">
-        <button class="button glass toggle" class:lit={app.screensaverClock} role="switch" aria-checked={app.screensaverClock} onclick={() => app.setScreensaverClock(!app.screensaverClock)}>
-          Show the clock <b>{app.screensaverClock ? 'On' : 'Off'}</b>
-        </button>
-      </div>
-      {#if !app.screensaverImage}<p class="small">Until you choose one, the screen turns off when the machine sleeps, as usual.</p>{/if}
-      {#if saverError}<p class="error" role="alert">{saverError}</p>{/if}
-      <label class="slider">
-        <span class="slider-head">Screen brightness while asleep <b>{app.screensaverDim}%</b></span>
-        <input type="range" min="0" max="100" step="1" value={app.screensaverDim}
-          oninput={(e) => app.setScreensaverDim(Number(e.currentTarget.value))} />
-        <span class="small">{app.screensaverDim >= 100 ? 'Not dimmed.' : 'Open Preview to see it as you move the slider.'}</span>
-      </label>
-      <input bind:this={picker} class="sr-only" type="file" accept="image/*" onchange={onPick} tabindex="-1" aria-hidden="true" />
-    </section>
-
-    <section class="glass frost">
-      <h2>Theme options</h2>
-      {#if EDITION.screensaverExtra}
-      <div class="row">
-        <button class="button glass toggle theme-toggle" class:lit={app.screensaverArt} role="switch" aria-checked={app.screensaverArt} onclick={() => app.setScreensaverArt(!app.screensaverArt)}>
-          {EDITION.screensaverExtra.label} <b>{app.screensaverArt ? 'On' : 'Off'}</b>
-        </button>
-        <button class="button glass" disabled={!app.screensaverImage} onclick={() => (app.screensaverPreview = true)}>Preview</button>
-      </div>
-      <p class="small">{EDITION.screensaverExtra.note}{app.screensaverImage ? '' : ' Choose a screensaver image first.'}</p>
-      {/if}
-
-      <h3>Panel colour</h3>
-      <p class="small">The frosted glass of the brew panel, dialogs and graphs.</p>
-      <div class="tint"><Segmented label="Panel colour" value={app.panelTint} options={TINTS} onchange={(v) => app.setPanelTint(v)} /></div>
-
-      <h3>App background</h3>
-      <p class="small">A photo behind the whole skin. Darken it so everything stays easy to read.</p>
-      <div class="row">
-        <button class="button glass solid" disabled={bgBusy !== null} onclick={() => bgPicker.click()}>
-          {bgBusy === 'saving' ? 'Saving…' : app.appBackground ? 'Choose another image' : 'Choose an image'}
-        </button>
-        {#if app.appBackground}
-          <button class="button glass" disabled={bgBusy !== null} onclick={removeBg}>{bgBusy === 'removing' ? 'Removing…' : 'Remove'}</button>
-        {/if}
-      </div>
-      {#if app.appBackground}
-        <label class="slider">
-          <span class="slider-head">Darken <b>{toneLabel(app.bgTone)}</b></span>
-          <input type="range" min="0" max="100" step="1" value={-app.bgTone}
-            oninput={(e) => app.setBgTone(-Number(e.currentTarget.value))} />
-          <span class="ends small"><span>As is</span><span>Black</span></span>
-        </label>
-      {/if}
-      {#if bgError}<p class="error" role="alert">{bgError}</p>{/if}
-      <input bind:this={bgPicker} class="sr-only" type="file" accept="image/*" onchange={onPickBg} tabindex="-1" aria-hidden="true" />
-    </section>
-  </div>
-  <div class="col">
-    <section class="glass frost">
-      <h2>Connection</h2>
-      <dl>
-        <dt>Decaid</dt><dd>{app.mock ? 'Demo data (no machine)' : gw.httpBase}</dd>
-        <dt>Machine</dt><dd>{app.machineDevice ? `${app.machineDevice.name}, ${app.machineDevice.state}` : 'Not found'}</dd>
-        <dt>Scale</dt><dd>{app.scaleDevice ? `${app.scaleDevice.name}, ${app.scaleDevice.state}` : 'Not found'}</dd>
-        <dt>Skin version</dt><dd>{version}</dd>
-      </dl>
-      <button class="button glass" disabled={updating} onclick={checkUpdates}>{updating ? 'Checking…' : 'Check for skin updates'}</button>
-      {#if update?.kind === 'updated'}
-        <p class="okmsg" role="status">Version {update.installed} is installed.</p>
-        <button class="button glass solid" onclick={() => location.reload()}>Reload to use it</button>
-      {:else if update?.kind === 'current'}
-        <p class="okmsg" role="status">You're on the latest version ({update.installed}).</p>
-      {:else if update?.kind === 'failed'}
-        <p class="error" role="alert">{update.message}</p>
-      {/if}
-    </section>
-
-    <section class="glass frost">
-      <h2>Visualizer</h2>
-      {#if !vizLoaded}
-        <p class="small">Checking…</p>
-      {:else if app.visualizer === 'missing'}
-        <p>Decaid's Visualizer plugin isn't installed on this tablet. Install it from Decaid's own settings, then come back.</p>
-      {:else}
-        <p>Decaid uploads each shot to visualizer.coffee for you once this is on and you're signed in.</p>
-        <div class="row">
-          <button class="button glass" class:lit={app.visualizer === 'on'} role="switch" aria-checked={app.visualizer === 'on'} disabled={vizBusy} onclick={toggleViz}>
-            {app.visualizer === 'on' ? 'Plugin on' : 'Plugin off'}
-          </button>
-          <span class="status" class:ok={vizOnline === true} class:bad={vizOnline === false}>
-            {app.visualizer !== 'on' ? 'Not running' : vizOnline === null ? 'Checking…' : vizOnline ? 'Running' : 'Not answering'}
-          </span>
-        </div>
-        <form class="creds" onsubmit={saveViz}>
-          <label>Username<input class="well" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" bind:value={vizUser} /></label>
-          <label>Password<input class="well" type="password" autocomplete="off" placeholder={vizPassSet ? 'Saved' : ''} bind:value={vizPass} /></label>
-          <button class="button glass solid" type="submit" disabled={vizBusy || vizUser.trim() === ''}>{vizBusy ? 'Working…' : vizPass !== '' ? 'Save and sign in' : 'Save'}</button>
-        </form>
-        <button class="button glass toggle" class:lit={vizAuto} role="switch" aria-checked={vizAuto} onclick={toggleAuto}>
-          Upload shots automatically <b>{vizAuto ? 'On' : 'Off'}</b>
-        </button>
-        {#if vizResult}<p class={vizResult.ok ? 'okmsg' : 'error'} role="status">{vizResult.text}</p>{/if}
-        {#if app.visualizer === 'on' && !vizPassSet}<p class="small">Add your Visualizer username and password to start uploading.</p>{/if}
-      {/if}
-    </section>
-
-    <section class="glass frost">
-      <h2>Water level warning</h2>
-      <p>The machine warns you to refill when the tank drops to this height.</p>
-      <div class="water-row">
-        <Stepper compact label="Warn at" unit="mm" min={REFILL_MIN_MM} max={REFILL_MAX_MM} step={1}
-          bind:value={() => (app.water && Number.isFinite(app.water.refillLevel) ? app.water.refillLevel : undefined), (v) => { if (v !== undefined) app.setWaterRefill(v); }}
-          placeholder="…" disabled={!app.water || !Number.isFinite(app.water.refillLevel)} />
-        <p class="small">{app.water && Number.isFinite(app.water.currentLevel) ? `Tank is at ${Math.round(app.water.currentLevel)} mm now.` : 'Waiting for the machine.'}</p>
-      </div>
-    </section>
+    {/key}
   </div>
 </div>
 
 <style>
-  .page { height: 100%; overflow-y: auto; padding: var(--gutter); display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr)); gap: 16px; align-content: start; align-items: start; }
-  /* Two independent columns, so a tall card never leaves a gap beside a short one. */
-  .col { display: grid; gap: 16px; align-content: start; min-width: 0; }
-  section { display: grid; gap: 9px; padding: 20px 21px; border-radius: 24px; }
-  h2 { font-size: var(--t-lg); font-weight: 700; }
-  p { color: var(--paper-dim); }
-  .button {
-    justify-self: start;
-    display: inline-flex; align-items: center;
-    min-height: var(--touch); padding: 0 20px;
-    border-radius: var(--radius-control);
+  .settings {
+    height: 100%;
+    display: grid;
+    grid-template-columns: 186px minmax(0, 1fr);
+    gap: 14px;
+    padding: var(--gutter);
+    min-height: 0;
+  }
+  .rail {
+    display: grid; align-content: start; gap: 3px;
+    padding: 6px; border-radius: 22px;
+    overflow-y: auto; min-height: 0;
+  }
+  .tab {
+    display: flex; align-items: center; gap: 10px;
+    min-height: 40px; padding: 0 12px; border-radius: 14px;
+    color: var(--paper-dim); font-weight: 650; text-align: left;
+    transition: background 150ms ease, color 150ms ease;
+  }
+  .tab svg { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .tab.on { background: var(--paper); color: var(--ink); }
+  .content { position: relative; overflow-y: auto; min-height: 0; padding-right: 4px; display: grid; align-content: start; gap: 12px; }
+  h1 { font-size: var(--t-xl, 28px); font-weight: 750; padding: 2px 4px 0; }
+  .pane { display: grid; gap: 14px; align-content: start; }
+
+  /* Shared look for every pane's cards and controls. */
+  .pane :global(.pane-head) { position: absolute; top: 14px; right: 10px; pointer-events: none; }
+  .pane :global(.card) { display: grid; gap: 12px; padding: 18px 20px; border-radius: 24px; }
+  .pane :global(.card h2) { font-size: var(--t-lg); font-weight: 700; }
+  .pane :global(.card p) { color: var(--paper-dim); }
+  .pane :global(.small) { font-size: var(--t-xs); }
+  .pane :global(.note) { color: var(--warn); }
+  .pane :global(.error) { color: var(--stop); }
+  .pane :global(.okmsg) { color: var(--go); }
+  .pane :global(.grid) { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+  .pane :global(.row) { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; }
+  .pane :global(.button) {
+    justify-self: start; display: inline-flex; align-items: center;
+    min-height: var(--touch); padding: 0 20px; border-radius: var(--radius-control);
     font-weight: 650; text-decoration: none;
   }
-  .row { display: flex; flex-wrap: wrap; gap: 9px; }
-  .row .button { justify-self: auto; }
-  .button:not(.solid) { color: var(--paper); }
-  .button:disabled { opacity: 0.5; }
-  .saver-preview { width: 100%; max-width: 270px; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 16px; box-shadow: var(--glass-shadow); }
-  .small { font-size: var(--t-xs); }
-  .tint { justify-self: start; }
-  .slider { display: grid; gap: 6px; margin-top: 4px; }
-  h3 { font-size: var(--t-md); font-weight: 700; margin-top: 10px; }
-  .ends { display: flex; justify-content: space-between; margin-top: -6px; }
-  .slider-head { display: flex; justify-content: space-between; font-weight: 600; }
-  .slider-head b { font-variant-numeric: tabular-nums; }
-  .slider input { width: 100%; min-height: var(--touch); accent-color: var(--paper); }
-  .water-row { display: grid; grid-template-columns: minmax(0, 200px) 1fr; gap: 12px; align-items: center; }
-  .error { color: var(--stop); }
-  .okmsg { color: var(--go); }
-  .row { align-items: center; }
-  .status { color: var(--paper-faint); font-size: var(--t-sm); }
-  .status.ok { color: var(--go); }
-  .status.bad { color: var(--stop); }
-  .creds { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; align-items: end; }
-  .creds label { display: grid; gap: 4px; color: var(--paper-dim); font-size: var(--t-sm); }
-  .creds input { min-height: var(--touch); padding: 0 12px; border-radius: var(--radius-control); color: var(--paper); font-size: var(--t-md); width: 100%; min-width: 0; }
-  .creds .button { grid-column: 1 / -1; }
-  .toggle { display: flex; justify-content: space-between; width: 100%; justify-self: stretch; }
-  .theme-toggle { width: auto; flex: 1 1 260px; gap: 12px; }
-  .toggle b { color: var(--paper-dim); }
-  .toggle.lit b { color: var(--ink); }
-  dl { display: grid; grid-template-columns: max-content 1fr; gap: 8px 18px; margin: 0; }
-  dt { color: var(--paper-dim); }
-  dd { margin: 0; }
+  .pane :global(.button:not(.solid)) { color: var(--paper); }
+  .pane :global(.button:disabled) { opacity: 0.5; }
+  .pane :global(.field) { display: grid; gap: 6px; justify-items: start; }
+  .pane :global(.field .label) { color: var(--paper-dim); font-size: var(--t-sm); }
+  .pane :global(.slider) { display: grid; gap: 6px; }
+  .pane :global(.slider-head) { display: flex; justify-content: space-between; font-weight: 600; }
+  .pane :global(.slider-head b) { font-variant-numeric: tabular-nums; }
+  .pane :global(.slider input) { width: 100%; min-height: var(--touch); accent-color: var(--paper); }
+  .pane :global(.ends) { display: flex; justify-content: space-between; margin-top: -6px; }
+  .pane :global(.saver-preview) { width: 100%; max-width: 270px; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 16px; box-shadow: var(--glass-shadow); }
+  .pane :global(.times) { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+  .pane :global(.times label) { display: grid; gap: 6px; color: var(--paper-dim); font-size: var(--t-sm); }
+  .pane :global(.times input) { min-height: var(--touch); padding: 0 12px; border-radius: var(--radius-control); color: var(--paper); font-size: var(--t-lg); color-scheme: dark; }
+  /* Visualizer */
+  .pane :global(.status) { color: var(--paper-faint); font-size: var(--t-sm); }
+  .pane :global(.status.ok) { color: var(--go); }
+  .pane :global(.status.bad) { color: var(--stop); }
+  .pane :global(.creds) { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; align-items: end; }
+  .pane :global(.creds label) { display: grid; gap: 4px; color: var(--paper-dim); font-size: var(--t-sm); }
+  .pane :global(.creds input) { min-height: var(--touch); padding: 0 12px; border-radius: var(--radius-control); color: var(--paper); font-size: var(--t-md); width: 100%; min-width: 0; }
+  .pane :global(.creds .button) { grid-column: 1 / -1; }
+  /* About */
+  .pane :global(dl) { display: grid; grid-template-columns: max-content 1fr; gap: 8px 18px; margin: 0; }
+  .pane :global(dt) { color: var(--paper-dim); }
+  .pane :global(dd) { margin: 0; overflow-wrap: anywhere; }
+
+  /* Narrow: the tabs become a scrolling row above the pane. */
+  @media (max-width: 760px) {
+    .settings { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+    .rail { display: flex; overflow-x: auto; overflow-y: hidden; }
+    .tab { flex: none; }
+  }
 </style>

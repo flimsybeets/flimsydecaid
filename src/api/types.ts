@@ -183,6 +183,8 @@ export interface WorkflowPatch {
   profile?: Profile;
   context?: Partial<WorkflowContext> & { targetYield?: number };
   steamSettings?: Partial<SteamSettings>;
+  hotWaterData?: Partial<NonNullable<Workflow['hotWaterData']>>;
+  rinseData?: Partial<NonNullable<Workflow['rinseData']>>;
 }
 
 export interface Bean {

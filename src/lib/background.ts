@@ -1,4 +1,4 @@
-// Optional photo behind the whole app (Settings → Theme options), with one
+// Optional photo behind the whole app (Settings → Look), with one
 // darken slider: black laid over it at |tone| %, so the glass and the light
 // text stay readable on any photo. Tone is 0 (as is) … −100 (black); older
 // saved values above 0 (there used to be a lighten side) read as 0.

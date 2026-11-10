@@ -37,7 +37,7 @@
   // painting, no animating, no touches, until they close.
   const covered = $derived((app.guiding && app.guide !== null) || shotOpen || app.editing !== undefined || activity !== null);
 
-  // Sheet colour (Settings → Theme options): read by the tokens in styles.css.
+  // Sheet colour (Settings → Look): read by the tokens in styles.css.
   $effect(() => { document.documentElement.dataset.tint = app.panelTint; });
 
   // Screensaver: up while the machine sleeps, once a photo is chosen.
@@ -162,7 +162,7 @@
 {/if}
 
 <style>
-  /* Optional photo behind everything (Settings → Theme options), with the
+  /* Optional photo behind everything (Settings → Look), with the
      darken/lighten layer over it. Fixed and static, so it costs nothing per frame. */
   .app-bg { position: fixed; inset: 0; z-index: -1; background-size: cover; background-position: center; pointer-events: none; }
   .tone { position: absolute; inset: 0; }
