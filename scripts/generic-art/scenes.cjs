@@ -248,7 +248,7 @@ scenes.pull = (S) => {
   const pf0 = DE.pf;
   let sc, cup;
   M.de1(S, cam, {
-    wand: true,
+    wand: true, lit: 'brew',
     under: () => {
       sc = scale(S, cam, gx, cz, ty);
       cup = O.espressoCup(S, cam, gx, sc.top, cz, {
@@ -280,7 +280,7 @@ scenes.rinse = (S) => {
   const { gx, gz } = DE;
   const y0 = 196;
   M.de1(S, cam, {
-    wand: true,
+    wand: true, lit: 'flush',
     pf: () => T.portafilter(S, cam, gx, y0, gz, { content: 'empty', ang: 150, tilt: 3, inside: (h) => { S.raw(`<path class="k-pool" d="${h.ring(y0 - 14, 27.5)}" style="fill:var(--acc)" fill-opacity=".34"/>`); } }),
     water: () => {
       let d = '';
@@ -320,7 +320,7 @@ scenes.steam = (S) => {
   const base = cam.P(jx, ty, jz);
   S.shadow(ellD({ cx: base[0] + tx + 4, cy: base[1] + 10, rx: 60, ry: 25 }), 1);
   M.de1(S, cam, {
-    wand: false,
+    wand: false, logo: false,
     under: () => {
       S.open('', ` transform="${tr}"`);
       Mo.milkJug(S, cam, jx, by, jz, {

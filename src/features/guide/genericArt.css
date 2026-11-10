@@ -127,6 +127,14 @@
 .art.set-generic .k-ripple { opacity: 0; transform-box: fill-box; transform-origin: center; animation: gn-ripple 10s ease-out infinite; }
 @keyframes gn-ripple { 0%, 62% { opacity: 0; transform: scale(0.3); } 64% { opacity: 1; } 74%, 100% { opacity: 0; transform: scale(1.5); } }
 
+/* pull + rinse: the button to press glows on the group head controller */
+.art.set-generic .k-lit { animation: gn-k-lit 2.4s ease-in-out infinite; }
+@keyframes gn-k-lit { 0%, 100% { opacity: 0.55; transform: scale(0.85); } 50% { opacity: 1; transform: scale(1.2); } }
+.art.set-generic .k-ring { opacity: 0; animation: gn-k-ring 2.4s ease-out infinite; }
+@keyframes gn-k-ring { 0% { opacity: 0.9; transform: scale(0.9); } 70%, 100% { opacity: 0; transform: scale(2.2); } }
+.art.set-generic.rinse.on .k-lit { animation: none; opacity: 1; }
+.art.set-generic.rinse.on .k-ring { animation: none; opacity: 0; }
+
 /* pull: espresso streams into the cup, the cup fills */
 .art.set-generic .k-stream { opacity: 0; animation: gn-stream 10s linear infinite, gn-flow 0.5s linear infinite; }
 @keyframes gn-stream { 0%, 12% { opacity: 0; } 16%, 80% { opacity: 1; } 86%, 100% { opacity: 0; } }

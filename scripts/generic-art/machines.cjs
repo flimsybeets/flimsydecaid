@@ -181,8 +181,9 @@ function grinder(S, cam, o = {}) {
 // ------------------------------------------------------------------ DE1
 // Decent DE1 from its dimension drawing: 232 wide, body 230 tall on a 92 mm
 // frame, 237 deep with a big radius on the top-back edge; group head on the
-// front-left, steam wand on the right, drip tray in front. Drawn plain: no
-// logo, no screen, a simple round cap on the group.
+// front-left with the group head controller on top (water, steam, brew,
+// flush, stop), steam wand on the right, drip tray in front, logo low on the
+// front. No tablet.
 const DE = { W: 232, FY: 92, TOP: 322, D: 237, FZ: 132, gx: 84, gz: 80, gTop: 318, gBot: 262, gR: 68, pf: 238 };
 function clipBand(poly, ylo, yhi) {
   const clip = (pts, keep, cut) => {
@@ -202,16 +203,40 @@ function roundedOutline(pts, radii, per = 10) {
   for (const s of segs) for (let k = 0; k < per; k++) { const t = k / per, u = 1 - t; out.push([0, 1].map((i) => u * u * u * s[0][i] + 3 * u * u * t * s[1][i] + 3 * u * t * t * s[2][i] + t * t * t * s[3][i])); }
   return out;
 }
-function groupCap(S, cam, gx, y, gz, R0, lit) {
+// Group head controller, top-facing (icons from GH_ICONS_PRODUCTION):
+// hot water at 12, steam at 3, espresso at 6, flush at 9, stop in the middle.
+function ghc(S, cam, gx, y, gz, R0, lit) {
   const T = cam.top(gx, y, gz);
   S.raw(`<g transform="${T}">`);
   S.raw(`<circle r="${R0 - 1}" fill="rgb(255 255 255 / .06)"/><circle r="${R0 - 7}" fill="rgb(2 7 9 / .78)"/>`);
-  S.raw(`<circle r="${R0 - 7}" fill="none" stroke="rgb(${PAPER} / .18)" stroke-width="5" vector-effect="non-scaling-stroke"/><circle r="${R0 - 7}" fill="none" stroke="rgb(${PAPER} / .8)" stroke-width="1.2" vector-effect="non-scaling-stroke"/>`);
-  S.raw(`<circle r="14" fill="none" stroke="rgb(${PAPER} / .3)" stroke-width="1" vector-effect="non-scaling-stroke"/>`);
+  S.raw(`<circle r="${R0 - 7}" fill="none" stroke="rgb(${PAPER} / .18)" stroke-width="5" vector-effect="non-scaling-stroke"/><circle r="${R0 - 7}" fill="none" stroke="rgb(${PAPER} / .85)" stroke-width="1.3" vector-effect="non-scaling-stroke"/>`);
+  let ticks = '';
+  for (let i = 0; i < 12; i++) {
+    const a = (i * 30 - 90) * Math.PI / 180, r0 = R0 - 15, r1 = R0 - 11;
+    if (i % 3 === 0) continue;
+    ticks += `M${f(Math.cos(a) * r0)} ${f(Math.sin(a) * r0)}L${f(Math.cos(a) * r1)} ${f(Math.sin(a) * r1)}`;
+  }
+  // the 12/3/6/9 ticks sit outside their icons
+  for (const [x, y2] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) ticks += `M${f(x * (R0 - 15))} ${f(y2 * (R0 - 15))}L${f(x * (R0 - 11))} ${f(y2 * (R0 - 11))}`;
+  S.raw(`<path d="${ticks}" class="ic" stroke-opacity=".6"/>`);
+  const ri = R0 - 30;
+  const ic = (x, y2, d, cls = '') => `<g transform="translate(${f(x)} ${f(y2)}) scale(1.45)"${cls ? ` class="${cls}"` : ''}><path class="ic" d="${d}"/></g>`;
+  const ICON = {
+    water: 'M0 -7.2c-2.6 3.2 -3.8 4.8 -3.8 6.4a3.8 3.8 0 0 0 7.6 0c0 -1.6 -1.2 -3.2 -3.8 -6.4zM-4.4 3.6q1.1 -1.4 2.2 0t2.2 0t2.2 0t2.2 0M-4.4 6.6q1.1 -1.4 2.2 0t2.2 0t2.2 0t2.2 0',
+    steam: 'M-4.2 -2.2c-2.6 1 -3.6 3 -2.6 5.2c.8 1.6 2.6 2 3.8 1.4c.8 1.8 4.4 1.8 6 0c1.2 .6 3 .2 3.8 -1.4c1 -2.2 0 -4.2 -2.6 -5.2M-1.8 2.2l-1.2 -7M0 2.6v-8M1.8 2.2l1.2 -7',
+    espresso: 'M-6 -4.6h10v3.4a3.6 3.6 0 0 1 -3.6 3.6h-2.8a3.6 3.6 0 0 1 -3.6 -3.6zM4 -3.2a1.9 1.9 0 1 1 0 3M-7.6 4.6h12.6',
+    flush: 'M-6 -6.2h12v4a1.6 1.6 0 0 1 -1.6 1.6h-8.8a1.6 1.6 0 0 1 -1.6 -1.6zM-4.8 1.4h9.6M0 3.4c-1.4 1.8 -2 2.6 -2 3.4a2 2 0 0 0 4 0c0 -.8 -.6 -1.6 -2 -3.4z',
+    stop: 'M-1.6 -6.6a6.8 6.8 0 0 0 -5 5M-6.6 1.6a6.8 6.8 0 0 0 5 5M1.6 6.6a6.8 6.8 0 0 0 5 -5M6.6 -1.6a6.8 6.8 0 0 0 -5 -5M-2.4 2.4v-5.4M-.8 1.4v-6M.8 1.4v-6M2.4 2v-4.6M-2.4 2.4c0 1.6 1 2.4 2.4 2.4s2.4 -.8 3.2 -2l1.2 -2.2',
+  };
+  const pos = { water: [0, -ri], steam: [ri, 0], espresso: [0, ri], flush: [-ri, 0], stop: [0, 0] };
+  const litKey = lit === 'brew' ? 'espresso' : lit;
+  for (const k of Object.keys(ICON)) if (k !== litKey) S.raw(ic(...pos[k], ICON[k]));
   S.raw('</g>');
-  if (lit) {
-    S.raw(`<g transform="${T}"><g class="k-lit" style="transform-origin:0 0"><circle r="34" fill="url(#${S.id}glow)"/></g>`);
-    S.raw(`<circle class="k-ring fx" r="14" fill="none" stroke="var(--acc)" stroke-width="1.4" vector-effect="non-scaling-stroke"/><circle r="6" fill="#fff" fill-opacity=".85"/></g>`);
+  if (litKey) {
+    const [lx, ly] = pos[litKey];
+    S.raw(`<g transform="${T}"><g class="k-lit" style="transform-origin:${f(lx)}px ${f(ly)}px"><circle cx="${f(lx)}" cy="${f(ly)}" r="36" fill="url(#${S.id}glow)"/></g>`);
+    S.raw(`<circle class="k-ring fx" style="transform-origin:${f(lx)}px ${f(ly)}px" cx="${f(lx)}" cy="${f(ly)}" r="12" fill="none" stroke="var(--acc)" stroke-width="1.4" vector-effect="non-scaling-stroke"/>`);
+    S.raw(`<g transform="translate(${f(lx)} ${f(ly)}) scale(1.45)"><path d="${ICON[litKey]}" fill="none" stroke="#fff" stroke-width="1.5" vector-effect="non-scaling-stroke"/></g></g>`);
   }
 }
 // the steam wand: arm out of the front, knuckle, wand and tip. clipLower: id of
@@ -271,6 +296,8 @@ function de1(S, cam, o = {}) {
   S.line(polyD(right), 's');
   S.hl(crD([cam.P(BW - 26 * 0.3, TOP - 26 * 0.3, -14), cam.P(BW - 26 * 0.3, TOP - 26 * 0.3, -D + 60)]), 0.35);
   S.hl(crD(Sd.filter((p) => p[0] < -D + 96 && p[1] > TOP - 96).map((p) => cam.P(BW - 8, p[1] - 2, p[0] + 2))), 0.3);
+  // logo, lower right of the front face
+  if (o.logo !== false) S.raw(`<g transform="${cam.front(BW - 44, FY + 30, 0)}"><text x="0" y="0" font-size="17" font-weight="700" fill="rgb(${PAPER} / .45)" text-anchor="middle" letter-spacing="-.4">decent</text><text x="0" y="7" font-size="4.6" font-weight="700" fill="rgb(${PAPER} / .3)" text-anchor="middle" letter-spacing="1.2">ESPRESSO</text></g>`);
   if (o.under) o.under();
   if (o.wand !== false) steamWand(S, cam, wx, { tipY: o.tipY });
   // group: neck block, whatever hangs under it, then the housing
@@ -286,7 +313,7 @@ function de1(S, cam, o = {}) {
   S.solid(grp.sil, 'dark');
   S.hl(grp.streak(gTop - 8, gBot + 8, gR, 152), 0.55);
   S.hl(grp.streak(gTop - 10, gBot + 14, gR, 118), 0.18);
-  groupCap(S, cam, gx, gTop, gz, gR, o.lit);
+  ghc(S, cam, gx, gTop, gz, gR, o.lit);
   S.line(grp.ring(gTop, gR - 1), 'p');
   return { tray: ty, gx, gz };
 }
