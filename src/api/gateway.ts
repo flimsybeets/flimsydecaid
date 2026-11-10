@@ -93,6 +93,31 @@ export interface Gateway {
   /** A plugin's declared HTTP endpoint: GET without a body, POST with one. Throws HttpError on non-2xx. */
   callPlugin<T>(id: string, endpoint: string, body?: unknown): Promise<T>;
 
+  // ---- Decaid's own settings (shown on the Settings page; see lib/decaidSettings.ts)
+  /** GET /settings: app settings (gateway mode, stop-at-weight lookahead, scale, charging, screen). */
+  getAppSettings(): Promise<unknown>;
+  /** POST /settings: partial. */
+  saveAppSettings(patch: Record<string, unknown>): Promise<void>;
+  /** GET /machine/settings: fan, USB charger, tank temperature, steam stop. Needs a connected machine. */
+  getMachineSettings(): Promise<unknown>;
+  /** POST /machine/settings: partial; usb as 'enable' | 'disable'. */
+  saveMachineSettings(patch: Record<string, unknown>): Promise<void>;
+  /** GET /machine/settings/advanced: heater, refill kit, mains voltage. */
+  getAdvancedMachineSettings(): Promise<unknown>;
+  saveAdvancedMachineSettings(patch: Record<string, unknown>): Promise<void>;
+  /** GET /machine/calibration: { flowMultiplier }. */
+  getFlowCalibration(): Promise<unknown>;
+  saveFlowCalibration(flowMultiplier: number): Promise<void>;
+  /** DELETE /machine/settings/reset: fan, heater, refill kit and steam stop back to defaults. */
+  resetMachineSettings(): Promise<void>;
+  /** GET /presence/settings: auto-sleep and wake schedules. */
+  getPresence(): Promise<unknown>;
+  /** POST /presence/settings: { userPresenceEnabled?, sleepTimeoutMinutes? }. */
+  savePresence(patch: Record<string, unknown>): Promise<void>;
+  addWakeSchedule(schedule: { time: string; daysOfWeek: number[]; enabled: boolean; keepAwakeFor: number | null }): Promise<unknown>;
+  updateWakeSchedule(id: string, patch: Record<string, unknown>): Promise<unknown>;
+  deleteWakeSchedule(id: string): Promise<void>;
+
   storeGet<T>(key: string): Promise<T | null>;
   storeSet(key: string, value: unknown): Promise<void>;
   storeDelete(key: string): Promise<void>;
@@ -211,6 +236,21 @@ export function createHttpGateway(config: GatewayConfig): Gateway {
       await call('POST', `/plugins/${encodeURIComponent(id)}/${enabled ? 'enable' : 'disable'}`);
     },
     callPlugin: (id, endpoint, body) => call(body === undefined ? 'GET' : 'POST', `/plugins/${encodeURIComponent(id)}/${encodeURIComponent(endpoint)}`, body),
+
+    getAppSettings: () => call('GET', '/settings'),
+    async saveAppSettings(patch) { await call('POST', '/settings', patch); },
+    getMachineSettings: () => call('GET', '/machine/settings'),
+    async saveMachineSettings(patch) { await call('POST', '/machine/settings', patch); },
+    getAdvancedMachineSettings: () => call('GET', '/machine/settings/advanced'),
+    async saveAdvancedMachineSettings(patch) { await call('POST', '/machine/settings/advanced', patch); },
+    getFlowCalibration: () => call('GET', '/machine/calibration'),
+    async saveFlowCalibration(flowMultiplier) { await call('POST', '/machine/calibration', { flowMultiplier }); },
+    async resetMachineSettings() { await call('DELETE', '/machine/settings/reset'); },
+    getPresence: () => call('GET', '/presence/settings'),
+    async savePresence(patch) { await call('POST', '/presence/settings', patch); },
+    addWakeSchedule: (schedule) => call('POST', '/presence/schedules', schedule),
+    updateWakeSchedule: (id, patch) => call('PUT', `/presence/schedules/${encodeURIComponent(id)}`, patch),
+    async deleteWakeSchedule(id) { await call('DELETE', `/presence/schedules/${encodeURIComponent(id)}`); },
 
     async storeGet<T>(key: string) {
       try {

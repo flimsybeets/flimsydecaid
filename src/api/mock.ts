@@ -176,7 +176,24 @@ export function createMockGateway(): Gateway {
     profile: clone(profiles[0]!.profile),
     context: { targetDoseWeight: 18, targetYield: 36, grinderSetting: '14' },
     steamSettings: { targetTemperature: 150, duration: 60, flow: 1.2 },
+    hotWaterData: { targetTemperature: 80, duration: 60, volume: 120, flow: 6 },
+    rinseData: { targetTemperature: 92, duration: 5, flow: 6 },
   };
+  // Decaid's own settings (Settings page), as Decaid would report them.
+  let appSettings: Record<string, unknown> = {
+    gatewayMode: 'disabled', logLevel: 'INFO', weightFlowMultiplier: 1, volumeFlowMultiplier: 0.3, hotWaterFlowMultiplier: 0.3,
+    scalePowerMode: 'displayOff', blockOnNoScale: false, blockTareDuringShot: false, stopHotWaterAtWeight: true,
+    automaticUpdateCheck: true, chargingMode: 'balanced', nightModeEnabled: false, nightModeSleepTime: 1320, nightModeMorningTime: 420,
+    lowBatteryBrightnessLimit: true, keepAwake: true,
+    chargingState: { mode: 'balanced', nightModeEnabled: false, currentPhase: 'normal', batteryPercent: 64, usbChargerOn: true, isEmergency: false },
+  };
+  let machineSettings = { fan: 50, usb: true, tankTemp: 0, steamPurgeMode: 0 };
+  let advancedSettings = { heaterPh1Flow: 2.5, heaterPh2Flow: 2.5, heaterIdleTemp: 99, heaterPh2Timeout: 5, heaterVoltage: 230, refillKitSetting: 2 };
+  let flowMultiplier = 1;
+  let presence = { userPresenceEnabled: true, sleepTimeoutMinutes: 30 };
+  let schedules: { id: string; time: string; daysOfWeek: number[]; enabled: boolean; keepAwakeFor: number | null }[] = [
+    { id: 'wake-1', time: '06:30', daysOfWeek: [1, 2, 3, 4, 5], enabled: true, keepAwakeFor: 60 },
+  ];
 
   // Simulated machine.
   let state: MachineState = 'idle';
@@ -535,6 +552,50 @@ export function createMockGateway(): Gateway {
       }
       throw new Error('404 Unknown plugin endpoint');
     },
+
+    async getAppSettings() { await delay(); return clone(appSettings); },
+    async saveAppSettings(patch) { await delay(); appSettings = { ...appSettings, ...clone(patch) }; },
+    async getMachineSettings() { await delay(); return clone(machineSettings); },
+    async saveMachineSettings(patch) {
+      await delay();
+      const p = clone(patch);
+      if (p.usb !== undefined) p.usb = p.usb === 'enable';
+      machineSettings = { ...machineSettings, ...(p as Partial<typeof machineSettings>) };
+    },
+    async getAdvancedMachineSettings() { await delay(); return clone(advancedSettings); },
+    async saveAdvancedMachineSettings(patch) {
+      await delay();
+      if (patch.refillKitSetting !== undefined && ![0, 1, 2].includes(patch.refillKitSetting as number)) throw new Error('400 refillKitSetting must be 0, 1 or 2');
+      advancedSettings = { ...advancedSettings, ...(clone(patch) as Partial<typeof advancedSettings>) };
+    },
+    async getFlowCalibration() { await delay(); return { flowMultiplier }; },
+    async saveFlowCalibration(m) { await delay(); if (m < 0.13 || m > 2) throw new Error('400 flowMultiplier out of range'); flowMultiplier = m; },
+    async resetMachineSettings() {
+      await delay();
+      machineSettings = { ...machineSettings, fan: 50, steamPurgeMode: 0 };
+      advancedSettings = { ...advancedSettings, heaterPh1Flow: 2.5, heaterPh2Flow: 2.5, heaterIdleTemp: 99, heaterPh2Timeout: 5, refillKitSetting: 2 };
+    },
+    async getPresence() { await delay(); return { ...clone(presence), schedules: clone(schedules), keepAwakeUntil: null }; },
+    async savePresence(patch) {
+      await delay();
+      const p = clone(patch) as Partial<typeof presence>;
+      if (p.sleepTimeoutMinutes !== undefined) p.sleepTimeoutMinutes = Math.max(0, Math.min(240, Math.round(p.sleepTimeoutMinutes)));
+      presence = { ...presence, ...p };
+    },
+    async addWakeSchedule(sch) {
+      await delay();
+      const rec = { id: `wake-${Math.random().toString(36).slice(2, 8)}`, ...clone(sch) };
+      schedules.push(rec);
+      return clone(rec);
+    },
+    async updateWakeSchedule(id, patch) {
+      await delay();
+      const i = schedules.findIndex((x) => x.id === id);
+      if (i < 0) throw new Error('404 Schedule not found');
+      schedules[i] = { ...schedules[i]!, ...(clone(patch) as object) };
+      return clone(schedules[i]!);
+    },
+    async deleteWakeSchedule(id) { await delay(); schedules = schedules.filter((x) => x.id !== id); },
 
     async storeGet<T>(key: string) { await delay(40); return (store.has(key) ? clone(store.get(key)) : null) as T | null; },
     async storeSet(key, value) { await delay(40); store.set(key, clone(value)); },
