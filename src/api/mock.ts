@@ -79,11 +79,13 @@ function pastShot(id: string, when: string, p: ProfileRecord, batch: BeanBatch, 
   let weight = 0;
   let mix = temp - 0.6;
   let group = temp - 1.2;
+  // Each profile pours at its own pace, so the stops land at different flows.
+  const pace = 0.6 + (p.profile.title.length % 4) * 0.35;
   for (let i = 0; weight < yieldTarget && i < 900; i++) {
     const t = i / 10;
     const pre = t < 8;
     const pressure = pre ? Math.min(2.5, t * 0.5) : Math.max(5.5, 9 - Math.max(0, t - 14) * 0.12);
-    const flow = pre ? 4 - t * 0.3 : 1.6 + Math.min(1, (t - 8) * 0.05);
+    const flow = pre ? 4 - t * 0.3 : (1.6 + Math.min(1, (t - 8) * 0.05)) * pace;
     if (t > 6) weight += flow * 0.085;
     mix += (temp - mix) * 0.2 + Math.sin(i / 7) * 0.08;
     group += (mix - group) * 0.03;
@@ -104,10 +106,11 @@ function pastShot(id: string, when: string, p: ProfileRecord, batch: BeanBatch, 
   // After the stop, coffee keeps dripping in for a second or so (look-ahead tuning reads this).
   const last = measurements.at(-1)!;
   const endFlow = last.scale?.weightFlow ?? 1.5;
-  const dripSec = 0.8 + (id.charCodeAt(id.length - 1) % 5) * 0.15;
+  // Part of the drip is fixed (what's left in the basket), part follows the flow.
+  const drip = 0.7 + endFlow * 0.5 + (id.charCodeAt(id.length - 1) % 5) * 0.08;
   for (let k = 1; k <= 20; k++) {
     const ts = new Date(start + (measurements.length + k) * 100).toISOString();
-    const w = weight + endFlow * dripSec * Math.min(1, k / 12);
+    const w = weight + drip * Math.min(1, k / 12);
     measurements.push({ machine: { ...last.machine, timestamp: ts, state: { state: 'espresso', substate: 'pouringDone' }, pressure: 0, flow: 0 }, scale: { timestamp: ts, weight: Math.round(w * 10) / 10, weightFlow: 0 } });
   }
   return {

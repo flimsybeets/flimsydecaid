@@ -6,7 +6,7 @@
   import SaveStatus from './SaveStatus.svelte';
   import { Saver } from './saving.svelte';
   import { parseAppSettings, RANGES as R, type AppSettings, type ScalePowerMode } from '../../lib/decaidSettings';
-  import { landingText, MIN_READS, suggestLookAhead } from '../../lib/stopTuning';
+  import { allReads, flowModel, landingText, MIN_MODEL_READS, MIN_READS, modelText, suggestBase, suggestFor } from '../../lib/stopTuning';
 
   // Everything about when the pump stops: espresso at weight or volume, hot
   // water at weight, and tuning the espresso look-ahead from real shots.
@@ -35,9 +35,12 @@
 
   // Profiles the skin knows something about: shots that stopped at weight, or their own look-ahead.
   const tuned = $derived(Object.entries(app.tune.profiles)
-    .map(([root, t]) => ({ root, t, title: app.profileLineages.get(root)?.profile.title, s: suggestLookAhead(t.reads) }))
+    .map(([root, t]) => ({ root, t, title: app.profileLineages.get(root)?.profile.title, s: suggestFor(app.tune, root) }))
     .filter((x) => x.title && (x.t.reads.length > 0 || x.t.lookAhead !== undefined))
     .sort((x, y) => y.t.reads.length - x.t.reads.length));
+
+  const model = $derived(flowModel(allReads(app.tune)));
+  const baseHint = $derived(suggestBase(app.tune));
 
   let baseTimer: ReturnType<typeof setTimeout> | undefined;
   function setBase(v: number) {
@@ -65,13 +68,22 @@
     </div>
     <p class="small">The weight look-ahead above is the default. Each profile can have its own, which goes on the machine with the profile.</p>
     <div class="tune well">
+      <h3>By flow</h3>
+      {#if model}
+        <p class="landing">{modelText(model)} So slower shots need a longer look-ahead than faster ones, and each profile gets the one for the flow it usually stops at.</p>
+        {#if baseHint !== null && base !== undefined && Math.abs(baseHint - base) >= 0.1}
+          <button class="button glass" onclick={() => setBase(baseHint)}>Use {baseHint.toFixed(1)} s as the default</button>
+        {/if}
+      {:else}
+        <p class="small">After {MIN_MODEL_READS} shots that stop at weight at different flows (any profiles), this works out how much of the drip follows the flow, so every profile can be tuned, even with only one shot.</p>
+      {/if}
       <h3>Per profile</h3>
       {#each tuned as x (x.root)}
         {@const own = x.t.lookAhead}
         <div class="prof">
           <div class="what">
             <b>{x.title}</b>
-            <span class="small">{x.s ? `${landingText(x.s)} Best: ${x.s.lookAhead.toFixed(1)} s.` : `${x.t.reads.length} of ${MIN_READS} shots needed to tune.`}</span>
+            <span class="small">{x.s ? `${landingText(x.s)} Best: ${x.s.lookAhead.toFixed(1)} s.` : `${x.t.reads.length} of ${MIN_READS} shots needed to tune${model ? '' : ` (or ${MIN_MODEL_READS} at different flows across profiles)`}.`}</span>
           </div>
           <span class="val">{own !== undefined ? `${own.toFixed(1)} s` : 'Default'}</span>
           {#if x.s && (own === undefined || Math.abs(x.s.lookAhead - own) >= 0.1)}
@@ -84,7 +96,7 @@
         <p class="landing">{reading ? 'Looking at your recent shots…' : 'After three shots with a profile that stop at weight, this works out the best look-ahead for that profile.'}</p>
       {/each}
       <Switch label="Tune it after every shot" on={app.tune.auto} onchange={setAuto}
-        note="Each shot that stops at weight shows how much still drips in. With this on, each profile's look-ahead follows its own last few shots." />
+        note="Each shot that stops at weight shows how much still drips in. With this on, each profile's look-ahead (and the default) follows your shots by itself." />
     </div>
   </section>
 
@@ -116,6 +128,7 @@
 
 <style>
   .tune { display: grid; gap: 10px; padding: 14px; border-radius: 18px; }
+  .tune > .button { justify-self: start; }
   .tune h3 { font-size: var(--t-sm); color: var(--paper-dim); font-weight: 650; }
   .prof { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; min-height: 44px; }
   .prof .what { display: grid; gap: 2px; min-width: 0; }
