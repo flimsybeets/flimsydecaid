@@ -2,13 +2,20 @@
 
 A [Decaid](https://github.com/decentespresso/decaid) skin for the Decent DE1, for people with a lot of profiles.
 
-- Pick a category, then a profile, then your bag. Grind, dose, yield and temperature are remembered for every bag and profile you use together, and carried over when you open a new bag of the same coffee.
-- Profiles are grouped into categories you make yourself.
-- The bottom bar always shows your scale and the steam heater. Tap steam to change its temperature and flow, or switch it off.
-- The shot graph shows water and puck temperature in their own panel, so you can tell them apart.
-- Photograph each bag as you add it.
+- **Categories → profile → bag → Start shot.** Profiles are grouped into categories you make yourself, each tile with a little graph of its last shot or its plan. Press and hold a profile to edit it.
+- **Dial-in per bag.** Grind, dose, yield and temperature are remembered for every bag and profile you use together, and carried over to a new bag of the same coffee. "Don't track" brews a freezer dose or a one-off without touching any bag. A meter checks the beans on the scale against the dose.
+- **Guide me.** Your routine step by step (the FlimsyBeets preset with its own illustrations), following the scale and machine: weighing, grinding, starting the shot, flushing, steaming. Edit, reorder, add your own steps with timers or photos, and share a workflow as text.
+- **Live shot view.** Car-style dials for flow in and out, pressure and temperatures beside the graph, the pump in control lit up, and the target weight as a bold line.
+- **Lands on your target weight.** The skin learns from your shots how much still drips in after the pump stops (part fixed, part following the flow) and gives every profile its own stop-early setting, put on the machine with the profile. It can tune itself after every shot.
+- **History.** Touch the graph to read every value, rate and note shots, see your last shot with this profile and bag, brew one again with the same settings, upload to Visualizer.
+- **Beans.** Coffees with photos (the card takes its colour from the photo) and bags that count down as you brew.
+- **Profiles.** A full editor with a planned-shape chart, undo and redo. Start new ones from scratch, a Visualizer share code or a .json file, or duplicate one.
+- **Bottom bar.** Scale (tap to tare or reconnect), water and puck temperatures, the water tank, and steam and hot water buttons for temperature, amount and flow.
+- **Looks.** Frosted glass over your own background photo, a photo screensaver with a clock (or Halloween ghosts), and a panel colour to taste.
+- **Every setting in one place.** Machine, shots and scale, sleep and wake times, tablet charging, Visualizer and Decaid itself, with tabs down the side.
+- **Updates itself.** Each time the machine wakes it checks for a newer version and shows a glowing Update button when one is ready.
 
-Beans and bags use Decaid's own beans API, so they show up in other skins and in shot history.
+Beans, bags and shots use Decaid's own APIs, so they show up in other skins and in shot history.
 
 ## Install on the tablet
 

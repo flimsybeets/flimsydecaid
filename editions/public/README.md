@@ -10,10 +10,14 @@ A [Decaid](https://github.com/decentespresso/decaid) skin for the Decent DE1, fo
 - **Dial-in per bag.** Grind, dose, yield and temperature are remembered for every bag and profile you use together, and carried over when you open a new bag of the same coffee. "Don't track" brews a freezer dose or a one-off without touching any bag.
 - **Guide me.** A step-by-step walkthrough of your own routine, from weighing beans to rinsing the group: it follows your scale and the machine (weighing to the gram, starting the shot, flushing, steaming). Start from a preset (Simple, WDT and puck screen, Milk drinks), then add, remove, reorder and reword steps, add your own (with a timer or a photo of your kit), and share a workflow by copying it as text.
 - **Live shot view.** Car-style dials for flow, pressure and temperatures beside the graph; the target weight as a bold line.
+- **Lands on your target weight.** Coffee keeps dripping after the pump stops, so the skin learns from your shots how much still drips in (part fixed, part following the flow) and gives every profile its own stop-early setting, put on the machine with the profile. Leave it to tune itself after every shot, or pick values yourself.
 - **History.** Touch the graph to read every value, rate and note shots, brew one again with the same settings, upload to Visualizer.
 - **Beans.** Coffees with photos (the card takes its colour from the photo), bags that count down as you brew.
+- **Steam and hot water at hand.** The bottom bar shows the scale, temperatures and water tank, with steam and hot water buttons to change temperature, amount and flow, or stop hot water by the scale.
 - **Looks.** Frosted glass over your own background photo, a photo screensaver with a clock, and a panel colour to taste.
 - **Every setting in one place.** The machine, scale, sleep and wake times, tablet charging and Decaid itself, in plain words, with tabs down the side.
+- **New profiles from anywhere.** Start from scratch, a Visualizer share code or a .json file.
+- **Updates itself.** Each time the machine wakes it checks for a newer version and shows a glowing Update button when one is ready.
 
 Beans, bags and shots use Decaid's own APIs, so they show up in other skins and in shot history.
 
@@ -51,7 +55,7 @@ All pictures are taken from the built-in demo mode (`?mock=1`), so the machine, 
 | | |
 |:--|:--|
 | ![The profile editor: a planned-shape chart, a step strip and every step setting.](docs/profile-editor.webp) | ![Settings over an app background photo.](docs/settings.webp) |
-| **Profile editor.** Planned curve, every step setting, undo and redo. Start a new profile from scratch, a Visualizer share code or a .json file. | **Settings.** Tabs for the look, screensaver, machine, shots and scale, sleep and wake, tablet, Visualizer and more. |
+| **Profile editor.** Planned curve, every step setting, undo and redo. Start a new profile from scratch, a Visualizer share code or a .json file. | **Settings.** Tabs for the look, screensaver, machine, shots and scale (with stop-at-weight tuning per profile), sleep and wake, tablet, Visualizer and more. |
 
 To retake the pictures and the video, run the dev server and `node scripts/capture-docs.cjs` (it needs Playwright and ffmpeg; see the comment at the top of the script).
 
@@ -70,7 +74,7 @@ To get to the launcher later, use Decaid's own way back to the dashboard. Decaid
 
 ### Updates
 
-In FlimsyDecent, open **Settings → About → Check for skin updates**. If a newer version is installed, tap **Reload** to use it.
+FlimsyDecent checks for a newer version each time the machine wakes and shows a glowing **Update** button beside the machine status; tap it to reload into the new version. You can also check any time from **Settings → About → Check for skin updates**.
 
 You can also update from Decaid: **Skins → cog → Check for updates** re-fetches every skin from where it was installed.
 
