@@ -1,5 +1,12 @@
 # FlimsyDecaid
 
+> [!IMPORTANT]
+> ## This is my personal version
+> FlimsyDecaid is the skin I use on my own Decent at home, so it has quirks that only make sense there: Guide me steps and illustrations drawn from my own kit (my scale, grinder, portafilter and cups), a Halloween screensaver, and whatever I'm trying out this week. It can change or break without warning.
+>
+> ### Want to use it yourself? Get **[FlimsyDecent](https://github.com/flimsybeets/flimsydecent)** instead.
+> FlimsyDecent is the general version, made for everyone. It has every feature listed here, brand-neutral Guide me presets and illustrations, setup instructions, screenshots and a walkthrough video, and its own [releases](https://github.com/flimsybeets/flimsydecent/releases).
+
 A [Decaid](https://github.com/decentespresso/decaid) skin for the Decent DE1, for people with a lot of profiles.
 
 - **Categories → profile → bag → Start shot.** Profiles are grouped into categories you make yourself, each tile with a little graph of its last shot or its plan. Press and hold a profile to edit it.
