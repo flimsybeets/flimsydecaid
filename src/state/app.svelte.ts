@@ -12,7 +12,8 @@ import type {
 } from '../api/types';
 import { CATEGORIES_KEY, parseCategories, removeProfileEverywhere, type CategoryDoc } from '../lib/categories';
 import { huntDelay, shouldHunt } from '../lib/scaleHunt';
-import { addRead, KEEP_READS, MIN_READS, parseReads, stopRead, suggestLookAhead, type StopRead } from '../lib/stopTuning';
+import { clampLookAhead, lookAheadFor, MIN_READS, parseTune, stopRead, suggestLookAhead, withAuto, withLookAhead, withRead, type TuneDoc } from '../lib/stopTuning';
+import { findProfileRoot } from '../lib/brewAgain';
 import { parseAppSettings } from '../lib/decaidSettings';
 import type { TilePreview } from '../lib/miniGraph';
 import { APP_BACKGROUND_KEY, clampTone, DEFAULT_TONE } from '../lib/background';
@@ -288,6 +289,8 @@ class AppState {
       profile: shiftTemperature(record.profile, dialIn.tempOffset ?? 0),
       context,
     });
+    this.loadedProfileRoot = profileRoot;
+    await this.applyLookAhead(profileRoot).catch(() => {});
   }
 
   async saveDialIn(batch: BeanBatch, profileRoot: string, dialIn: DialIn): Promise<void> {
@@ -522,59 +525,95 @@ class AppState {
     this.replaceBatch(await gateway.updateBatch(batchId, applyDecrement(batch!, shotId, dose)));
   }
 
-  // ---- Stop-at-weight look-ahead, tuned from real shots (lib/stopTuning.ts)
-  /** Recent shots' drip after the stop, newest first (KV stopTune). */
-  stopReads = $state<StopRead[]>([]);
-  /** Adjust Decaid's weight look-ahead by itself after each shot. */
-  autoTune = $state(false);
+  // ---- Stop-at-weight look-ahead, per profile, tuned from real shots (lib/stopTuning.ts)
+  // Decaid has one look-ahead for every shot; the skin keeps one per profile and
+  // puts it on Decaid whenever that profile goes on the machine (applySelection).
+  tune = $state<TuneDoc>({ auto: false, profiles: {} });
+  /** The profile the skin last put on the machine (lineage root). */
+  loadedProfileRoot: string | null = null;
+  /** What the skin last set Decaid's look-ahead to, so a repeat isn't sent. */
+  private lookAheadSent: number | null = null;
   private stopTuneLoaded: Promise<void> | null = null;
   loadStopTune(): Promise<void> {
-    this.stopTuneLoaded ??= gateway.storeGet<{ auto?: unknown; reads?: unknown }>(STOP_TUNE_KEY).then((doc) => {
-      this.autoTune = doc?.auto === true;
-      this.stopReads = parseReads(doc?.reads);
-    }, () => {});
+    this.stopTuneLoaded ??= gateway.storeGet<unknown>(STOP_TUNE_KEY).then((doc) => { this.tune = parseTune(doc); }, () => {});
     return this.stopTuneLoaded;
   }
-  private saveStopTune(): Promise<void> {
-    return gateway.storeSet(STOP_TUNE_KEY, { auto: this.autoTune, reads: $state.snapshot(this.stopReads) });
+  private async saveTune(next: TuneDoc): Promise<void> {
+    // Before the first profile gets its own value, remember Decaid's as the default for the rest.
+    if (next.base === undefined && Object.values(next.profiles).some((t) => t.lookAhead !== undefined)) {
+      const now = await this.decaidLookAhead().catch(() => null);
+      if (now !== null) next = { ...next, base: now };
+    }
+    this.tune = next;
+    await gateway.storeSet(STOP_TUNE_KEY, $state.snapshot(this.tune));
+  }
+  private async decaidLookAhead(): Promise<number> {
+    return parseAppSettings(await gateway.getAppSettings()).weightFlowMultiplier;
+  }
+  /** Puts this profile's look-ahead (else the default) on Decaid, when it isn't there already. */
+  async applyLookAhead(root: string, force = false): Promise<void> {
+    await this.loadStopTune();
+    const want = lookAheadFor(this.tune, root);
+    if (want === null || (!force && this.lookAheadSent === want)) return;
+    await gateway.saveAppSettings({ weightFlowMultiplier: want });
+    this.lookAheadSent = want;
   }
   async setAutoTune(on: boolean): Promise<void> {
     await this.loadStopTune();
-    this.autoTune = on;
-    await this.saveStopTune();
-    if (on) await this.applyTuning();
+    await this.saveTune(withAuto(this.tune, on));
+    if (on && this.loadedProfileRoot) await this.applyLookAhead(this.loadedProfileRoot, true);
   }
-  /** After a shot: remember how it landed and, with auto-tune on, adjust the look-ahead. */
+  /** One profile's own look-ahead; null = back to the default. */
+  async setProfileLookAhead(root: string, value: number | null): Promise<void> {
+    await this.loadStopTune();
+    await this.saveTune(withLookAhead(this.tune, root, value));
+    if (this.loadedProfileRoot === root) await this.applyLookAhead(root, true);
+  }
+  /** The look-ahead for profiles without their own (the Settings stepper). */
+  async setBaseLookAhead(value: number): Promise<void> {
+    await this.loadStopTune();
+    await this.saveTune({ ...this.tune, base: clampLookAhead(value) });
+    const root = this.loadedProfileRoot;
+    if (!root || this.tune.profiles[root]?.lookAhead === undefined) {
+      await gateway.saveAppSettings({ weightFlowMultiplier: this.tune.base });
+      this.lookAheadSent = this.tune.base ?? null;
+    }
+  }
+  /** The default look-ahead: the saved one, else whatever Decaid has now. */
+  async baseLookAhead(): Promise<number> {
+    await this.loadStopTune();
+    return this.tune.base ?? await this.decaidLookAhead();
+  }
+  /** After a shot: remember how it landed under its profile; with auto on, that profile's look-ahead follows. */
   private async noteStopRead(shot: ShotRecord): Promise<void> {
     const read = stopRead(shot);
     if (!read) return;
+    const root = findProfileRoot(shot.workflow?.profile, this.profileLineages);
+    if (!root) return;
     await this.loadStopTune();
-    this.stopReads = addRead(this.stopReads, read);
-    await this.saveStopTune();
-    if (this.autoTune) await this.applyTuning();
+    await this.saveTune(withRead(this.tune, root, read));
+    if (this.tune.auto && this.loadedProfileRoot === root) await this.applyLookAhead(root);
   }
-  /** Fill the reads from recent history (Settings, when there are too few). */
+  /** Fill the reads from recent history (Settings, when no profile has enough yet). */
   async readRecentStops(): Promise<void> {
     await this.loadStopTune();
-    if (this.stopReads.length >= MIN_READS) return;
+    if (Object.values(this.tune.profiles).some((t) => t.reads.length >= MIN_READS)) return;
     const page = await gateway.getShots({ limit: 20 });
-    const have = new Set(this.stopReads.map((r) => r.id));
-    let reads = this.stopReads;
-    for (const s of page.items.filter((x) => x.stopReason === 'targetWeight' && !have.has(x.id)).slice(0, 6)) {
-      const read = stopRead(await gateway.getShot(s.id));
-      if (read) reads = [...reads, read].slice(0, KEEP_READS);
+    const have = new Set(Object.values(this.tune.profiles).flatMap((t) => t.reads.map((r) => r.id)));
+    let doc = this.tune;
+    // Oldest first, so each profile's list ends newest first.
+    for (const s of page.items.filter((x) => x.stopReason === 'targetWeight' && !have.has(x.id)).slice(0, 8).reverse()) {
+      const shot = await gateway.getShot(s.id);
+      const read = stopRead(shot);
+      const root = read && findProfileRoot(shot.workflow?.profile, this.profileLineages);
+      if (read && root) doc = withRead(doc, root, read);
     }
-    this.stopReads = reads;
-    await this.saveStopTune();
+    if (doc !== this.tune) await this.saveTune(doc);
   }
-  /** Sets Decaid's weight look-ahead to the suggestion when it differs by 0.1 or more. Returns the value in use. */
-  async applyTuning(): Promise<number | null> {
-    const s = suggestLookAhead(this.stopReads);
-    if (!s) return null;
-    const now = parseAppSettings(await gateway.getAppSettings()).weightFlowMultiplier;
-    if (Math.abs(now - s.lookAhead) < 0.1) return now;
-    await gateway.saveAppSettings({ weightFlowMultiplier: s.lookAhead });
-    return s.lookAhead;
+  /** Use a profile's suggestion now (Settings). */
+  async useSuggestion(root: string): Promise<void> {
+    const s = suggestLookAhead(this.tune.profiles[root]?.reads ?? []);
+    if (s) await this.setProfileLookAhead(root, s.lookAhead);
   }
 
   // ---- Skin updates, checked quietly each time the machine wakes -------------

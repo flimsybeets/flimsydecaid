@@ -88,3 +88,74 @@ export function landingText(s: Suggestion): string {
   if (off < 0.2) return `Your last ${s.shots} shots landed right on target.`;
   return `Your last ${s.shots} shots landed ${off.toFixed(1)} g ${s.averageOff > 0 ? 'heavy' : 'light'} on average.`;
 }
+
+// ---- per profile -------------------------------------------------------------
+// Decaid has one look-ahead for every shot, so the skin keeps one per profile
+// (by lineage root) and sets Decaid's whenever a profile goes on the machine.
+// `base` is the look-ahead for profiles without their own (the Settings stepper).
+
+export interface ProfileTune {
+  /** Newest first, at most KEEP_READS. */
+  reads: StopRead[];
+  /** This profile's own look-ahead (tuned or chosen); missing = use base. */
+  lookAhead?: number;
+}
+
+export interface TuneDoc {
+  auto: boolean;
+  base?: number;
+  profiles: Record<string, ProfileTune>;
+}
+
+export function parseTune(raw: unknown): TuneDoc {
+  const r = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  const profiles: Record<string, ProfileTune> = {};
+  const p = r.profiles && typeof r.profiles === 'object' ? (r.profiles as Record<string, unknown>) : {};
+  for (const [root, v] of Object.entries(p)) {
+    const o = v && typeof v === 'object' ? (v as Record<string, unknown>) : {};
+    const t: ProfileTune = { reads: parseReads(o.reads) };
+    if (typeof o.lookAhead === 'number' && Number.isFinite(o.lookAhead)) t.lookAhead = clampLookAhead(o.lookAhead);
+    profiles[root] = t;
+  }
+  const doc: TuneDoc = { auto: r.auto === true, profiles };
+  if (typeof r.base === 'number' && Number.isFinite(r.base)) doc.base = clampLookAhead(r.base);
+  return doc;
+}
+
+export const clampLookAhead = (v: number) => Math.round(Math.min(5, Math.max(0, v)) * 10) / 10;
+
+/** Records a shot under its profile; with auto on, the profile's look-ahead follows its suggestion. */
+export function withRead(doc: TuneDoc, root: string, read: StopRead): TuneDoc {
+  const prev = doc.profiles[root] ?? { reads: [] };
+  const reads = addRead(prev.reads, read);
+  const next: ProfileTune = { ...prev, reads };
+  if (doc.auto) {
+    const s = suggestLookAhead(reads);
+    if (s) next.lookAhead = s.lookAhead;
+  }
+  return { ...doc, profiles: { ...doc.profiles, [root]: next } };
+}
+
+/** Sets (or with null clears) one profile's own look-ahead. */
+export function withLookAhead(doc: TuneDoc, root: string, value: number | null): TuneDoc {
+  const prev = doc.profiles[root] ?? { reads: [] };
+  const next: ProfileTune = { reads: prev.reads };
+  if (value !== null) next.lookAhead = clampLookAhead(value);
+  return { ...doc, profiles: { ...doc.profiles, [root]: next } };
+}
+
+/** Turning auto on puts every profile with enough shots on its suggestion. */
+export function withAuto(doc: TuneDoc, auto: boolean): TuneDoc {
+  if (!auto) return { ...doc, auto };
+  const profiles: Record<string, ProfileTune> = {};
+  for (const [root, t] of Object.entries(doc.profiles)) {
+    const s = suggestLookAhead(t.reads);
+    profiles[root] = s ? { ...t, lookAhead: s.lookAhead } : t;
+  }
+  return { ...doc, auto, profiles };
+}
+
+/** The look-ahead Decaid should use for this profile, or null to leave Decaid's as it is. */
+export function lookAheadFor(doc: TuneDoc, root: string): number | null {
+  return doc.profiles[root]?.lookAhead ?? doc.base ?? null;
+}

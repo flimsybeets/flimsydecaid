@@ -98,8 +98,17 @@ function pastShot(id: string, when: string, p: ProfileRecord, batch: BeanBatch, 
         targetMixTemperature: temp, targetGroupTemperature: temp,
         profileFrame: pre ? 0 : 1,
       },
-      scale: { timestamp: ts, weight: Math.round(weight * 10) / 10 },
+      scale: { timestamp: ts, weight: Math.round(weight * 10) / 10, weightFlow: pre ? 0 : Math.round(flow * 0.85 * 10) / 10 },
     });
+  }
+  // After the stop, coffee keeps dripping in for a second or so (look-ahead tuning reads this).
+  const last = measurements.at(-1)!;
+  const endFlow = last.scale?.weightFlow ?? 1.5;
+  const dripSec = 0.8 + (id.charCodeAt(id.length - 1) % 5) * 0.15;
+  for (let k = 1; k <= 20; k++) {
+    const ts = new Date(start + (measurements.length + k) * 100).toISOString();
+    const w = weight + endFlow * dripSec * Math.min(1, k / 12);
+    measurements.push({ machine: { ...last.machine, timestamp: ts, state: { state: 'espresso', substate: 'pouringDone' }, pressure: 0, flow: 0 }, scale: { timestamp: ts, weight: Math.round(w * 10) / 10, weightFlow: 0 } });
   }
   return {
     id, timestamp: when, createdAt: when, updatedAt: when,

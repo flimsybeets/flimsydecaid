@@ -56,3 +56,35 @@ describe('reads list', () => {
     expect(parseReads([{ id: 'x', landed: 1, target: 1, drip: 1, flow: 1 }, { id: 2 }])).toHaveLength(1);
   });
 });
+
+import { lookAheadFor, parseTune, withAuto, withLookAhead, withRead } from '../src/lib/stopTuning';
+
+describe('per profile', () => {
+  const r = (id: string, drip: number) => ({ id, landed: 37, target: 36, drip, flow: 2 });
+  it('parses old and junk documents', () => {
+    expect(parseTune(null)).toEqual({ auto: false, profiles: {} });
+    expect(parseTune({ auto: true, reads: [r('x', 1)] })).toEqual({ auto: true, profiles: {} });
+    expect(parseTune({ base: 1.23, profiles: { a: { reads: [r('x', 1)], lookAhead: 9 } } })).toEqual({ auto: false, base: 1.2, profiles: { a: { reads: [r('x', 1)], lookAhead: 5 } } });
+  });
+  it('keeps each profile apart and tunes only with auto on', () => {
+    let doc = parseTune(null);
+    for (const [i, d] of [2, 2.4, 2.6].entries()) doc = withRead(doc, 'a', r(`a${i}`, d));
+    doc = withRead(doc, 'b', r('b0', 4));
+    expect(doc.profiles.a!.reads).toHaveLength(3);
+    expect(doc.profiles.a!.lookAhead).toBeUndefined();
+    doc = withAuto(doc, true);
+    expect(doc.profiles.a!.lookAhead).toBe(1.2);
+    expect(doc.profiles.b!.lookAhead).toBeUndefined();
+    doc = withRead(doc, 'a', r('a3', 4));
+    expect(doc.profiles.a!.lookAhead).toBe(1.3);
+  });
+  it('falls back to the base, or leaves Decaid alone', () => {
+    let doc = parseTune(null);
+    expect(lookAheadFor(doc, 'a')).toBeNull();
+    doc = { ...doc, base: 1 };
+    expect(lookAheadFor(doc, 'a')).toBe(1);
+    doc = withLookAhead(doc, 'a', 1.44);
+    expect(lookAheadFor(doc, 'a')).toBe(1.4);
+    expect(lookAheadFor(withLookAhead(doc, 'a', null), 'a')).toBe(1);
+  });
+});
