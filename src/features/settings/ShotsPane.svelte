@@ -6,7 +6,7 @@
   import SaveStatus from './SaveStatus.svelte';
   import { Saver } from './saving.svelte';
   import { parseAppSettings, RANGES as R, type AppSettings, type ScalePowerMode } from '../../lib/decaidSettings';
-  import { landingText, suggestLookAhead } from '../../lib/stopTuning';
+  import { landingText, MIN_READS, suggestLookAhead } from '../../lib/stopTuning';
 
   // Everything about when the pump stops: espresso at weight or volume, hot
   // water at weight, and tuning the espresso look-ahead from real shots.
@@ -14,9 +14,11 @@
   let a = $state<AppSettings | null>(null);
   let error = $state<string | null>(null);
   let reading = $state(false);
+  let base = $state<number | undefined>(undefined);
 
   function loadSettings() {
     gateway.getAppSettings().then((r) => { a = parseAppSettings(r); }, (e) => { error = `Couldn't read Decaid's settings: ${(e as Error).message}`; });
+    app.baseLookAhead().then((v) => { base = v; }, () => {});
   }
   $effect(() => {
     loadSettings();
@@ -31,15 +33,21 @@
     q.set({ [k]: v } as Partial<AppSettings>);
   }
 
-  const suggestion = $derived(suggestLookAhead(app.stopReads));
-  async function tuneNow() {
-    const v = await saver.run(() => app.applyTuning());
-    if (v) loadSettings();
+  // Profiles the skin knows something about: shots that stopped at weight, or their own look-ahead.
+  const tuned = $derived(Object.entries(app.tune.profiles)
+    .map(([root, t]) => ({ root, t, title: app.profileLineages.get(root)?.profile.title, s: suggestLookAhead(t.reads) }))
+    .filter((x) => x.title && (x.t.reads.length > 0 || x.t.lookAhead !== undefined))
+    .sort((x, y) => y.t.reads.length - x.t.reads.length));
+
+  let baseTimer: ReturnType<typeof setTimeout> | undefined;
+  function setBase(v: number) {
+    base = v;
+    clearTimeout(baseTimer);
+    baseTimer = setTimeout(() => void saver.run(() => app.setBaseLookAhead(v)), 600);
   }
-  async function setAuto(on: boolean) {
-    await saver.run(() => app.setAutoTune(on));
-    loadSettings();
-  }
+  const setAuto = (on: boolean) => saver.run(() => app.setAutoTune(on));
+  const useIt = (root: string) => saver.run(() => app.useSuggestion(root));
+  const toDefault = (root: string) => saver.run(() => app.setProfileLookAhead(root, null));
 </script>
 
 <div class="pane-head"><SaveStatus {saver} /></div>
@@ -51,21 +59,32 @@
     <p>Coffee keeps dripping after the pump stops, so Decaid stops a little early: it looks this many seconds of flow ahead.</p>
     <div class="grid">
       <Stepper label="Stop at weight: look ahead" unit="s" decimals={1} min={R.weightFlowMultiplier.min} max={R.weightFlowMultiplier.max} step={R.weightFlowMultiplier.step}
-        bind:value={() => a?.weightFlowMultiplier, (v) => { if (v !== undefined) set('weightFlowMultiplier', v); }} />
+        bind:value={() => base, (v) => { if (v !== undefined) setBase(v); }} />
       <Stepper label="Stop at volume: look ahead" unit="s" decimals={2} min={R.volumeFlowMultiplier.min} max={R.volumeFlowMultiplier.max} step={R.volumeFlowMultiplier.step}
         bind:value={() => a?.volumeFlowMultiplier, (v) => { if (v !== undefined) set('volumeFlowMultiplier', v); }} />
     </div>
+    <p class="small">The weight look-ahead above is the default. Each profile can have its own, which goes on the machine with the profile.</p>
     <div class="tune well">
-      {#if suggestion}
-        <p class="landing">{landingText(suggestion)} Best look-ahead for them: <b>{suggestion.lookAhead.toFixed(1)} s</b>.</p>
-        {#if Math.abs(suggestion.lookAhead - a.weightFlowMultiplier) >= 0.1}
-          <button class="button glass solid" onclick={tuneNow}>Use {suggestion.lookAhead.toFixed(1)} s</button>
-        {/if}
+      <h3>Per profile</h3>
+      {#each tuned as x (x.root)}
+        {@const own = x.t.lookAhead}
+        <div class="prof">
+          <div class="what">
+            <b>{x.title}</b>
+            <span class="small">{x.s ? `${landingText(x.s)} Best: ${x.s.lookAhead.toFixed(1)} s.` : `${x.t.reads.length} of ${MIN_READS} shots needed to tune.`}</span>
+          </div>
+          <span class="val">{own !== undefined ? `${own.toFixed(1)} s` : 'Default'}</span>
+          {#if x.s && (own === undefined || Math.abs(x.s.lookAhead - own) >= 0.1)}
+            <button class="button glass solid" onclick={() => useIt(x.root)}>Use {x.s.lookAhead.toFixed(1)} s</button>
+          {:else if own !== undefined}
+            <button class="button glass" onclick={() => toDefault(x.root)}>Use default</button>
+          {/if}
+        </div>
       {:else}
-        <p class="landing">{reading ? 'Looking at your recent shots…' : 'After three shots that stop at weight, this works out the best look-ahead for you.'}</p>
-      {/if}
-      <Switch label="Tune it after every shot" on={app.autoTune} onchange={setAuto}
-        note="Each shot that stops at weight shows how much still drips in. With this on, the look-ahead follows your last few shots by itself." />
+        <p class="landing">{reading ? 'Looking at your recent shots…' : 'After three shots with a profile that stop at weight, this works out the best look-ahead for that profile.'}</p>
+      {/each}
+      <Switch label="Tune it after every shot" on={app.tune.auto} onchange={setAuto}
+        note="Each shot that stops at weight shows how much still drips in. With this on, each profile's look-ahead follows its own last few shots." />
     </div>
   </section>
 
@@ -97,6 +116,12 @@
 
 <style>
   .tune { display: grid; gap: 10px; padding: 14px; border-radius: 18px; }
+  .tune h3 { font-size: var(--t-sm); color: var(--paper-dim); font-weight: 650; }
+  .prof { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; min-height: 44px; }
+  .prof .what { display: grid; gap: 2px; min-width: 0; }
+  .prof .what b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .prof .val { font-variant-numeric: tabular-nums; color: var(--paper-dim); }
+  .prof .button { min-height: 40px; padding: 0 14px; border-radius: var(--radius-pill); }
+  @media (max-width: 640px) { .prof { grid-template-columns: 1fr auto; } .prof .button { grid-column: 1 / -1; justify-self: start; } }
   .landing { color: var(--paper); }
-  .landing b { font-variant-numeric: tabular-nums; }
 </style>
