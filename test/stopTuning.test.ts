@@ -88,3 +88,32 @@ describe('per profile', () => {
     expect(lookAheadFor(withLookAhead(doc, 'a', null), 'a')).toBe(1);
   });
 });
+
+import { flowModel, lookAheadAt, modelText, suggestBase, suggestFor } from '../src/lib/stopTuning';
+
+describe('by flow', () => {
+  // drip = 0.8 g + 0.5 s × flow
+  const at = (id: string, flow: number, extra = 0) => ({ id, landed: 36, target: 36, drip: 0.8 + 0.5 * flow + extra, flow });
+  it('needs five shots spread over flows', () => {
+    expect(flowModel([at('a', 1), at('b', 2), at('c', 3), at('d', 4)])).toBeNull();
+    expect(flowModel([at('a', 2), at('b', 2.1), at('c', 2.2), at('d', 2.3), at('e', 2.4)])).toBeNull();
+  });
+  it('finds the fixed drip and the part that follows the flow, ignoring an odd shot', () => {
+    const m = flowModel([at('a', 1), at('b', 1.5), at('c', 2), at('d', 3), at('e', 4, 5)])!;
+    expect(m).toEqual({ fixed: 0.8, perFlow: 0.5, shots: 5 });
+    expect(lookAheadAt(m, 1)).toBe(1.3);
+    expect(lookAheadAt(m, 4)).toBe(0.7);
+    expect(modelText(m)).toBe('From 5 shots: about 0.8 g still drips in, plus 0.5 s of the flow.');
+  });
+  it('gives a slow profile a longer look-ahead than a fast one, even with one shot each', () => {
+    const doc = parseTune({ profiles: {
+      slow: { reads: [at('s1', 1)] },
+      fast: { reads: [at('f1', 4), at('f2', 3.5)] },
+      mid: { reads: [at('m1', 2), at('m2', 2.5)] },
+    } });
+    expect(suggestFor(doc, 'slow')!.lookAhead).toBe(1.3);
+    expect(suggestFor(doc, 'fast')!.lookAhead).toBeCloseTo(0.7, 1);
+    expect(suggestFor(doc, 'none')).toBeNull();
+    expect(suggestBase(doc)).toBe(0.8);
+  });
+});

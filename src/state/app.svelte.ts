@@ -12,7 +12,7 @@ import type {
 } from '../api/types';
 import { CATEGORIES_KEY, parseCategories, removeProfileEverywhere, type CategoryDoc } from '../lib/categories';
 import { huntDelay, shouldHunt } from '../lib/scaleHunt';
-import { clampLookAhead, lookAheadFor, MIN_READS, parseTune, stopRead, suggestLookAhead, withAuto, withLookAhead, withRead, type TuneDoc } from '../lib/stopTuning';
+import { allReads, clampLookAhead, KEEP_READS, lookAheadFor, parseTune, stopRead, suggestFor, withAuto, withLookAhead, withRead, type TuneDoc } from '../lib/stopTuning';
 import { findProfileRoot } from '../lib/brewAgain';
 import { parseAppSettings } from '../lib/decaidSettings';
 import type { TilePreview } from '../lib/miniGraph';
@@ -594,15 +594,15 @@ class AppState {
     await this.saveTune(withRead(this.tune, root, read));
     if (this.tune.auto && this.loadedProfileRoot === root) await this.applyLookAhead(root);
   }
-  /** Fill the reads from recent history (Settings, when no profile has enough yet). */
+  /** Fill the reads from recent history (Settings, while there are few). */
   async readRecentStops(): Promise<void> {
     await this.loadStopTune();
-    if (Object.values(this.tune.profiles).some((t) => t.reads.length >= MIN_READS)) return;
+    if (allReads(this.tune).length >= KEEP_READS) return;
     const page = await gateway.getShots({ limit: 20 });
     const have = new Set(Object.values(this.tune.profiles).flatMap((t) => t.reads.map((r) => r.id)));
     let doc = this.tune;
     // Oldest first, so each profile's list ends newest first.
-    for (const s of page.items.filter((x) => x.stopReason === 'targetWeight' && !have.has(x.id)).slice(0, 8).reverse()) {
+    for (const s of page.items.filter((x) => x.stopReason === 'targetWeight' && !have.has(x.id)).slice(0, 10).reverse()) {
       const shot = await gateway.getShot(s.id);
       const read = stopRead(shot);
       const root = read && findProfileRoot(shot.workflow?.profile, this.profileLineages);
@@ -612,7 +612,7 @@ class AppState {
   }
   /** Use a profile's suggestion now (Settings). */
   async useSuggestion(root: string): Promise<void> {
-    const s = suggestLookAhead(this.tune.profiles[root]?.reads ?? []);
+    const s = suggestFor(this.tune, root);
     if (s) await this.setProfileLookAhead(root, s.lookAhead);
   }
 

@@ -85,8 +85,62 @@ export function suggestLookAhead(reads: readonly StopRead[]): Suggestion | null 
 /** Plain words for how shots have been landing. */
 export function landingText(s: Suggestion): string {
   const off = Math.abs(s.averageOff);
-  if (off < 0.2) return `Your last ${s.shots} shots landed right on target.`;
-  return `Your last ${s.shots} shots landed ${off.toFixed(1)} g ${s.averageOff > 0 ? 'heavy' : 'light'} on average.`;
+  const last = s.shots === 1 ? 'Your last shot' : `Your last ${s.shots} shots`;
+  if (off < 0.2) return `${last} landed right on target.`;
+  return `${last} landed ${off.toFixed(1)} g ${s.averageOff > 0 ? 'heavy' : 'light'}${s.shots === 1 ? '' : ' on average'}.`;
+}
+
+// ---- by flow -----------------------------------------------------------------
+// Decaid assumes the drip is flow × lookAhead, but part of it doesn't depend on
+// the flow (what's left in the basket, the scale catching up). Across all shots
+// the drip fits  drip ≈ fixed + perFlow × flow,  so the look-ahead that suits a
+// shot stopping at flow f is  fixed / f + perFlow. Decaid reads its look-ahead
+// once when the shot starts, so the skin uses the flow a profile usually stops at.
+
+export interface FlowModel {
+  /** Grams that drip in whatever the flow. */
+  fixed: number;
+  /** Seconds of flow that drip in on top. */
+  perFlow: number;
+  shots: number;
+}
+
+export const MIN_MODEL_READS = 5;
+/** The flows at the stop must spread at least this much (g/s) to tell the two parts apart. */
+export const MIN_FLOW_SPREAD = 0.6;
+
+const median = (xs: number[]) => {
+  const v = [...xs].sort((a, b) => a - b);
+  const m = v.length / 2;
+  return v.length % 2 ? v[Math.floor(m)]! : (v[m - 1]! + v[m]!) / 2;
+};
+
+/** Theil–Sen line through (flow, drip): the median of pairwise slopes, so an odd shot can't drag it. */
+export function flowModel(reads: readonly StopRead[]): FlowModel | null {
+  if (reads.length < MIN_MODEL_READS) return null;
+  const flows = reads.map((r) => r.flow);
+  if (Math.max(...flows) - Math.min(...flows) < MIN_FLOW_SPREAD) return null;
+  const slopes: number[] = [];
+  for (let i = 0; i < reads.length; i++)
+    for (let j = i + 1; j < reads.length; j++) {
+      const df = reads[j]!.flow - reads[i]!.flow;
+      if (Math.abs(df) >= 0.2) slopes.push((reads[j]!.drip - reads[i]!.drip) / df);
+    }
+  if (slopes.length === 0) return null;
+  const perFlow = Math.max(0, median(slopes));
+  const fixed = Math.max(0, median(reads.map((r) => r.drip - perFlow * r.flow)));
+  return { fixed: Math.round(fixed * 100) / 100, perFlow: Math.round(perFlow * 100) / 100, shots: reads.length };
+}
+
+/** The look-ahead the model gives for a shot stopping at this flow. */
+export const lookAheadAt = (m: FlowModel, flow: number) => clampLookAhead(m.fixed / Math.max(0.5, flow) + m.perFlow);
+
+/** The flow a set of shots usually stopped at. */
+export const typicalFlow = (reads: readonly StopRead[]) => median(reads.map((r) => r.flow));
+
+/** Plain words for the model. */
+export function modelText(m: FlowModel): string {
+  return `From ${m.shots} shots: about ${m.fixed.toFixed(1)} g still drips in, plus ${m.perFlow.toFixed(1)} s of the flow.`;
 }
 
 // ---- per profile -------------------------------------------------------------
@@ -127,13 +181,32 @@ export const clampLookAhead = (v: number) => Math.round(Math.min(5, Math.max(0, 
 /** Records a shot under its profile; with auto on, the profile's look-ahead follows its suggestion. */
 export function withRead(doc: TuneDoc, root: string, read: StopRead): TuneDoc {
   const prev = doc.profiles[root] ?? { reads: [] };
-  const reads = addRead(prev.reads, read);
-  const next: ProfileTune = { ...prev, reads };
-  if (doc.auto) {
-    const s = suggestLookAhead(reads);
-    if (s) next.lookAhead = s.lookAhead;
+  const next: TuneDoc = { ...doc, profiles: { ...doc.profiles, [root]: { ...prev, reads: addRead(prev.reads, read) } } };
+  // A new shot can move the flow model, so every profile is re-tuned, not just this one.
+  return doc.auto ? withAuto(next, true) : next;
+}
+
+export const allReads = (doc: TuneDoc) => Object.values(doc.profiles).flatMap((t) => t.reads);
+
+/**
+ * Best look-ahead for one profile: from the flow model (all shots) at the flow
+ * this profile usually stops at, else the median of its own shots (3 or more).
+ */
+export function suggestFor(doc: TuneDoc, root: string): Suggestion | null {
+  const reads = doc.profiles[root]?.reads ?? [];
+  const m = flowModel(allReads(doc));
+  if (m && reads.length > 0) {
+    const averageOff = Math.round((reads.reduce((a, r) => a + (r.landed - r.target), 0) / reads.length) * 10) / 10;
+    return { lookAhead: lookAheadAt(m, typicalFlow(reads)), averageOff, shots: reads.length };
   }
-  return { ...doc, profiles: { ...doc.profiles, [root]: next } };
+  return suggestLookAhead(reads);
+}
+
+/** With the flow model, the default for profiles with no shots yet: the model at the usual flow of all shots. */
+export function suggestBase(doc: TuneDoc): number | null {
+  const all = allReads(doc);
+  const m = flowModel(all);
+  return m ? lookAheadAt(m, typicalFlow(all)) : null;
 }
 
 /** Sets (or with null clears) one profile's own look-ahead. */
@@ -149,10 +222,13 @@ export function withAuto(doc: TuneDoc, auto: boolean): TuneDoc {
   if (!auto) return { ...doc, auto };
   const profiles: Record<string, ProfileTune> = {};
   for (const [root, t] of Object.entries(doc.profiles)) {
-    const s = suggestLookAhead(t.reads);
+    const s = suggestFor(doc, root);
     profiles[root] = s ? { ...t, lookAhead: s.lookAhead } : t;
   }
-  return { ...doc, auto, profiles };
+  const out: TuneDoc = { ...doc, auto, profiles };
+  const base = suggestBase(doc);
+  if (base !== null) out.base = base;
+  return out;
 }
 
 /** The look-ahead Decaid should use for this profile, or null to leave Decaid's as it is. */
