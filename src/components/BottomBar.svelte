@@ -3,7 +3,8 @@
   import { heaterOn } from '../lib/steam';
   import { waterFill } from '../lib/water';
 
-  let { onSteam }: { onSteam: () => void } = $props();
+  let { onSteam, onHotWater }: { onSteam: () => void; onHotWater: () => void } = $props();
+  const hot = $derived(app.workflow.hotWaterData);
 
   const scaleName = $derived(app.scaleDevice?.name ?? 'Scale');
   const steamIsOn = $derived(heaterOn(app.steam));
@@ -48,6 +49,11 @@
       </span>
     </div>
 
+  <button class="hotwater glass" onclick={onHotWater} aria-haspopup="dialog">
+    <span class="label">Hot water</span>
+    <span class="value">{hot ? `${hot.targetTemperature}°` : '–'}<small>{hot ? `${hot.volume} ml` : ''}</small></span>
+  </button>
+
   <button class="steam glass" class:solid={steamIsOn} class:on={steamIsOn} onclick={onSteam} aria-haspopup="dialog">
     <span class="label">Steam</span>
     <span class="value">
@@ -68,7 +74,7 @@
 
   footer {
     display: grid;
-    grid-template-columns: minmax(210px, 1fr) auto auto minmax(165px, auto);
+    grid-template-columns: minmax(190px, 1fr) auto auto auto minmax(165px, auto);
     align-items: stretch;
     gap: 9px;
     margin: 8px var(--gutter) 10px;
@@ -77,7 +83,7 @@
     z-index: 5;
   }
 
-  .scale, .steam {
+  .scale, .steam, .hotwater {
     display: flex;
     align-items: center;
     gap: 14px;
@@ -143,12 +149,14 @@
   .tank.low .word, .tank.empty .word { color: var(--c); }
 
   .steam { justify-content: space-between; }
+  .hotwater { flex-direction: column; justify-content: center; align-items: flex-start; gap: 0; padding: 0 14px; }
+  .hotwater .value { font-size: var(--t-lg); font-weight: 650; color: var(--paper); }
   .steam .value { font-size: var(--t-lg); font-weight: 650; color: var(--paper-faint); }
   .steam.on .label, .steam.on .value small { color: #3c5559; }
   .steam.on .value { color: var(--ink); }
 
   @media (max-width: 900px) {
-    footer { grid-template-columns: 1fr auto auto; }
+    footer { grid-template-columns: 1fr auto auto auto; }
     .temps { display: none; }
   }
 </style>

@@ -8,7 +8,7 @@
   import { machinePatch, parseMachineSettings, RANGES as R, type MachineSettings } from '../../lib/decaidSettings';
   import type { Workflow } from '../../api/types';
 
-  // Machine settings need a connected machine; hot water and flush go through
+  // Machine settings need a connected machine; flush goes through
   // the workflow, which Decaid keeps even while the machine is off.
   const saver = new Saver();
   let m = $state<MachineSettings | null>(null);
@@ -20,18 +20,10 @@
   });
 
   const mq = saver.queue<MachineSettings>((p) => gateway.saveMachineSettings(machinePatch(p)));
-  type Hot = NonNullable<Workflow['hotWaterData']>;
   type Rinse = NonNullable<Workflow['rinseData']>;
-  const hq = saver.queue<Hot>((p) => app.saveWaterSettings({ hotWaterData: p }));
   const rq = saver.queue<Rinse>((p) => app.saveWaterSettings({ rinseData: p }));
 
-  const hot = $derived(app.workflow.hotWaterData);
   const rinse = $derived(app.workflow.rinseData);
-  function setHot(k: keyof Hot, v: number) {
-    if (!hot) return;
-    app.workflow = { ...app.workflow, hotWaterData: { ...hot, [k]: v } };
-    hq.set({ [k]: v } as Partial<Hot>);
-  }
   function setRinse(k: keyof Rinse, v: number) {
     if (!rinse) return;
     app.workflow = { ...app.workflow, rinseData: { ...rinse, [k]: v } };
@@ -60,25 +52,6 @@
 </section>
 
 <section class="card glass frost">
-  <h2>Hot water</h2>
-  {#if hot}
-    <div class="grid">
-      <Stepper label="Temperature" unit="°C" min={R.hotWaterTemp.min} max={R.hotWaterTemp.max} step={R.hotWaterTemp.step}
-        bind:value={() => hot.targetTemperature, (v) => { if (v !== undefined) setHot('targetTemperature', v); }} />
-      <Stepper label="Amount" unit="ml" min={R.hotWaterVolume.min} max={R.hotWaterVolume.max} step={R.hotWaterVolume.step}
-        bind:value={() => hot.volume, (v) => { if (v !== undefined) setHot('volume', v); }} />
-      <Stepper label="Longest time" unit="s" min={R.hotWaterDuration.min} max={R.hotWaterDuration.max} step={R.hotWaterDuration.step}
-        bind:value={() => hot.duration, (v) => { if (v !== undefined) setHot('duration', v); }} />
-      <Stepper label="Flow" unit="ml/s" decimals={1} min={R.hotWaterFlow.min} max={R.hotWaterFlow.max} step={R.hotWaterFlow.step}
-        bind:value={() => hot.flow, (v) => { if (v !== undefined) setHot('flow', v); }} />
-    </div>
-  {:else}
-    <p class="small">Waiting for Decaid.</p>
-  {/if}
-  <p class="small">With a scale connected, hot water can stop at the amount above in grams: see Shots & scale.</p>
-</section>
-
-<section class="card glass frost">
   <h2>Flush</h2>
   <p>What runs when you press flush on the group head, or Rinse in Guide me.</p>
   {#if rinse}
@@ -97,7 +70,7 @@
 
 <section class="card glass frost">
   <h2>Steam and fan</h2>
-  <p class="small">Steam temperature and flow are on the Steam button in the bottom bar.</p>
+  <p class="small">Steam and hot water have their own buttons in the bottom bar.</p>
   {#if mError}<p class="note">{mError}</p>{/if}
   <Choice label="Steam button" value={String(m?.steamPurgeMode ?? 0)} disabled={!m}
     options={[{ value: '0', label: 'Normal' }, { value: '1', label: 'Two-tap stop' }]}
