@@ -157,6 +157,7 @@ export function createMockGateway(): Gateway {
   const shots = clone(SHOTS);
   let recording: ShotMeasurement[] | null = null;
   let stopReason: string | null = null;
+  let installedVersion = __APP_VERSION__;
 
   /** Save the finished shot the way Decaid does: measurements plus the workflow at the time. */
   const saveShot = () => {
@@ -324,6 +325,8 @@ export function createMockGateway(): Gateway {
       // Same for the rinse, which is started on the machine: __flimsyMock.pressFlush().
       (globalThis as { __flimsyMock?: unknown }).__flimsyMock = {
         setWeight: (g: number) => { weight = g; },
+        // A newer skin version appears after the next update check (wake the machine to see Update).
+        offerSkinUpdate: () => { installedVersion = '99.0.0'; },
         pressFlush: () => { void this.requestState('flush'); },
         // Steam button on the machine: runs for the steam duration (at most 20 s here).
         pressSteam: () => { void this.requestState('steam'); },
@@ -379,7 +382,7 @@ export function createMockGateway(): Gateway {
       return { model: 'DE1+', version: 'mock', GHC: new URLSearchParams(location.search).get('ghc') === '1' };
     },
     async checkSkinUpdates() { await delay(1500); },
-    async installedSkinVersion() { await delay(); return __APP_VERSION__; },
+    async installedSkinVersion() { await delay(); return installedVersion; },
     async setWaterRefillLevel(mm) { await delay(); refillLevel = Math.trunc(mm); },
     async tareScale() { await delay(); weight = 0; },
     async keepScreenOn() { await delay(20); },

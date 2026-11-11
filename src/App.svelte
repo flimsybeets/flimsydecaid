@@ -74,6 +74,15 @@
     try { await (power === 'wake' ? app.wake() : app.sleep()); } catch { /* the status pill shows what the machine did */ } finally { powerBusy = false; }
   }
 
+  // Each time the machine wakes, ask Decaid for skin updates; a newer version
+  // shows a glowing Update button beside the status that reloads into it.
+  let wasAsleep = false;
+  $effect(() => {
+    const asleep = app.asleep;
+    if (wasAsleep && !asleep) void app.checkUpdatesQuietly().catch(() => {});
+    wasAsleep = asleep;
+  });
+
   const status = $derived.by(() => {
     if (app.mock) return { text: 'Demo data', tone: 'demo' };
     if (!app.gatewayOnline) return { text: "Can't reach Decaid", tone: 'bad' };
@@ -105,6 +114,11 @@
         <span class="temp">{app.machine.groupTemperature.toFixed(1)}°</span>
       {/if}
     </div>
+    {#if app.skinUpdate}
+      <button class="update glass solid" onclick={() => location.reload()} aria-label="Update to version {app.skinUpdate}">
+        <span aria-hidden="true">↻</span>Update
+      </button>
+    {/if}
     {#if power}
       <button class="power glass" disabled={powerBusy} onclick={togglePower} aria-label={power === 'wake' ? 'Wake the machine' : 'Put the machine to sleep'}>
         <span aria-hidden="true">{power === 'wake' ? '☀' : '☾'}</span>{power === 'wake' ? 'Wake' : 'Sleep'}
@@ -226,6 +240,24 @@
   .status.bad .dot { color: var(--stop); }
   .status.demo .dot { color: var(--cat-3); }
   .temp { color: var(--paper); font-weight: 600; }
+  /* Update: bright pill with a soft halo that breathes (opacity only, no filter). */
+  .update {
+    position: relative;
+    display: flex; align-items: center; gap: 6px;
+    min-height: 42px; padding: 0 16px;
+    border-radius: var(--radius-pill);
+    font-size: var(--t-sm); font-weight: 750;
+    background: linear-gradient(170deg, #b8f5d6, var(--go));
+    color: #06261a;
+    box-shadow: 0 0 0 1px rgb(255 255 255 / 0.5) inset;
+  }
+  .update::after {
+    content: ''; position: absolute; inset: -6px; border-radius: inherit; pointer-events: none;
+    box-shadow: 0 0 18px 4px rgb(120 230 170 / 0.55);
+    animation: update-glow 2.4s ease-in-out infinite;
+  }
+  @keyframes update-glow { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .update::after { animation: none; opacity: 0.7; } }
   .power {
     display: flex;
     align-items: center;
