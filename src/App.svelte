@@ -3,6 +3,7 @@
   import { app, type Tab } from './state/app.svelte';
   import BottomBar from './components/BottomBar.svelte';
   import SteamModal from './components/SteamModal.svelte';
+  import HotWaterModal from './components/HotWaterModal.svelte';
   import ShotView from './components/ShotView.svelte';
   import Screensaver from './components/Screensaver.svelte';
   import ActivityView from './components/ActivityView.svelte';
@@ -24,6 +25,7 @@
   ];
 
   let steamOpen = $state(false);
+  let hotWaterOpen = $state(false);
   // The shot view takes over while pulling and stays until dismissed,
   // so you can read the finished graph.
   let shotOpen = $state(false);
@@ -146,9 +148,12 @@
     {/if}
   </main>
 
-  <BottomBar onSteam={() => (steamOpen = true)} />
+  <BottomBar onSteam={() => (steamOpen = true)} onHotWater={() => (hotWaterOpen = true)} />
 </div>
 
+{#if hotWaterOpen}
+  <HotWaterModal onClose={() => (hotWaterOpen = false)} />
+{/if}
 {#if steamOpen}
   <SteamModal onClose={() => (steamOpen = false)} />
 {/if}

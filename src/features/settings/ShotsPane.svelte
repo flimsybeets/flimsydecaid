@@ -71,14 +71,14 @@
 
   <section class="card glass frost">
     <h2>Hot water</h2>
-    <Switch label="Stop at the amount on the scale" on={a.stopHotWaterAtWeight} onchange={(v) => set('stopHotWaterAtWeight', v)}
-      note="With a scale connected, hot water tares it and stops when the cup holds the amount set under Machine → Hot water, in grams." />
-    {#if a.stopHotWaterAtWeight}
+{#if a.stopHotWaterAtWeight}
       <div class="grid">
         <Stepper label="Look ahead" unit="s" decimals={2} min={R.hotWaterFlowMultiplier.min} max={R.hotWaterFlowMultiplier.max} step={R.hotWaterFlowMultiplier.step}
           bind:value={() => a?.hotWaterFlowMultiplier, (v) => { if (v !== undefined) set('hotWaterFlowMultiplier', v); }} />
       </div>
       <p class="small">If hot water overfills, raise this; if it stops short, lower it. Decaid keeps no record of hot water pours, so this one can't tune itself.</p>
+    {:else}
+      <p class="small">Hot water stops at the machine's own measure. Turn on Stop by the scale from the Hot water button in the bottom bar.</p>
     {/if}
   </section>
 
