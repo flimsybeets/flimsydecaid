@@ -10,7 +10,7 @@
   import { Saver } from './saving.svelte';
   import {
     parseAdvanced, parseAppSettings, RANGES as R, voltageLabel,
-    type AdvancedSettings, type AppSettings, type GatewayMode, type LogLevel,
+    type AdvancedSettings, type AppSettings, type LogLevel,
   } from '../../lib/decaidSettings';
 
   // Settings most people never touch. Heater and calibration need a connected machine.
@@ -81,10 +81,6 @@
 {#if a}
   <section class="card glass frost">
     <h2>Decaid</h2>
-    <Choice label="Who runs the shot" value={a.gatewayMode}
-      options={[{ value: 'disabled', label: 'Decaid' }, { value: 'tracking', label: 'Decaid, no graphs' }, { value: 'full', label: 'The skin' }] as { value: GatewayMode; label: string }[]}
-      notes={{ disabled: 'Decaid runs shots and stops them at weight (the normal setting for this skin).', tracking: 'Decaid still stops shots at weight but doesn’t draw its own graphs.', full: 'Decaid steps back and a skin controls everything. This skin doesn’t do that, so stop-at-weight would stop working.' }}
-      onchange={(v) => setA('gatewayMode', v)} />
     <Switch label="Check for Decaid updates" on={a.automaticUpdateCheck} onchange={(v) => setA('automaticUpdateCheck', v)}
       note="Decaid looks for a new version of itself every 12 hours." />
     <label class="select">

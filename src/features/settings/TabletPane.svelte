@@ -4,12 +4,17 @@
   import Choice from './Choice.svelte';
   import SaveStatus from './SaveStatus.svelte';
   import { Saver } from './saving.svelte';
-  import { clockToMinutes, minutesToClock, parseAppSettings, type AppSettings, type ChargingMode } from '../../lib/decaidSettings';
+  import { clockToMinutes, machinePatch, minutesToClock, parseAppSettings, parseMachineSettings, type AppSettings, type ChargingMode, type MachineSettings } from '../../lib/decaidSettings';
 
   const saver = new Saver();
   let a = $state<AppSettings | null>(null);
   let error = $state<string | null>(null);
+  // The machine's USB port is what charges the tablet.
+  let m = $state<MachineSettings | null>(null);
+  const mq = saver.queue<MachineSettings>((p) => gateway.saveMachineSettings(machinePatch(p)));
+  function setUsb(on: boolean) { if (!m) return; m = { ...m, usb: on }; mq.set({ usb: on }); }
   $effect(() => {
+    gateway.getMachineSettings().then((r) => { m = parseMachineSettings(r); }, () => {});
     gateway.getAppSettings().then((r) => { a = parseAppSettings(r); }, (e) => { error = `Couldn't read Decaid's settings: ${(e as Error).message}`; });
     return () => saver.flushAll();
   });
@@ -47,6 +52,8 @@
       <p>Battery {a.battery.percent}%{PHASE[a.battery.phase] ? ` · ${PHASE[a.battery.phase]}` : ''}{a.battery.usbChargerOn ? ' · charging from the machine' : ''}.</p>
     {/if}
     <p class="small">Decaid switches the machine's USB port on and off to keep the tablet's battery in a healthy range.</p>
+    <Switch label="Machine's USB port" on={m?.usb ?? false} disabled={!m} onchange={setUsb}
+      note={m ? (a.chargingMode === 'disabled' ? 'Powers the tablet from the machine.' : 'Decaid switches this for you to keep the battery in range below.') : 'Connect the machine to change this.'} />
     <Choice label="Battery range" value={a.chargingMode} options={MODES}
       notes={{ disabled: 'Decaid leaves charging alone.', longevity: 'Holds 45–55%: kindest to the battery.', balanced: 'Holds 40–80%.', highAvailability: 'Holds 80–95%: most time off the charger.' }}
       onchange={(v) => set('chargingMode', v)} />

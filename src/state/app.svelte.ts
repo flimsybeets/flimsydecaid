@@ -12,6 +12,8 @@ import type {
 } from '../api/types';
 import { CATEGORIES_KEY, parseCategories, removeProfileEverywhere, type CategoryDoc } from '../lib/categories';
 import { huntDelay, shouldHunt } from '../lib/scaleHunt';
+import { addRead, KEEP_READS, MIN_READS, parseReads, stopRead, suggestLookAhead, type StopRead } from '../lib/stopTuning';
+import { parseAppSettings } from '../lib/decaidSettings';
 import type { TilePreview } from '../lib/miniGraph';
 import { APP_BACKGROUND_KEY, clampTone, DEFAULT_TONE } from '../lib/background';
 import { DEFAULT_BAGS_KEY, parseDefaultBags, type DefaultBags } from '../lib/defaultBag';
@@ -37,6 +39,7 @@ import { clampSteamFlow, clampSteamTemp, LAST_STEAM_TEMP_KEY, STEAM_DEFAULT_C } 
 
 /** Set once the old per-bag photos have been moved to their coffees. */
 const PHOTOS_MOVED_KEY = 'photosMoved';
+const STOP_TUNE_KEY = 'stopTune';
 const config = resolveGateway();
 export const gateway: Gateway = config.mock ? createMockGateway() : createHttpGateway(config);
 
@@ -508,6 +511,7 @@ class AppState {
 
   private async takeShotOffBag(shotId: string): Promise<void> {
     const shot = await gateway.getShot(shotId);
+    await this.noteStopRead(shot).catch(() => {});
     const batchId = shot.workflow?.context?.beanBatchId;
     const dose = doseOf(shot);
     if (!batchId || dose === null) return;
@@ -516,6 +520,69 @@ class AppState {
     const batch = await gateway.getBatch(batchId).catch(() => undefined);
     if (!shouldDecrement(shot, stats, batch)) return;
     this.replaceBatch(await gateway.updateBatch(batchId, applyDecrement(batch!, shotId, dose)));
+  }
+
+  // ---- Stop-at-weight look-ahead, tuned from real shots (lib/stopTuning.ts)
+  /** Recent shots' drip after the stop, newest first (KV stopTune). */
+  stopReads = $state<StopRead[]>([]);
+  /** Adjust Decaid's weight look-ahead by itself after each shot. */
+  autoTune = $state(false);
+  private stopTuneLoaded: Promise<void> | null = null;
+  loadStopTune(): Promise<void> {
+    this.stopTuneLoaded ??= gateway.storeGet<{ auto?: unknown; reads?: unknown }>(STOP_TUNE_KEY).then((doc) => {
+      this.autoTune = doc?.auto === true;
+      this.stopReads = parseReads(doc?.reads);
+    }, () => {});
+    return this.stopTuneLoaded;
+  }
+  private saveStopTune(): Promise<void> {
+    return gateway.storeSet(STOP_TUNE_KEY, { auto: this.autoTune, reads: $state.snapshot(this.stopReads) });
+  }
+  async setAutoTune(on: boolean): Promise<void> {
+    await this.loadStopTune();
+    this.autoTune = on;
+    await this.saveStopTune();
+    if (on) await this.applyTuning();
+  }
+  /** After a shot: remember how it landed and, with auto-tune on, adjust the look-ahead. */
+  private async noteStopRead(shot: ShotRecord): Promise<void> {
+    const read = stopRead(shot);
+    if (!read) return;
+    await this.loadStopTune();
+    this.stopReads = addRead(this.stopReads, read);
+    await this.saveStopTune();
+    if (this.autoTune) await this.applyTuning();
+  }
+  /** Fill the reads from recent history (Settings, when there are too few). */
+  async readRecentStops(): Promise<void> {
+    await this.loadStopTune();
+    if (this.stopReads.length >= MIN_READS) return;
+    const page = await gateway.getShots({ limit: 20 });
+    const have = new Set(this.stopReads.map((r) => r.id));
+    let reads = this.stopReads;
+    for (const s of page.items.filter((x) => x.stopReason === 'targetWeight' && !have.has(x.id)).slice(0, 6)) {
+      const read = stopRead(await gateway.getShot(s.id));
+      if (read) reads = [...reads, read].slice(0, KEEP_READS);
+    }
+    this.stopReads = reads;
+    await this.saveStopTune();
+  }
+  /** Sets Decaid's weight look-ahead to the suggestion when it differs by 0.1 or more. Returns the value in use. */
+  async applyTuning(): Promise<number | null> {
+    const s = suggestLookAhead(this.stopReads);
+    if (!s) return null;
+    const now = parseAppSettings(await gateway.getAppSettings()).weightFlowMultiplier;
+    if (Math.abs(now - s.lookAhead) < 0.1) return now;
+    await gateway.saveAppSettings({ weightFlowMultiplier: s.lookAhead });
+    return s.lookAhead;
+  }
+
+  // ---- Skin updates, checked quietly each time the machine wakes -------------
+  /** A newer installed version waiting for a reload (shown as Update in the top bar). */
+  skinUpdate = $state<string | null>(null);
+  async checkUpdatesQuietly(): Promise<void> {
+    const r = await this.checkSkinUpdates();
+    if (r.kind === 'updated') this.skinUpdate = r.installed;
   }
 
   // Shot history is read straight from Decaid; nothing to keep in memory.

@@ -1,12 +1,11 @@
 <script lang="ts">
   import { app, gateway } from '../../state/app.svelte';
   import Stepper from '../../components/Stepper.svelte';
-  import Switch from './Switch.svelte';
   import Choice from './Choice.svelte';
   import SaveStatus from './SaveStatus.svelte';
   import { Saver } from './saving.svelte';
   import { REFILL_MAX_MM, REFILL_MIN_MM } from '../../lib/water';
-  import { machinePatch, parseAppSettings, parseMachineSettings, RANGES as R, type AppSettings, type MachineSettings } from '../../lib/decaidSettings';
+  import { machinePatch, parseMachineSettings, RANGES as R, type MachineSettings } from '../../lib/decaidSettings';
   import type { Workflow } from '../../api/types';
 
   // Machine settings need a connected machine; hot water and flush go through
@@ -14,16 +13,13 @@
   const saver = new Saver();
   let m = $state<MachineSettings | null>(null);
   let mError = $state<string | null>(null);
-  let a = $state<AppSettings | null>(null);
 
   $effect(() => {
     gateway.getMachineSettings().then((r) => { m = parseMachineSettings(r); }, () => { mError = 'Connect the machine to change these.'; });
-    gateway.getAppSettings().then((r) => { a = parseAppSettings(r); }, () => {});
     return () => saver.flushAll();
   });
 
   const mq = saver.queue<MachineSettings>((p) => gateway.saveMachineSettings(machinePatch(p)));
-  const aq = saver.queue<AppSettings>((p) => gateway.saveAppSettings(p as Record<string, unknown>));
   type Hot = NonNullable<Workflow['hotWaterData']>;
   type Rinse = NonNullable<Workflow['rinseData']>;
   const hq = saver.queue<Hot>((p) => app.saveWaterSettings({ hotWaterData: p }));
@@ -45,11 +41,6 @@
     if (!m) return;
     m = { ...m, [k]: v };
     mq.set({ [k]: v } as Partial<MachineSettings>);
-  }
-  function setA<K extends keyof AppSettings>(k: K, v: AppSettings[K]) {
-    if (!a) return;
-    a = { ...a, [k]: v };
-    aq.set({ [k]: v } as Partial<AppSettings>);
   }
 </script>
 
@@ -84,16 +75,7 @@
   {:else}
     <p class="small">Waiting for Decaid.</p>
   {/if}
-  {#if a}
-    <Switch label="Stop at the amount on the scale" on={a.stopHotWaterAtWeight} onchange={(v) => setA('stopHotWaterAtWeight', v)}
-      note="With a scale connected, it tares and stops when the cup holds the amount above (in grams). The machine's own limit still applies." />
-    {#if a.stopHotWaterAtWeight}
-      <div class="grid">
-        <Stepper label="Stop early by" unit="s" decimals={2} min={R.hotWaterFlowMultiplier.min} max={R.hotWaterFlowMultiplier.max} step={R.hotWaterFlowMultiplier.step}
-          bind:value={() => a?.hotWaterFlowMultiplier, (v) => { if (v !== undefined) setA('hotWaterFlowMultiplier', v); }} />
-      </div>
-    {/if}
-  {/if}
+  <p class="small">With a scale connected, hot water can stop at the amount above in grams: see Shots & scale.</p>
 </section>
 
 <section class="card glass frost">
@@ -114,7 +96,7 @@
 </section>
 
 <section class="card glass frost">
-  <h2>Steam and machine</h2>
+  <h2>Steam and fan</h2>
   <p class="small">Steam temperature and flow are on the Steam button in the bottom bar.</p>
   {#if mError}<p class="note">{mError}</p>{/if}
   <Choice label="Steam button" value={String(m?.steamPurgeMode ?? 0)} disabled={!m}
@@ -125,6 +107,4 @@
     <Stepper label="Fan comes on above" unit="°C" min={R.fan.min} max={R.fan.max} step={R.fan.step}
       bind:value={() => m?.fan, (v) => { if (v !== undefined) setM('fan', v); }} disabled={!m} />
   </div>
-  <Switch label="USB charging port" on={m?.usb ?? false} disabled={!m} onchange={(v) => setM('usb', v)}
-    note="Powers the tablet from the machine's USB port. Decaid can switch it for you under Tablet → Charging." />
 </section>

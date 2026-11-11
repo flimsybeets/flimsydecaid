@@ -39,9 +39,8 @@
   }
   .seg.disabled { opacity: 0.45; }
   button {
-    flex: 1;
-    min-width: 0;
-    padding: 0 9px;
+    flex: 1 0 auto;
+    padding: 0 14px;
     border-radius: 9px;
     color: var(--paper-dim);
     font-size: var(--t-sm);

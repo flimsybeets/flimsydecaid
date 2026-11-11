@@ -97,7 +97,7 @@
   .pane :global(.error) { color: var(--stop); }
   .pane :global(.okmsg) { color: var(--go); }
   .pane :global(.grid) { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
-  .pane :global(.row) { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; }
+  .pane :global(.card > .row) { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; }
   .pane :global(.button) {
     justify-self: start; display: inline-flex; align-items: center;
     min-height: var(--touch); padding: 0 20px; border-radius: var(--radius-control);
