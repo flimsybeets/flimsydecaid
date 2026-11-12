@@ -28,6 +28,16 @@
     el.enterKeyHint = list.indexOf(el) < list.length - 1 ? 'next' : mainButton() ? 'done' : 'enter';
   }
 
+  // Escape closes only the dialog on top (the last one in the page), so a dialog
+  // opened from another one can ask "discard changes?" instead of both vanishing.
+  function onEscape(e: KeyboardEvent) {
+    if (e.key !== 'Escape' || e.defaultPrevented) return;
+    const open = document.querySelectorAll('[role="dialog"][aria-modal="true"]');
+    if (open[open.length - 1] !== dialog) return;
+    e.preventDefault();
+    onClose();
+  }
+
   function onKeyDown(e: KeyboardEvent) {
     const el = e.target;
     if (e.key !== 'Enter' || e.defaultPrevented || !(el instanceof HTMLInputElement) || !el.matches(TEXT)) return;
@@ -42,7 +52,7 @@
   }
 </script>
 
-<svelte:window onkeydown={(e) => { if (e.key === 'Escape') onClose(); }} />
+<svelte:window onkeydown={onEscape} />
 
 <div class="backdrop" role="presentation" onclick={onClose}></div>
 <div class="dialog glass thick" class:wide role="dialog" aria-modal="true" aria-label={title} tabindex="-1" bind:this={dialog} onfocusin={onFocusIn} onkeydown={onKeyDown}>

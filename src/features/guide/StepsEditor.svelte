@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import { app } from '../../state/app.svelte';
   import { EDITION } from '../../edition';
   import Modal from '../../components/Modal.svelte';
@@ -41,12 +41,20 @@
 
   // The list box is plain text while editing, so a trailing newline survives typing.
   let listEl = $state<HTMLElement>();
+  let detailEl = $state<HTMLElement>();
+  /** Stacked (narrow) layout: the fields are under the list, so bring them into view on a tap. */
+  function pick(id: string) {
+    selectedId = id;
+    if (matchMedia('(max-width: 700px)').matches) void tick().then(() => detailEl?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
+  }
   let itemsText = $state('');
   $effect(() => {
     const id = selectedId;
     if (id) {
-      itemsText = itemsToLines(draft.steps.find((s) => s.id === id)?.items);
-      void app.loadStepPhoto(id);
+      // Only when another step is picked: reading the draft here would re-run this on
+      // every keystroke and put back the cleaned-up list, eating spaces and new lines.
+      itemsText = untrack(() => itemsToLines(draft.steps.find((s) => s.id === id)?.items));
+      untrack(() => void app.loadStepPhoto(id));
       void tick().then(() => {
         const row = listEl?.querySelector<HTMLElement>('.row-item.lit');
         if (listEl && row) {
@@ -193,7 +201,7 @@
     <ol class="list" aria-label="Steps" bind:this={listEl}>
       {#each draft.steps as s, i (s.id)}
         <li class="row-item" class:lit={s.id === selectedId}>
-          <button class="pick" onclick={() => (selectedId = s.id)} aria-current={s.id === selectedId}>
+          <button class="pick" onclick={() => pick(s.id)} aria-current={s.id === selectedId}>
             <span class="n">{i + 1}</span>
             <span class="ico"><StepIcon kind={s.template} /></span>
             <span class="t"><b>{s.title}</b><small>{STEP_LIBRARY[s.template].kind}{s.timer ? ` · ${s.timer} s timer` : ''}{shownPhoto(s.id) ? ' · photo' : ''}</small></span>
@@ -205,7 +213,7 @@
       {/each}
     </ol>
 
-    <div class="detail">
+    <div class="detail" bind:this={detailEl}>
       {#if sel}
         <p class="kind">{STEP_LIBRARY[sel.template].kind}{isSmart(sel.template) ? ' · follows the scale or machine' : ''}</p>
         <div class="preview glass" aria-label="Preview of this step in the guide">
@@ -304,7 +312,7 @@
   .pic :global(svg), .pic :global(img) { width: 100%; height: 100%; }
   .pcopy { display: grid; gap: 3px; min-width: 0; align-content: center; max-height: 110px; overflow: hidden; }
   .pcopy b { font-size: var(--t-md); line-height: 1.15; overflow-wrap: anywhere; }
-  .pcopy p { color: var(--paper-dim); font-size: var(--t-xs); line-height: 1.25; margin: 0; }
+  .pcopy p { color: var(--paper-dim); font-size: var(--t-xs); line-height: 1.25; margin: 0; white-space: pre-line; }
   .pcopy ol { margin: 0; padding-left: 1.2em; font-size: var(--t-xs); line-height: 1.25; color: var(--paper); }
   .tm { color: var(--paper-faint); font-size: var(--t-xs); }
 

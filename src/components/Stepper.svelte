@@ -91,7 +91,7 @@
         bind:value={draft}
         use:focusSelect
         onblur={commit}
-        onkeydown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') typing = false; }}
+        onkeydown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { e.preventDefault(); typing = false; } }}
       />
     {:else if typeable}
       <button class="out" aria-label="{label}: {shown} {unit}. Tap to type" disabled={disabled} onclick={startTyping}>{shown}<small>{unit}</small></button>
