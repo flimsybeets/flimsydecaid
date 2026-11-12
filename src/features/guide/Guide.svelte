@@ -33,8 +33,11 @@
     at = Math.max(0, Math.min(steps.length - 1, i));
     timerEnd = null;
   }
-  const next = () => go(index + 1);
-  const back = () => { if (canGoBack(app.guideWorkflow, index)) go(index - 1); };
+  // Wet hands double-tap: a second tap on Next or Back within 300 ms is ignored, so it can't skip a step.
+  let lastNav = 0;
+  const steady = () => { const now = performance.now(); if (now - lastNav < 300) return false; lastNav = now; return true; };
+  const next = () => { if (steady()) go(index + 1); };
+  const back = () => { if (steady() && canGoBack(app.guideWorkflow, index)) go(index - 1); };
 
   // The app needs to know the current kind of step: on a steam step the guide shows the steam itself.
   $effect(() => { app.guideTemplate = kind; });
@@ -339,7 +342,7 @@
   @keyframes copy-in { from { opacity: 0; transform: translateY(12px); } }
   .count { color: rgb(var(--accent)); font-weight: 700; font-size: var(--t-sm); letter-spacing: 0.04em; transition: color 400ms ease; }
   h1 { font-size: clamp(26px, 4.6vw, 44px); font-weight: 800; line-height: 1.02; letter-spacing: -0.02em; }
-  .body { color: var(--paper-dim); font-size: var(--t-md); max-width: 30ch; }
+  .body { color: var(--paper-dim); font-size: var(--t-md); max-width: 30ch; white-space: pre-line; }
 
   .steps { margin: 2px 0 0; padding: 0; list-style: none; counter-reset: g; display: grid; gap: 7px; max-width: 34ch; }
   .steps li { counter-increment: g; display: flex; gap: 10px; align-items: baseline; color: var(--paper); font-size: var(--t-md); line-height: 1.2; }
