@@ -5,3 +5,6 @@ release/
 .DS_Store
 .env*.local
 .claude/worktrees/
+
+# Stray screenshots from local test runs (docs/ pictures live in docs/)
+/*.png

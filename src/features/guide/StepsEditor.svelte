@@ -2,7 +2,6 @@
   import { tick, untrack } from 'svelte';
   import { app } from '../../state/app.svelte';
   import { EDITION } from '../../edition';
-  import Modal from '../../components/Modal.svelte';
   import ConfirmDialog from '../../components/ConfirmDialog.svelte';
   import Stepper from '../../components/Stepper.svelte';
   import StepPhotoField from './StepPhotoField.svelte';
@@ -14,7 +13,7 @@
     STEP_LIBRARY, updateStep, workflowEquals, MAX_STEPS, type Workflow,
   } from '../../lib/workflow';
 
-  // Edit the steps Guide me walks through: start from a preset, reorder,
+  // Full screen (like the profile editor): edit the steps Guide me walks through: start from a preset, reorder,
   // remove, change the words, list and timer, give a step its own photo, add
   // steps from the library, and export or import the whole thing as JSON.
   // Everything is a draft until Save; photos are not part of an export.
@@ -119,6 +118,16 @@
     if (dirty) confirmDiscard = true;
     else onClose();
   }
+  // Escape: only when nothing sits on top (a confirm dialog handles its own).
+  let root = $state<HTMLElement>();
+  function onEscape(e: KeyboardEvent) {
+    if (e.key !== 'Escape' || e.defaultPrevented) return;
+    const open = document.querySelectorAll('[role="dialog"][aria-modal="true"]');
+    if (open[open.length - 1] !== root) return;
+    e.preventDefault();
+    if (panel) panel = null;
+    else close();
+  }
 
   async function save() {
     saving = true;
@@ -141,28 +150,30 @@
   }
 </script>
 
-<Modal title="Guide me steps" wide onClose={close}>
-  <div class="bar">
-    <label class="name"><span class="sr-only">Name of this set of steps</span><input class="well" bind:value={draft.name} maxlength="60" placeholder="Name" /></label>
-    <div class="tools" role="group" aria-label="Tools">
-      <button class="chip glass" aria-pressed={panel === 'presets'} onclick={() => (panel = panel === 'presets' ? null : 'presets')}>Start from…</button>
-      <button class="chip glass" aria-pressed={panel === 'add'} disabled={draft.steps.length >= MAX_STEPS} onclick={() => (panel = panel === 'add' ? null : 'add')}>Add a step</button>
-      <button class="chip glass" aria-pressed={panel === 'export'} onclick={() => { copied = null; panel = panel === 'export' ? null : 'export'; }}>Export</button>
-      <button class="chip glass" aria-pressed={panel === 'import'} onclick={() => (panel = panel === 'import' ? null : 'import')}>Import</button>
+<svelte:window onkeydown={onEscape} />
+
+<div class="editor" role="dialog" aria-modal="true" aria-label="Guide me steps" tabindex="-1" bind:this={root}>
+  <header class="top">
+    <button class="close glass" aria-label="Close the steps editor" onclick={close}>✕</button>
+    <label class="name"><span class="sr-only">Name of this set of steps</span><input class="title" bind:value={draft.name} maxlength="60" placeholder="Name" /></label>
+    <span class="meta">{draft.steps.length} steps{dirty ? ' · edited' : ''}</span>
+    <div class="actions">
+      <button class="glass" onclick={close}>Cancel</button>
+      <button class="glass solid save" disabled={saving || !dirty} onclick={save}>{saving ? 'Saving…' : 'Save'}</button>
     </div>
+  </header>
+
+  <div class="tools" role="group" aria-label="Tools">
+    <button class="chip glass" aria-pressed={panel === 'add'} disabled={draft.steps.length >= MAX_STEPS} onclick={() => (panel = panel === 'add' ? null : 'add')}>＋ Add a step</button>
+    <button class="chip glass" aria-pressed={panel === 'presets'} onclick={() => (panel = panel === 'presets' ? null : 'presets')}>Start from a preset…</button>
+    <button class="chip glass" aria-pressed={panel === 'export'} onclick={() => { copied = null; panel = panel === 'export' ? null : 'export'; }}>Export</button>
+    <button class="chip glass" aria-pressed={panel === 'import'} onclick={() => (panel = panel === 'import' ? null : 'import')}>Import</button>
+    {#if error}<p class="error" role="alert">{error}</p>{/if}
   </div>
 
-  {#if panel === 'presets'}
-    <div class="panel">
-      <p class="hint">Replaces the steps below (nothing is saved until you press Save).</p>
-      <ul class="opts">
-        {#each presets as p (p.id)}
-          <li><button class="opt glass" onclick={() => (confirmPreset = p)}><b>{p.name}</b><small>{p.description}</small></button></li>
-        {/each}
-      </ul>
-    </div>
-  {:else if panel === 'add'}
-    <div class="panel">
+  {#if panel === 'add'}
+    <div class="sheet glass thick">
+      <div class="sheet-head"><b>Add a step</b><button class="chip glass" onclick={() => (panel = null)}>Done</button></div>
       <div class="adds">
         {#each addableTemplates(draft) as t (t)}
           <button class="card glass" onclick={() => add(t)}>
@@ -172,93 +183,101 @@
         {/each}
       </div>
     </div>
-  {:else if panel === 'export'}
-    <div class="panel">
-      <p class="hint">Your steps as text, to keep or send. Photos are not included.</p>
-      <textarea class="well code" readonly rows="6" bind:this={exportBox} value={json} onfocus={(e) => e.currentTarget.select()}></textarea>
-      <div class="row">
-        <button class="chip glass solid" onclick={copy}>Copy</button>
-        {#if copied === 'yes'}<span class="ok">Copied</span>{:else if copied === 'manual'}<span class="hint">Select the text above and copy it.</span>{/if}
+  {:else}
+    {#if panel === 'presets'}
+      <div class="panel glass thick">
+        <p class="hint">Replaces the steps below (nothing is saved until you press Save).</p>
+        <ul class="opts">
+          {#each presets as p (p.id)}
+            <li><button class="opt glass" onclick={() => (confirmPreset = p)}><b>{p.name}</b><small>{p.description}</small></button></li>
+          {/each}
+        </ul>
+      </div>
+    {:else if panel === 'export'}
+      <div class="panel glass thick">
+        <p class="hint">Your steps as text, to keep or send. Photos are not included.</p>
+        <textarea class="well code" readonly rows="5" bind:this={exportBox} value={json} onfocus={(e) => e.currentTarget.select()}></textarea>
+        <div class="row">
+          <button class="chip glass solid" onclick={copy}>Copy</button>
+          {#if copied === 'yes'}<span class="ok">Copied</span>{:else if copied === 'manual'}<span class="hint">Select the text above and copy it.</span>{/if}
+        </div>
+      </div>
+    {:else if panel === 'import'}
+      <div class="panel glass thick">
+        <p class="hint">Paste steps exported from here. They replace the steps below.</p>
+        <textarea class="well code" rows="4" placeholder={'{ "version": 1, "name": "…", "steps": [ … ] }'} bind:value={pasted}></textarea>
+        {#if inspected}
+          {#if !inspected.workflow}
+            <p class="error">{inspected.notes[0]}</p>
+          {:else}
+            <p class="ok">{inspected.workflow.steps.length} steps · {inspected.workflow.name}</p>
+            {#each inspected.notes as n (n)}<p class="hint">{n}</p>{/each}
+          {/if}
+        {/if}
+        <div class="row"><button class="chip glass solid" disabled={!inspected?.workflow} onclick={importIt}>Use these steps</button></div>
+      </div>
+    {/if}
+
+    <div class="cols">
+      <!-- Plain divs scroll (glass must not be the scroller). -->
+      <div class="list-wrap glass thick">
+        <ol class="list" aria-label="Steps" bind:this={listEl}>
+          {#each draft.steps as s, i (s.id)}
+            <li class="row-item" class:lit={s.id === selectedId}>
+              <button class="pick" onclick={() => pick(s.id)} aria-current={s.id === selectedId}>
+                <span class="n">{i + 1}</span>
+                <span class="ico"><StepIcon kind={s.template} /></span>
+                <span class="t"><b>{fillText(s.title, sample)}</b><small>{STEP_LIBRARY[s.template].kind}{s.timer ? ` · ${s.timer} s timer` : ''}{shownPhoto(s.id) ? ' · photo' : ''}</small></span>
+              </button>
+              <button class="mini glass" aria-label="Move up" disabled={i === 0 || s.template === 'done'} onclick={() => move(s.id, -1)}>▲</button>
+              <button class="mini glass" aria-label="Move down" disabled={s.template === 'done' || i >= draft.steps.length - 2} onclick={() => move(s.id, 1)}>▼</button>
+              <button class="mini glass danger" aria-label="Remove {s.title}" disabled={!canRemove(s)} onclick={() => remove(s.id)}>✕</button>
+            </li>
+          {/each}
+        </ol>
+      </div>
+
+      <div class="detail" bind:this={detailEl}>
+        {#if sel}
+          <p class="kind">Step {selIndex + 1} · {STEP_LIBRARY[sel.template].kind}{isSmart(sel.template) ? ' · follows the scale or machine' : ''}</p>
+          <div class="preview glass thick" aria-label="Preview of this step in the guide">
+            <div class="pic">{#key sel.template}<GuideArt sceneKey={sel.template} stepId={sel.id} photoUrl={shownPhoto(sel.id)} still />{/key}</div>
+            <div class="pcopy">
+              <b>{previewTitle}</b>
+              {#if previewBody}<p>{previewBody}</p>{/if}
+              {#if sel.items?.length}
+                <ol>{#each sel.items.slice(0, 5) as g, i (i)}<li>{g}</li>{/each}</ol>
+                {#if sel.items.length > 5}<span class="tm">+ {sel.items.length - 5} more</span>{/if}
+              {/if}
+              {#if sel.timer}<span class="tm">Timer · {timerText(sel.timer)}</span>{/if}
+            </div>
+          </div>
+          <div class="two">
+            <label><span>Title</span><input class="well" value={sel.title} maxlength="80" oninput={(e) => patch({ title: e.currentTarget.value })} /></label>
+            <label><span>Progress bar name</span><input class="well" value={sel.label} maxlength="16" oninput={(e) => patch({ label: e.currentTarget.value })} /></label>
+          </div>
+          <label><span>Words <small class="hint">can use {'{dose}'} {'{beans}'} {'{coffee}'} {'{grind}'} {'{start}'}</small></span>
+            <textarea class="well" rows="3" maxlength="400" value={sel.body} oninput={(e) => patch({ body: e.currentTarget.value })}></textarea>
+          </label>
+          <label><span>List, one line each</span>
+            <textarea class="well" rows={Math.min(12, Math.max(3, itemsText.split("\n").length + 1))} bind:value={itemsText} oninput={() => patch({ items: linesToItems(itemsText) })}></textarea>
+          </label>
+          <div class="extras">
+            {#if !isSmart(sel.template)}
+              <Stepper compact label="Timer" hint="0 = none" unit=" s" min={0} max={3600} step={5} bind:value={() => sel.timer ?? 0, (v) => patch({ timer: v && v > 0 ? v : undefined })} />
+            {/if}
+            <div class="field">
+              <span>Picture</span>
+              {#key sel.id}<StepPhotoField shown={shownPhoto(sel.id)} onChange={(url) => (photos[sel.id] = url)} />{/key}
+            </div>
+          </div>
+        {:else}
+          <p class="empty">Tap a step on the left to change its words, list, timer or picture.</p>
+        {/if}
       </div>
     </div>
-  {:else if panel === 'import'}
-    <div class="panel">
-      <p class="hint">Paste steps exported from here. They replace the steps below.</p>
-      <textarea class="well code" rows="5" placeholder={'{ "version": 1, "name": "…", "steps": [ … ] }'} bind:value={pasted}></textarea>
-      {#if inspected}
-        {#if !inspected.workflow}
-          <p class="error">{inspected.notes[0]}</p>
-        {:else}
-          <p class="ok">{inspected.workflow.steps.length} steps · {inspected.workflow.name}</p>
-          {#each inspected.notes as n (n)}<p class="hint">{n}</p>{/each}
-        {/if}
-      {/if}
-      <div class="row"><button class="chip glass solid" disabled={!inspected?.workflow} onclick={importIt}>Use these steps</button></div>
-    </div>
   {/if}
-
-  <div class="cols" class:hide={panel === 'add'}>
-    <ol class="list" aria-label="Steps" bind:this={listEl}>
-      {#each draft.steps as s, i (s.id)}
-        <li class="row-item" class:lit={s.id === selectedId}>
-          <button class="pick" onclick={() => pick(s.id)} aria-current={s.id === selectedId}>
-            <span class="n">{i + 1}</span>
-            <span class="ico"><StepIcon kind={s.template} /></span>
-            <span class="t"><b>{s.title}</b><small>{STEP_LIBRARY[s.template].kind}{s.timer ? ` · ${s.timer} s timer` : ''}{shownPhoto(s.id) ? ' · photo' : ''}</small></span>
-          </button>
-          <button class="mini glass" aria-label="Move up" disabled={i === 0 || s.template === 'done'} onclick={() => move(s.id, -1)}>▲</button>
-          <button class="mini glass" aria-label="Move down" disabled={s.template === 'done' || i >= draft.steps.length - 2} onclick={() => move(s.id, 1)}>▼</button>
-          <button class="mini glass danger" aria-label="Remove {s.title}" disabled={!canRemove(s)} onclick={() => remove(s.id)}>✕</button>
-        </li>
-      {/each}
-    </ol>
-
-    <div class="detail" bind:this={detailEl}>
-      {#if sel}
-        <p class="kind">{STEP_LIBRARY[sel.template].kind}{isSmart(sel.template) ? ' · follows the scale or machine' : ''}</p>
-        <div class="preview glass" aria-label="Preview of this step in the guide">
-          <div class="pic">{#key sel.template}<GuideArt sceneKey={sel.template} stepId={sel.id} photoUrl={shownPhoto(sel.id)} still />{/key}</div>
-          <div class="pcopy">
-            <b>{previewTitle}</b>
-            {#if previewBody}<p>{previewBody}</p>{/if}
-            {#if sel.items?.length}
-              <ol>{#each sel.items.slice(0, 3) as g, i (i)}<li>{g}</li>{/each}</ol>
-              {#if sel.items.length > 3}<span class="tm">+ {sel.items.length - 3} more</span>{/if}
-            {/if}
-            {#if sel.timer}<span class="tm">Timer · {timerText(sel.timer)}</span>{/if}
-          </div>
-        </div>
-        <div class="two">
-          <label><span>Title</span><input class="well" value={sel.title} maxlength="80" oninput={(e) => patch({ title: e.currentTarget.value })} /></label>
-          <label><span>Progress bar name</span><input class="well" value={sel.label} maxlength="16" oninput={(e) => patch({ label: e.currentTarget.value })} /></label>
-        </div>
-        <label><span>Words <small class="hint">can use {'{dose}'} {'{beans}'} {'{coffee}'} {'{grind}'}</small></span>
-          <textarea class="well" rows="2" maxlength="400" value={sel.body} oninput={(e) => patch({ body: e.currentTarget.value })}></textarea>
-        </label>
-        <label><span>List, one line each</span>
-          <textarea class="well" rows={Math.min(8, Math.max(3, itemsText.split("\n").length))} bind:value={itemsText} oninput={() => patch({ items: linesToItems(itemsText) })}></textarea>
-        </label>
-        {#if !isSmart(sel.template)}
-          <Stepper compact label="Timer" hint="0 = none" unit=" s" min={0} max={3600} step={5} bind:value={() => sel.timer ?? 0, (v) => patch({ timer: v && v > 0 ? v : undefined })} />
-        {/if}
-        <div class="field">
-          <span>Picture</span>
-          {#key sel.id}<StepPhotoField shown={shownPhoto(sel.id)} onChange={(url) => (photos[sel.id] = url)} />{/key}
-        </div>
-        {#if selIndex >= 0}<span class="sr-only">Step {selIndex + 1}</span>{/if}
-      {:else}
-        <p class="empty">Tap a step to change its words, list, timer or picture.</p>
-      {/if}
-    </div>
-  </div>
-
-  {#if error}<p class="error" role="alert">{error}</p>{/if}
-
-  {#snippet actions()}
-    <button class="secondary glass" onclick={close}>Cancel</button>
-    <button class="primary glass solid" disabled={saving || !dirty} onclick={save}>{saving ? 'Saving…' : 'Save'}</button>
-  {/snippet}
-</Modal>
+</div>
 
 {#if confirmPreset}
   {@const p = confirmPreset}
@@ -282,64 +301,103 @@
 {/if}
 
 <style>
-  .bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .two { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 10px; }
-  .name { flex: 1; min-width: 180px; }
-  .tools { display: flex; gap: 8px; flex-wrap: wrap; }
-  label, .field { display: grid; gap: 4px; color: var(--paper-dim); font-size: var(--t-sm); min-width: 0; }
-  input, textarea { min-width: 0; width: 100%; box-sizing: border-box; min-height: var(--touch); padding: 0 12px; border-radius: var(--radius-control); border: 1px solid rgb(255 255 255 / 0.08); color: var(--paper); font-size: var(--t-md); user-select: text; font-family: inherit; }
-  textarea { padding: 8px 12px; resize: none; line-height: 1.3; min-height: 0; }
-  textarea.code { font-family: ui-monospace, monospace; font-size: var(--t-xs); }
-  input:focus, textarea:focus { outline: none; border-color: rgb(255 255 255 / 0.45); }
+  .editor {
+    position: fixed;
+    inset: 0;
+    z-index: 26;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px var(--gutter) calc(14px + var(--kb));
+    background:
+      radial-gradient(60vmax 48vmax at 4% -6%, rgb(64 170 160 / 0.45), transparent 62%),
+      radial-gradient(52vmax 46vmax at 34% 112%, rgb(201 154 216 / 0.28), transparent 62%),
+      radial-gradient(40vmax 34vmax at 100% 10%, rgb(242 179 61 / 0.18), transparent 60%),
+      linear-gradient(165deg, #12313a, #0a181c 70%);
+    overflow: clip;
+    animation: appear 200ms ease;
+  }
+  @keyframes appear { from { opacity: 0; transform: translateY(6px); } }
+
+  .top { flex: none; display: flex; align-items: center; gap: 10px; }
+  .close { width: 42px; height: 42px; flex: none; border-radius: 50%; font-size: var(--t-md); color: var(--paper-dim); }
+  .name { flex: 1; min-width: 0; display: block; }
+  .title {
+    width: 100%; min-width: 0; background: none; border: 0; border-bottom: 2px solid transparent;
+    font-size: var(--t-xl); font-weight: 700; letter-spacing: -0.01em; padding: 3px 2px; color: var(--paper); user-select: text; font-family: inherit;
+  }
+  .title:focus { outline: none; border-bottom-color: rgb(255 255 255 / 0.35); }
+  .meta { flex: none; color: var(--paper-faint); font-size: var(--t-sm); white-space: nowrap; }
+  .actions { flex: none; display: flex; gap: 6px; }
+  .actions button { min-height: 44px; padding: 0 18px; border-radius: 12px; font-weight: 650; color: var(--paper); }
+  .actions .save { min-width: 98px; color: var(--ink); }
+  .actions button:disabled { opacity: 0.4; }
+
+  .tools { flex: none; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   .chip { min-height: 40px; padding: 0 14px; border-radius: var(--radius-pill); color: var(--paper); font-size: var(--t-xs); font-weight: 650; }
   .chip:disabled { opacity: 0.4; }
-  .panel { display: grid; gap: 8px; padding: 10px; border-radius: 14px; background: rgb(255 255 255 / 0.04); }
-  .hint { color: var(--paper-faint); font-size: var(--t-xs); }
-  .ok { color: var(--go); font-weight: 650; font-size: var(--t-sm); }
-  .error { color: var(--stop); }
-  .row { display: flex; align-items: center; gap: 10px; }
-  .opts { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
-  .opt { width: 100%; min-height: 52px; padding: 6px 12px; border-radius: 12px; text-align: left; display: grid; color: var(--paper); }
-  .opt small { color: var(--paper-faint); font-weight: 500; font-size: var(--t-xs); }
-  .adds { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; max-height: 275px; overflow-y: auto; padding: 2px; }
-  .card { min-height: 0; padding: 6px 6px 8px; border-radius: 12px; display: grid; gap: 4px; color: var(--paper); text-align: center; justify-items: center; }
-  .thumb { display: block; width: 100%; height: 64px; overflow: hidden; border-radius: 8px; }
-  .thumb :global(svg), .thumb :global(img) { width: 100%; height: 100%; }
-  .cname { font-size: var(--t-xs); font-weight: 650; line-height: 1.15; }
-  .ico { flex: none; width: 28px; height: 28px; display: grid; }
-  .preview { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 10px; align-items: center; padding: 8px; border-radius: 14px; }
-  .pic { height: 110px; min-width: 0; display: grid; overflow: hidden; border-radius: 10px; }
-  .pic :global(svg), .pic :global(img) { width: 100%; height: 100%; }
-  .pcopy { display: grid; gap: 3px; min-width: 0; align-content: center; max-height: 110px; overflow: hidden; }
-  .pcopy b { font-size: var(--t-md); line-height: 1.15; overflow-wrap: anywhere; }
-  .pcopy p { color: var(--paper-dim); font-size: var(--t-xs); line-height: 1.25; margin: 0; white-space: pre-line; }
-  .pcopy ol { margin: 0; padding-left: 1.2em; font-size: var(--t-xs); line-height: 1.25; color: var(--paper); }
-  .tm { color: var(--paper-faint); font-size: var(--t-xs); }
 
-  .cols.hide { display: none; }
-  .cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
-  .list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 275px; overflow-y: auto; align-content: start; }
+  .panel { flex: none; display: grid; gap: 8px; padding: 12px; border-radius: 16px; }
+  .sheet { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 18px; }
+  .sheet-head { display: flex; justify-content: space-between; align-items: center; font-size: var(--t-md); }
+  .adds { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; align-content: start; padding: 2px; }
+  .card { padding: 8px 8px 10px; border-radius: 14px; display: grid; gap: 6px; color: var(--paper); text-align: center; justify-items: center; }
+  .thumb { display: block; width: 100%; height: 96px; overflow: hidden; border-radius: 10px; }
+  .thumb :global(svg), .thumb :global(img) { width: 100%; height: 100%; }
+  .cname { font-size: var(--t-sm); font-weight: 650; line-height: 1.15; }
+
+  .cols { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 14px; }
+  .list-wrap { min-height: 0; display: flex; border-radius: 18px; padding: 6px; }
+  .list { flex: 1; min-height: 0; list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; overflow-y: auto; align-content: start; }
   .row-item { display: flex; align-items: center; gap: 4px; padding: 2px; border-radius: 12px; }
   .row-item.lit { background: rgb(255 255 255 / 0.1); box-shadow: inset 0 0 0 2px var(--go); }
-  .pick { flex: 1; min-width: 0; min-height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 8px; text-align: left; color: var(--paper); }
+  .pick { flex: 1; min-width: 0; min-height: 48px; display: flex; align-items: center; gap: 10px; padding: 0 8px; text-align: left; color: var(--paper); }
   .n { flex: none; width: 1.7em; height: 1.7em; display: grid; place-items: center; border-radius: 50%; border: 1.5px solid rgb(255 255 255 / 0.3); font-size: var(--t-xs); font-weight: 700; color: var(--paper-dim); }
+  .ico { flex: none; width: 28px; height: 28px; display: grid; }
   .t { display: grid; min-width: 0; }
   .t b { font-weight: 650; font-size: var(--t-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .t small { color: var(--paper-faint); font-size: var(--t-xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .mini { flex: none; width: 40px; height: 40px; border-radius: 10px; color: var(--paper-dim); font-size: var(--t-xs); }
   .mini.danger { color: #ffb3ab; }
   .mini:disabled { opacity: 0.25; }
-  .detail { display: grid; gap: 8px; max-height: 275px; overflow-y: auto; overflow-x: hidden; align-content: start; padding: 2px; }
-  .kind { color: rgb(var(--accent, 143 211 192)); font-size: var(--t-xs); font-weight: 650; text-transform: uppercase; letter-spacing: 0.06em; }
-  .field > span, label > span { color: var(--paper-dim); }
-  .empty { color: var(--paper-faint); padding: 8px 4px; }
-  .primary, .secondary { min-height: var(--touch); padding: 0 21px; border-radius: var(--radius-control); font-weight: 650; }
-  .secondary { color: var(--paper-dim); }
-  .primary:disabled { opacity: 0.4; }
 
-  @media (max-width: 700px) { .cols { grid-template-columns: 1fr; } .preview { grid-template-columns: 1fr; } .list, .detail { max-height: none; } }
-  /* While typing, the keyboard takes the room: a short list, the form on top. */
-  :global(html.kb-open) .list { max-height: 120px; }
-  :global(html.kb-open) .detail { max-height: none; }
-  :global(html.kb-open) .preview, :global(html.kb-open) .adds { display: none; }
+  .detail { min-height: 0; overflow-y: auto; overflow-x: hidden; display: grid; gap: 10px; align-content: start; padding: 2px 4px 2px 2px; }
+  .kind { color: rgb(var(--accent, 143 211 192)); font-size: var(--t-xs); font-weight: 650; text-transform: uppercase; letter-spacing: 0.06em; }
+  .preview { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 14px; align-items: center; padding: 10px; border-radius: 18px; }
+  .pic { aspect-ratio: 1.12; min-width: 0; display: grid; overflow: hidden; border-radius: 12px; }
+  .pic :global(svg), .pic :global(img) { width: 100%; height: 100%; }
+  .pcopy { display: grid; gap: 5px; min-width: 0; align-content: center; }
+  .pcopy b { font-size: var(--t-lg); line-height: 1.15; overflow-wrap: anywhere; }
+  .pcopy p { color: var(--paper-dim); font-size: var(--t-sm); line-height: 1.3; margin: 0; white-space: pre-line; }
+  .pcopy ol { margin: 0; padding-left: 1.2em; font-size: var(--t-sm); line-height: 1.3; color: var(--paper); }
+  .tm { color: var(--paper-faint); font-size: var(--t-xs); }
+  .two { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 10px; }
+  .extras { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: start; }
+  label, .field { display: grid; gap: 4px; color: var(--paper-dim); font-size: var(--t-sm); min-width: 0; }
+  input, textarea { min-width: 0; width: 100%; box-sizing: border-box; min-height: var(--touch); padding: 0 12px; border-radius: var(--radius-control); border: 1px solid rgb(255 255 255 / 0.08); color: var(--paper); font-size: var(--t-md); user-select: text; font-family: inherit; }
+  textarea { padding: 8px 12px; resize: none; line-height: 1.3; min-height: 0; }
+  textarea.code { font-family: ui-monospace, monospace; font-size: var(--t-xs); }
+  input:focus, textarea:focus { outline: none; border-color: rgb(255 255 255 / 0.45); }
+  .hint { color: var(--paper-faint); font-size: var(--t-xs); }
+  .ok { color: var(--go); font-weight: 650; font-size: var(--t-sm); }
+  .error { color: var(--stop); font-size: var(--t-sm); }
+  .row { display: flex; align-items: center; gap: 10px; }
+  .opts { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
+  .opt { width: 100%; min-height: 56px; padding: 6px 12px; border-radius: 12px; text-align: left; display: grid; color: var(--paper); }
+  .opt small { color: var(--paper-faint); font-weight: 500; font-size: var(--t-xs); }
+  .empty { color: var(--paper-faint); padding: 18px 6px; font-size: var(--t-md); }
+
+  /* Narrow: one column that scrolls as a whole; the fields follow the list. */
+  @media (max-width: 700px) {
+    .meta { display: none; }
+    .cols { display: block; overflow-y: auto; }
+    .list-wrap { margin-bottom: 14px; }
+    .list { overflow: visible; }
+    .detail { overflow: visible; }
+    .preview, .extras { grid-template-columns: 1fr; }
+    .pic { aspect-ratio: auto; height: 200px; }
+  }
+  /* While typing, the keyboard takes the room: no preview, a short list, the form gets the rest. */
+  :global(html.kb-open) .preview, :global(html.kb-open) .tools, :global(html.kb-open) .meta { display: none; }
+  :global(html.kb-open) .cols { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); }
 </style>
