@@ -111,6 +111,8 @@ class AppState {
   guiding = $state(false);
   /** The kind of step Guide me is on (null while it is closed): steam and flush views leave the guide's own steps alone. */
   guideTemplate = $state<TemplateKey | null>(null);
+  /** Guide me steps editor open (full screen, over the setup dialog, which steps aside meanwhile). */
+  editingSteps = $state(false);
   /** The guide's steps (KV guideWorkflow); the edition's first preset until one is saved. */
   guideWorkflow = $state<GuideWorkflow>(cloneWorkflow(EDITION.guide.presets[0]!.workflow));
   /** Step photos by step id (KV guidePhoto:<id>), loaded on demand. Missing = not known yet, null = none. */

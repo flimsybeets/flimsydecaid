@@ -2,7 +2,6 @@
   import { app } from '../../state/app.svelte';
   import Modal from '../../components/Modal.svelte';
   import { pickBag, planBrew } from '../../lib/guide';
-  import StepsEditor from './StepsEditor.svelte';
 
   // Choose what "Guide me" brews: one profile and one coffee. The coffee's
   // newest open bag is used each time, with that bag's dial-in.
@@ -16,7 +15,6 @@
   let query = $state('');
   let saving = $state(false);
   let error = $state<string | null>(null);
-  let editingSteps = $state(false);
 
   const profiles = $derived(
     [...app.profileLineages.entries()]
@@ -54,6 +52,8 @@
   }
 </script>
 
+<!-- While the full-screen steps editor is open this dialog steps aside, keeping its picks. -->
+{#if !app.editingSteps}
 <Modal title="Set up Guide me" {onClose}>
   <div class="cols">
     <section>
@@ -83,7 +83,7 @@
 
   <div class="steps-row">
     <span><b>{app.guideWorkflow.name}</b> · {app.guideWorkflow.steps.length} steps</span>
-    <button class="edit glass" onclick={() => (editingSteps = true)}>Edit steps</button>
+    <button class="edit glass" onclick={() => (app.editingSteps = true)}>Edit steps</button>
   </div>
 
   {#if preview}
@@ -100,8 +100,7 @@
     <button class="primary glass solid" disabled={!profileRoot || !beanId || saving} onclick={save}>{saving ? 'Saving…' : 'Save'}</button>
   {/snippet}
 </Modal>
-
-{#if editingSteps}<StepsEditor onClose={() => (editingSteps = false)} />{/if}
+{/if}
 
 <style>
   .cols { display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px; }
