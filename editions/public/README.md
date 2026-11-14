@@ -8,7 +8,7 @@ A [Decaid](https://github.com/decentespresso/decaid) skin for the Decent DE1, fo
 
 - **Categories → profile → bag → Start shot.** Group profiles into categories you make yourself. Each profile tile can show a little graph of its last shot or its plan.
 - **Dial-in per bag.** Grind, dose, yield and temperature are remembered for every bag and profile you use together, and carried over when you open a new bag of the same coffee. "Don't track" brews a freezer dose or a one-off without touching any bag.
-- **Guide me.** A step-by-step walkthrough of your own routine, from weighing beans to rinsing the group: it follows your scale and the machine (weighing to the gram, starting the shot, flushing, steaming). Start from a preset (Simple, WDT and puck screen, Milk drinks), then add, remove, reorder and reword steps, add your own (with a timer or a photo of your kit), and share a workflow by copying it as text.
+- **Guide me: your coffee, made by anyone at home.** Set up your routine once, and your partner, flatmate or guest can make your coffee the way you do without asking: it loads your profile, coffee and dial-in on the machine and walks them through every step, from weighing the beans to rinsing the group. It follows the scale and the machine (weighing to the gram, starting the shot, flushing, steaming), so they can't get lost. Start from a preset (Simple, WDT and puck screen, Milk drinks), then reword the steps for your kit, reorder them, add your own with a timer or a photo of your actual grinder or tamper, and share a set of steps by copying it as text.
 - **Live shot view.** Car-style dials for flow, pressure and temperatures beside the graph; the target weight as a bold line.
 - **Lands on your target weight.** Coffee keeps dripping after the pump stops, so the skin learns from your shots how much still drips in (part fixed, part following the flow) and gives every profile its own stop-early setting, put on the machine with the profile. Leave it to tune itself after every shot, or pick values yourself.
 - **History.** Touch the graph to read every value, rate and note shots, brew one again with the same settings, upload to Visualizer.
@@ -43,12 +43,14 @@ All pictures are taken from the built-in demo mode (`?mock=1`), so the machine, 
 
 ### Guide me
 
+For everyone else in the house: you set the routine up once, they follow it step by step.
+
 | | |
 |:--|:--|
 | ![Guide me weigh step: a live scale reading with how much to add or take out.](docs/guide-weigh.webp) | ![Guide me grind step: an illustrated step with a checklist.](docs/guide-grind.webp) |
-| **Weigh.** Follows your scale to the gram. | **Grind.** Illustrated steps, with lists and optional timers. |
-| ![The steps editor with a preview of the selected step.](docs/guide-steps-editor.webp) | ![The Add a step picker: a grid of illustrated step types.](docs/guide-add-step.webp) |
-| **Steps editor.** Reorder, reword, add photos and timers, with a preview. | **Add a step.** Pick from the library or write your own. |
+| **Weigh.** Follows the scale to the gram and says how much to add or take out. | **Grind.** Illustrated steps with checklists, so nothing is missed. |
+| ![The full-screen steps editor: the list of steps beside a large preview of the selected step and its fields.](docs/guide-steps-editor.webp) | ![The Add a step picker: a grid of illustrated step types.](docs/guide-add-step.webp) |
+| **Steps editor.** Full screen: write each step for whoever will follow it, with a preview of what they'll see. Reorder, add photos of your own kit and timers. | **Add a step.** Pick from the library or write your own. |
 
 ### Profiles and settings
 
