@@ -92,7 +92,7 @@
             <path d="M31,17 L26.5,26.5 L17,31 L21.5,21.5 Z" fill="currentColor" />
           </svg>
           <span class="name">Guide me</span>
-          <span class="count">{guideReady ? `${guideProfile!.profile.title} · ${guideBean!.name}` : 'Tap to choose a profile and coffee'}</span>
+          <span class="count">{guideReady ? `${guideProfile!.profile.title} · ${guideBean!.name}` : 'Your routine, so anyone at home can make it'}</span>
         </button>
         {#if guideReady}<button class="change" onclick={() => (settingUpGuide = true)}>Change</button>{/if}
       </div>

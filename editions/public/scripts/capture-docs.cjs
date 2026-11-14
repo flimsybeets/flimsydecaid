@@ -113,11 +113,6 @@ async function setupGuide(p, profile, coffee) {
   await p.getByRole('radio', { name: new RegExp(coffee) }).first().click(); await wait(p, 200);
   await p.getByRole('button', { name: 'Save', exact: true }).click(); await wait(p, 1500);
 }
-// The steps editor opens over the Guide me setup dialog; hide that one so the shot is clean.
-const hideUnderModal = (p) => p.evaluate(() => {
-  const d = document.querySelectorAll('[role=dialog]'); const b = document.querySelectorAll('.backdrop');
-  if (d.length > 1) { d[0].style.visibility = 'hidden'; if (b.length > 1) b[0].style.visibility = 'hidden'; }
-});
 async function closeGuide(p) { await p.getByRole('button', { name: 'Close the guide' }).click(); await wait(p, 800); }
 
 async function shots(browser, pics) {
@@ -174,7 +169,6 @@ async function shots(browser, pics) {
   await home(p);
   await p.getByRole('button', { name: 'Change' }).click(); await wait(p, 900);
   await p.getByRole('button', { name: 'Edit steps' }).click(); await wait(p, 1200);
-  await hideUnderModal(p);
   await p.locator('.list .pick').nth(3).click(); await wait(p, 600);
   await shot('08-steps-editor', { pause: 800 });
   await p.getByRole('button', { name: 'Add a step' }).click(); await wait(p, 1500);
@@ -274,7 +268,6 @@ async function video(browser, pics) {
   at('editor');
   await tap(p.getByRole('button', { name: 'Change' }), 1500);
   await tap(p.getByRole('button', { name: 'Edit steps' }), 1800);
-  await hideUnderModal(p);
   await tap(p.locator('.list .pick').nth(3), 1800);
   await tap(p.getByRole('button', { name: 'Add a step' }), 3000);
   at('end');

@@ -272,7 +272,10 @@
             </div>
           </div>
         {:else}
-          <p class="empty">Tap a step on the left to change its words, list, timer or picture.</p>
+          <div class="empty">
+            <p>Tap a step on the left to change its words, list, timer or picture.</p>
+            <p class="hint">Write each step for someone at home who hasn't made your coffee before: what to do, in what order, and anything that's easy to get wrong. A photo of your own kit helps.</p>
+          </div>
         {/if}
       </div>
     </div>
@@ -385,7 +388,8 @@
   .opts { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
   .opt { width: 100%; min-height: 56px; padding: 6px 12px; border-radius: 12px; text-align: left; display: grid; color: var(--paper); }
   .opt small { color: var(--paper-faint); font-weight: 500; font-size: var(--t-xs); }
-  .empty { color: var(--paper-faint); padding: 18px 6px; font-size: var(--t-md); }
+  .empty { color: var(--paper-faint); padding: 18px 6px; font-size: var(--t-md); display: grid; gap: 10px; max-width: 46ch; }
+  .empty .hint { font-size: var(--t-sm); line-height: 1.4; }
 
   /* Narrow: one column that scrolls as a whole; the fields follow the list. */
   @media (max-width: 700px) {

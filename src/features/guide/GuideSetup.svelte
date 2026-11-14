@@ -55,6 +55,7 @@
 <!-- While the full-screen steps editor is open this dialog steps aside, keeping its picks. -->
 {#if !app.editingSteps}
 <Modal title="Set up Guide me" {onClose}>
+  <p class="intro">Set it up once, so anyone at home can make your coffee the way you do.</p>
   <div class="cols">
     <section>
       <h3>Profile</h3>
@@ -103,12 +104,13 @@
 {/if}
 
 <style>
+  .intro { color: var(--paper-dim); font-size: var(--t-sm); margin-top: -4px; }
   .cols { display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px; }
   section { display: grid; gap: 8px; align-content: start; min-width: 0; }
   h3 { font-size: var(--t-xs); font-weight: 650; text-transform: uppercase; letter-spacing: 0.06em; color: var(--paper-faint); }
   .search { min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid rgb(255 255 255 / 0.08); font-size: var(--t-sm); user-select: text; }
   .search:focus { outline: none; border-color: rgb(255 255 255 / 0.45); }
-  .list { list-style: none; margin: 0; padding: 3px; display: grid; gap: 4px; max-height: 225px; overflow-y: auto; margin: -4px; }
+  .list { list-style: none; margin: 0; padding: 3px; display: grid; gap: 4px; max-height: 160px; overflow-y: auto; margin: -4px; }
   .opt { width: 100%; min-height: 42px; padding: 6px 12px; border-radius: 12px; text-align: left; display: grid; color: var(--paper); font-weight: 600; }
   .opt small { color: var(--paper-faint); font-weight: 500; font-size: var(--t-xs); }
   .opt.lit { box-shadow: 0 0 0 3px var(--go), var(--glass-sheen); }
