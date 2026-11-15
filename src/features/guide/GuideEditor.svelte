@@ -104,6 +104,31 @@
 
   // Sample values for the preview's {tokens}: the chosen coffee and dial-in when known.
   const coffeeName = $derived(app.beans.find((b) => b.id === beanId)?.name ?? 'your coffee');
+  // Quick inserts for {tokens}: a button per token, showing what it becomes with the current setup.
+  const TOKENS = [
+    { key: 'dose', label: 'Dose' },
+    { key: 'beans', label: 'Beans' },
+    { key: 'coffee', label: 'Coffee' },
+    { key: 'grind', label: 'Grind' },
+    { key: 'start', label: 'Start word' },
+  ] as const;
+  /** Insert `{key}` at the caret (or at the end when the field isn't focused) and let its input handler pick it up. */
+  function insertToken(el: HTMLInputElement | HTMLTextAreaElement | undefined, key: string) {
+    if (!el) return;
+    const tok = `{${key}}`;
+    const focused = document.activeElement === el;
+    const start = focused ? (el.selectionStart ?? el.value.length) : el.value.length;
+    const end = focused ? (el.selectionEnd ?? start) : start;
+    const before = el.value.slice(0, start), after = el.value.slice(end);
+    // a space either side unless there's one already (or it's the start/end)
+    const pre = before && !/\s$/.test(before) ? ' ' : '', post = after && !/^[\s.,!?;:]/.test(after) ? ' ' : '';
+    if (el.maxLength > 0 && el.value.length - (end - start) + pre.length + tok.length + post.length > el.maxLength) return;
+    el.setRangeText(pre + tok + post, start, end, 'end');
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  let titleEl = $state<HTMLInputElement>();
+  let bodyEl = $state<HTMLTextAreaElement>();
+
   const sample = $derived({
     dose: (brew?.dose ?? 18).toFixed(1), beans: `beans of ${coffeeName}`, coffee: coffeeName, grind: brew?.grind ?? '14',
     source: 'From your last shot with this bag', start: 'start',
@@ -158,7 +183,7 @@
   // touch screen a text field opens this sheet in the room above the keyboard
   // (`--kb`): its name, any hint and a big box showing what's typed, with Done.
   // Every keystroke goes straight into the draft, as typing in place would.
-  interface Sheet { label: string; hint?: string; multiline: boolean; max: number; value: string; set: (v: string) => void; enter?: () => void }
+  interface Sheet { label: string; hint?: string; tokens?: boolean; multiline: boolean; max: number; value: string; set: (v: string) => void; enter?: () => void }
   const touch = typeof window !== 'undefined' && (navigator.maxTouchPoints > 0 || matchMedia('(pointer: coarse)').matches);
   let sheet = $state<Sheet | null>(null);
   let sheetEl = $state<HTMLInputElement | HTMLTextAreaElement>();
@@ -215,6 +240,18 @@
     }
   }
 </script>
+
+{#snippet tokenChips(target: () => HTMLInputElement | HTMLTextAreaElement | undefined, where: string)}
+  <div class="tokens" role="group" aria-label="Insert into the {where}">
+    <span class="tk-lab">Insert</span>
+    {#each TOKENS as t (t.key)}
+      <!-- mousedown is prevented so the field keeps its focus and caret -->
+      <button class="tk glass" title={`Adds {${t.key}}: ${sample[t.key]}`} onmousedown={(e) => e.preventDefault()} onclick={() => insertToken(target(), t.key)}>
+        <b>{t.label}</b><small>{sample[t.key]}</small>
+      </button>
+    {/each}
+  </div>
+{/snippet}
 
 <svelte:window onkeydown={onEscape} />
 
@@ -367,15 +404,17 @@
             </div>
           </div>
           <div class="two">
-            <label><span>Title</span><input class="well" value={sel.title} maxlength="80" oninput={(e) => patch({ title: e.currentTarget.value })}
-              onfocus={(e) => openSheet(e, { label: 'Title', hint: 'Can use {dose} {beans} {coffee} {grind} {start}', multiline: false, max: 80, set: (v) => patch({ title: v }) })} /></label>
+            <label><span>Title</span><input class="well" bind:this={titleEl} value={sel.title} maxlength="80" oninput={(e) => patch({ title: e.currentTarget.value })}
+              onfocus={(e) => openSheet(e, { label: 'Title', tokens: true, multiline: false, max: 80, set: (v) => patch({ title: v }) })} /></label>
             <label><span>Progress bar name</span><input class="well" value={sel.label} maxlength="16" oninput={(e) => patch({ label: e.currentTarget.value })}
               onfocus={(e) => openSheet(e, { label: 'Progress bar name', hint: 'A word or two, under the progress bar', multiline: false, max: 16, set: (v) => patch({ label: v }) })} /></label>
           </div>
-          <label><span>Words <small class="hint">can use {'{dose}'} {'{beans}'} {'{coffee}'} {'{grind}'} {'{start}'}</small></span>
-            <textarea class="well" rows="3" maxlength="400" value={sel.body} oninput={(e) => patch({ body: e.currentTarget.value })}
-              onfocus={(e) => openSheet(e, { label: 'Words', hint: 'Can use {dose} {beans} {coffee} {grind} {start}', multiline: true, max: 400, set: (v) => patch({ body: v }) })}></textarea>
+          {@render tokenChips(() => titleEl, 'title')}
+          <label><span>Words</span>
+            <textarea class="well" rows="3" maxlength="400" bind:this={bodyEl} value={sel.body} oninput={(e) => patch({ body: e.currentTarget.value })}
+              onfocus={(e) => openSheet(e, { label: 'Words', tokens: true, multiline: true, max: 400, set: (v) => patch({ body: v }) })}></textarea>
           </label>
+          {@render tokenChips(() => bodyEl, 'words')}
           <label><span>List, one line each</span>
             <textarea class="well" rows={Math.min(12, Math.max(3, itemsText.split("\n").length + 1))} bind:value={itemsText} oninput={() => patch({ items: linesToItems(itemsText) })}
               onfocus={(e) => openSheet(e, { label: 'List, one line each', hint: 'Each line is one item in the checklist', multiline: true, max: 2000, set: (v) => { itemsText = v; patch({ items: linesToItems(v) }); } })}></textarea>
@@ -406,6 +445,7 @@
         <div class="ts-title"><b>{sheet.label}</b>{#if sheet.hint}<small>{sheet.hint}</small>{/if}</div>
         <button class="ts-done glass solid" onmousedown={(e) => e.preventDefault()} onclick={() => { const go = sheet?.enter; closeSheet(); go?.(); }}>Done</button>
       </div>
+      {#if sheet.tokens}{@render tokenChips(() => sheetEl, 'sheet')}{/if}
       {#if sheet.multiline}
         <textarea class="ts-field well" bind:this={sheetEl} value={sheet.value} maxlength={sheet.max} oninput={(e) => sheetInput(e.currentTarget.value)}></textarea>
       {:else}
@@ -482,6 +522,12 @@
   .close { width: 42px; height: 42px; flex: none; border-radius: 50%; font-size: var(--t-md); color: var(--paper-dim); }
   h1 { font-size: var(--t-xl); font-weight: 700; letter-spacing: -0.01em; }
   .spacer { flex: 1; }
+  .tokens { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: -4px; }
+  .tk-lab { color: var(--paper-faint); font-size: var(--t-xs); margin-right: 2px; }
+  .tk { min-height: 40px; padding: 0 12px; border-radius: var(--radius-pill); display: inline-flex; align-items: center; gap: 6px; line-height: 1; color: var(--paper); font-size: var(--t-xs); }
+  .tk b { font-weight: 650; }
+  .tk small { color: var(--paper-faint); max-width: 16ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .type-sheet .tokens { margin-top: 0; }
   /* Typing sheet: fills the room above the on-screen keyboard (--kb is 0 when the page shrinks instead). */
   .type-sheet {
     position: fixed; left: 0; right: 0; top: 0; bottom: var(--kb, 0px); z-index: 5;
