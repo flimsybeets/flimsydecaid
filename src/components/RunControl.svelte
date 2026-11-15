@@ -79,6 +79,7 @@
     background: linear-gradient(165deg, #b9f0dd, var(--go));
     box-shadow: 0 14px 30px -14px rgb(143 211 192 / 0.8), inset 0 1px 0 rgb(255 255 255 / 0.8);
   }
+  @media (max-height: 580px) { .go { min-height: 58px; } }
   .go:active { transform: scale(0.98); }
   .go:disabled { opacity: 0.45; box-shadow: none; }
   .go svg { width: 22px; height: 22px; fill: currentColor; }
