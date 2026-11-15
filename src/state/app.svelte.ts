@@ -32,7 +32,7 @@ import { saveProfile, type SaveResult } from '../lib/profileEdit';
 import { GUIDE_KEY, parseGuideSetup, type GuideSetup } from '../lib/guide';
 import { EDITION } from '../edition';
 import { cloneWorkflow } from '../lib/workflowPresets';
-import { normaliseWorkflow, orphanedStepIds, stepPhotoKey, WORKFLOW_KEY, type TemplateKey, type Workflow as GuideWorkflow } from '../lib/workflow';
+import { normaliseWorkflow, orphanedStepIds, parseSavedSets, SAVED_SETS_KEY, stepPhotoKey, withoutSavedSet, withSavedSet, WORKFLOW_KEY, type SavedSet, type TemplateKey, type Workflow as GuideWorkflow } from '../lib/workflow';
 import { currentGrinder, grindControl as grindControlOf } from '../lib/grinder';
 import { hideOrder, indexProfiles, latestPerLineage, lineageRoot, shiftTemperature } from '../lib/profiles';
 import { ShotRecorder, samplesFromMeasurements, type ShotSample } from '../lib/shot';
@@ -111,8 +111,10 @@ class AppState {
   guiding = $state(false);
   /** The kind of step Guide me is on (null while it is closed): steam and flush views leave the guide's own steps alone. */
   guideTemplate = $state<TemplateKey | null>(null);
-  /** Guide me steps editor open (full screen, over the setup dialog, which steps aside meanwhile). */
-  editingSteps = $state(false);
+  /** The full-screen Guide me editor, open on its Profile & coffee or Steps tab (null = closed). */
+  guideEditor = $state<null | 'setup' | 'steps'>(null);
+  /** Sets of steps saved from the editor (KV guideSaved), loaded when the editor opens. */
+  savedSets = $state<SavedSet[]>([]);
   /** The guide's steps (KV guideWorkflow); the edition's first preset until one is saved. */
   guideWorkflow = $state<GuideWorkflow>(cloneWorkflow(EDITION.guide.presets[0]!.workflow));
   /** Step photos by step id (KV guidePhoto:<id>), loaded on demand. Missing = not known yet, null = none. */
@@ -702,6 +704,23 @@ class AppState {
   async removeStepPhoto(stepId: string): Promise<void> {
     await gateway.storeDelete(stepPhotoKey(stepId));
     this.stepPhotos[stepId] = null;
+  }
+
+  async loadSavedSets(): Promise<void> {
+    this.savedSets = parseSavedSets(await gateway.storeGet(SAVED_SETS_KEY).catch(() => null));
+  }
+  /** Save a copy of these steps under a name (a set with the same name is replaced). */
+  async saveSet(workflow: GuideWorkflow, name: string): Promise<void> {
+    await this.loadSavedSets();
+    const next = withSavedSet(this.savedSets, JSON.parse(JSON.stringify(workflow)) as GuideWorkflow, name, new Date().toISOString());
+    await gateway.storeSet(SAVED_SETS_KEY, { sets: next });
+    this.savedSets = next;
+  }
+  async deleteSet(id: string): Promise<void> {
+    await this.loadSavedSets();
+    const next = withoutSavedSet(this.savedSets, id);
+    await gateway.storeSet(SAVED_SETS_KEY, { sets: next });
+    this.savedSets = next;
   }
 
   async removeGuide(): Promise<void> {

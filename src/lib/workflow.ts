@@ -281,3 +281,42 @@ export function linesToItems(text: string): string[] | undefined {
 }
 
 export const workflowEquals = (a: Workflow, b: Workflow) => JSON.stringify(a) === JSON.stringify(b);
+
+// ---- Saved sets of steps (Save as… / Load in the editor) --------------------
+// KV `guideSaved` = { sets: SavedSet[] }, newest first. Photos stay with the
+// steps in use (keyed by step id), so a saved set carries words, lists and timers.
+
+export const SAVED_SETS_KEY = 'guideSaved';
+export const MAX_SAVED_SETS = 20;
+
+export interface SavedSet {
+  id: string;
+  name: string;
+  savedAt: string;
+  workflow: Workflow;
+}
+
+export function parseSavedSets(raw: unknown): SavedSet[] {
+  const sets = raw && typeof raw === 'object' && Array.isArray((raw as { sets?: unknown }).sets) ? (raw as { sets: unknown[] }).sets : [];
+  const out: SavedSet[] = [];
+  for (const s of sets) {
+    if (!s || typeof s !== 'object') continue;
+    const o = s as Record<string, unknown>;
+    const workflow = inspectWorkflow(o.workflow).workflow;
+    if (!workflow || typeof o.id !== 'string' || !o.id) continue;
+    out.push({ id: o.id, name: clip(o.name, LIMITS.name) || workflow.name, savedAt: typeof o.savedAt === 'string' ? o.savedAt : '', workflow });
+  }
+  return out.slice(0, MAX_SAVED_SETS);
+}
+
+const nameKey = (n: string) => n.trim().replace(/\s+/g, ' ').toLowerCase();
+
+/** Saves `workflow` under `name`: a set with the same name (any case) is replaced; newest first, at most MAX_SAVED_SETS. */
+export function withSavedSet(sets: readonly SavedSet[], workflow: Workflow, name: string, now: string): SavedSet[] {
+  const clean = name.trim().replace(/\s+/g, ' ').slice(0, LIMITS.name) || workflow.name;
+  const same = sets.find((s) => nameKey(s.name) === nameKey(clean));
+  const set: SavedSet = { id: same?.id ?? `set-${now.replace(/\D/g, '')}-${sets.length}`, name: clean, savedAt: now, workflow: { ...workflow, name: clean } };
+  return [set, ...sets.filter((s) => s !== same)].slice(0, MAX_SAVED_SETS);
+}
+
+export const withoutSavedSet = (sets: readonly SavedSet[], id: string) => sets.filter((s) => s.id !== id);
