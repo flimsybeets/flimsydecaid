@@ -106,7 +106,7 @@
 {#if photo}
   <img class="photo" src={photo} alt="" />
 {:else if found && scene}
-  <svg viewBox={scene.vb} class="art set-{found.set.id} {sceneKey} ws-{weighState}" class:on={active} class:still style="--dial: {dialTo}deg; --arc: {arc ? arc.dash : 0}; --arc-from: {dashFrom}" class:noarc={!arc} aria-hidden="true">
+  <svg viewBox={scene.vb} class="art set-{found.set.id} {sceneKey} ws-{weighState}" class:on={active} class:still style="--dial: {dialTo}deg; --arc: {arc ? arc.dash : 0}; --arc-from: {dashFrom}" class:noarc={!arc} class:no-ghc={!app.ghc} aria-hidden="true">
     <defs>{@html found.set.COMMON_DEFS}</defs>
     {@html parts[0]}
     {#if scene.lcd}

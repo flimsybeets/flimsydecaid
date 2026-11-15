@@ -138,9 +138,19 @@
 .art.set-generic.rinse.on .k-ring { animation: none; opacity: 0; }
 
 /* pull: espresso streams into the cup, the cup fills */
-.art.set-generic .k-stream { opacity: 0; animation: gn-stream 10s linear infinite, gn-flow 0.5s linear infinite; }
-@keyframes gn-stream { 0%, 12% { opacity: 0; } 16%, 80% { opacity: 1; } 86%, 100% { opacity: 0; } }
-@keyframes gn-flow { to { stroke-dashoffset: -14; } }
+/* the stream grows down from the basket, runs, then thins away; crema flecks race down it */
+.art.set-generic .k-stream { opacity: 0; animation: gn-stream 10s ease-in-out infinite; }
+@keyframes gn-stream { 0%, 12% { opacity: 0; transform: scaleY(0.05); } 18% { opacity: 1; transform: scaleY(1); } 80% { opacity: 1; transform: scale(1, 1); } 86% { opacity: 1; transform: scale(0.45, 1); } 90%, 100% { opacity: 0; transform: scale(0.3, 1); } }
+.art.set-generic .k-flowline { animation: gn-flow 0.55s linear infinite; }
+.art.set-generic .k-flowline.f2 { animation-duration: 0.42s; }
+@keyframes gn-flow { to { stroke-dashoffset: -23; } }
+.art.set-generic .k-pourdrop { opacity: 0; animation: gn-pourdrop 1.6s ease-in infinite; }
+.art.set-generic .k-pourdrop.d1 { animation-delay: -0.8s; }
+@keyframes gn-pourdrop { 0% { opacity: 0; translate: 0 0; } 10% { opacity: 0.9; } 70% { opacity: 0.9; translate: 0 var(--fall); } 75%, 100% { opacity: 0; translate: 0 var(--fall); } }
+/* group head: the controller's face on GHC machines, a plain black disc otherwise */
+.art.set-generic .k-noghc { display: none; }
+.art.set-generic.no-ghc .k-noghc { display: inline; }
+.art.set-generic.no-ghc .k-ghc { display: none; }
 .art.set-generic .k-fill { animation: gn-fill 10s ease-out infinite; }
 @keyframes gn-fill { 0%, 14% { translate: 0 12px; opacity: 0; } 20% { opacity: 1; } 82%, 94% { translate: 0 0; opacity: 1; } 100% { translate: 0 0; opacity: 0; } }
 
