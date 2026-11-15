@@ -2,7 +2,7 @@
   import { app } from '../state/app.svelte';
   import { clockText, progress, type ActivityKind } from '../lib/activity';
 
-  // Full-screen view while the machine flushes or steams. It is mounted by
+  // Full-screen view while the machine flushes, steams or pours hot water. It is mounted by
   // App only while the machine is in that state, so it appears when the
   // machine's own button is pressed and goes away on its own when it ends.
 
@@ -19,8 +19,10 @@
   const m = $derived(app.machine);
   const steam = $derived(app.workflow.steamSettings);
   const rinse = $derived(app.workflow.rinseData);
-  // Planned run time: the rinse time, or steam's maximum run time.
-  const planned = $derived(kind === 'flush' ? rinse?.duration : steam?.duration);
+  const hot = $derived(app.workflow.hotWaterData);
+  // Planned run time: the rinse time, hot water's longest time, or steam's maximum run time.
+  const planned = $derived(kind === 'flush' ? rinse?.duration : kind === 'hotWater' ? hot?.duration : steam?.duration);
+  const title = $derived(kind === 'flush' ? 'Flushing' : kind === 'hotWater' ? 'Hot water' : 'Steaming');
   const used = $derived(progress(elapsed, planned));
 
   let stopping = $state(false);
@@ -30,9 +32,9 @@
   }
 </script>
 
-<section class="act {kind}" aria-label={kind === 'flush' ? 'Flushing' : 'Steaming'}>
+<section class="act {kind}" aria-label={title}>
   <header>
-    <h2>{kind === 'flush' ? 'Flushing' : 'Steaming'}</h2>
+    <h2>{title}</h2>
     <div class="clock">
       {clockText(elapsed)}{#if planned}<small> of {clockText(planned)}</small>{/if}
     </div>
@@ -47,6 +49,13 @@
         <div class="r"><span class="lab">Water</span><b>{m.mixTemperature?.toFixed(1) ?? '–'}<small>°C</small></b>
           <span class="target">{rinse?.targetTemperature ? `target ${rinse.targetTemperature}°` : ''}</span></div>
         <div class="r"><span class="lab">Group</span><b>{m.groupTemperature?.toFixed(1) ?? '–'}<small>°C</small></b></div>
+      </div>
+    {:else if kind === 'hotWater'}
+      <div class="reads">
+        <div class="r"><span class="lab">Flow</span><b>{m.flow?.toFixed(1) ?? '–'}<small>ml/s</small></b></div>
+        <div class="r"><span class="lab">In the cup</span><b>{app.scaleConnected && app.weight !== null ? app.weight.toFixed(0) : '–'}<small>g</small></b>
+          <span class="target">{hot?.volume ? `of ${hot.volume}` : ''}</span></div>
+        <div class="r"><span class="lab">Set to</span><b>{hot?.targetTemperature ?? '–'}<small>°C</small></b></div>
       </div>
     {:else}
       <div class="reads">
@@ -94,6 +103,7 @@
   .bar { height: 12px; border-radius: var(--radius-pill); background: var(--well); box-shadow: var(--well-shadow); overflow: hidden; }
   .fill { height: 100%; width: 100%; transform-origin: left; background: var(--accent, var(--g-flow)); transition: transform 120ms linear; }
   .steam { --accent: var(--cat-2, #f2b33d); }
+  .hotWater { --accent: var(--g-flow, #6fb6e8); }
   .reads { display: flex; justify-content: center; gap: 56px; flex-wrap: wrap; }
   .r { display: grid; gap: 2px; justify-items: center; }
   .lab { color: var(--paper-dim); font-size: var(--t-sm); }

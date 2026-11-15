@@ -194,16 +194,17 @@
   <header class="top">
     <button class="close glass" aria-label="Close" onclick={close}>✕</button>
     <h1>Guide me</h1>
-    <div class="tabs" role="tablist" aria-label="Guide me">
-      <button class="tab-btn glass" role="tab" aria-selected={tab === 'setup'} class:lit={tab === 'setup'} onclick={() => (tab = 'setup')}>Profile & coffee</button>
-      <button class="tab-btn glass" role="tab" aria-selected={tab === 'steps'} class:lit={tab === 'steps'} onclick={() => (tab = 'steps')}>Steps <small>{draft.steps.length}</small></button>
-    </div>
+    <span class="spacer"></span>
     <span class="meta">{dirty ? 'Edited' : ''}</span>
     <div class="actions">
       <button class="glass" onclick={close}>Cancel</button>
       <button class="glass solid save" disabled={saving || !dirty} onclick={save}>{saving ? 'Saving…' : 'Save'}</button>
     </div>
   </header>
+  <div class="tabs" role="tablist" aria-label="Guide me">
+    <button class="tab-btn" role="tab" aria-selected={tab === 'setup'} onclick={() => (tab = 'setup')}>Profile & coffee</button>
+    <button class="tab-btn" role="tab" aria-selected={tab === 'steps'} onclick={() => (tab = 'steps')}>Steps <small>{draft.steps.length}</small></button>
+  </div>
   {#if error}<p class="error" role="alert">{error}</p>{/if}
 
   {#if tab === 'setup'}
@@ -430,10 +431,19 @@
   .top { flex: none; display: flex; align-items: center; gap: 10px; }
   .close { width: 42px; height: 42px; flex: none; border-radius: 50%; font-size: var(--t-md); color: var(--paper-dim); }
   h1 { font-size: var(--t-xl); font-weight: 700; letter-spacing: -0.01em; }
-  .tabs { flex: 1; display: flex; gap: 6px; justify-content: center; min-width: 0; }
-  .tab-btn { min-height: 44px; padding: 0 18px; border-radius: var(--radius-pill); color: var(--paper-dim); font-weight: 650; font-size: var(--t-sm); white-space: nowrap; }
-  .tab-btn.lit { color: var(--paper); box-shadow: inset 0 0 0 2px var(--go); }
-  .tab-btn small { color: var(--paper-faint); font-weight: 600; margin-left: 4px; }
+  .spacer { flex: 1; }
+  /* Real tabs: plain labels on a shared rule, the chosen one underlined and joined to the page. */
+  .tabs { flex: none; display: flex; gap: 4px; border-bottom: 1px solid rgb(255 255 255 / 0.14); margin-top: -2px; }
+  .tab-btn {
+    position: relative; min-height: 48px; padding: 0 20px; margin-bottom: -1px;
+    background: none; border: 0; border-radius: 12px 12px 0 0;
+    color: var(--paper-faint); font-weight: 650; font-size: var(--t-md); white-space: nowrap;
+  }
+  .tab-btn[aria-selected='true'] { color: var(--paper); background: rgb(255 255 255 / 0.06); }
+  .tab-btn[aria-selected='true']::after {
+    content: ''; position: absolute; left: 12px; right: 12px; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--go);
+  }
+  .tab-btn small { color: var(--paper-faint); font-weight: 600; margin-left: 4px; font-size: var(--t-xs); }
   .intro { flex: none; color: var(--paper-dim); font-size: var(--t-sm); max-width: 80ch; }
   .setup { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
   .pane { min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 18px; }

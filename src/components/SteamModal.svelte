@@ -2,6 +2,7 @@
   import { app } from '../state/app.svelte';
   import Modal from './Modal.svelte';
   import Stepper from './Stepper.svelte';
+  import RunControl from './RunControl.svelte';
   import { heaterOn, STEAM_DEFAULT_C, STEAM_FLOW_MAX, STEAM_FLOW_MIN, STEAM_MAX_C, STEAM_MIN_C } from '../lib/steam';
 
   let { onClose }: { onClose: () => void } = $props();
@@ -16,11 +17,12 @@
 
   const presets = [140, 150, 158];
 
+  const persist = () => app.setSteam({ on, temperature: on ? temperature : undefined, flow });
   async function save() {
     saving = true;
     error = null;
     try {
-      await app.setSteam({ on, temperature: on ? temperature : undefined, flow });
+      await persist();
       onClose();
     } catch (e) {
       error = `Steam settings weren't saved: ${(e as Error).message}`;
@@ -50,6 +52,8 @@
     </div>
     <Stepper label="Flow" bind:value={flow} min={STEAM_FLOW_MIN} max={STEAM_FLOW_MAX} step={0.1} decimals={1} unit="ml/s" />
   </div>
+
+  <RunControl kind="steam" label="Start steam" blocked={on ? null : 'Turn the steam heater on first.'} detail={on ? `At ${temperature}°C, ${flow} ml/s. Stops by itself after ${app.workflow.steamSettings?.duration ?? 60} s, or press Stop.` : null} beforeStart={persist} onStarted={onClose} />
 
   {#if error}<p class="error" role="alert">{error}</p>{/if}
 

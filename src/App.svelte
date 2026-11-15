@@ -4,6 +4,7 @@
   import BottomBar from './components/BottomBar.svelte';
   import SteamModal from './components/SteamModal.svelte';
   import HotWaterModal from './components/HotWaterModal.svelte';
+  import FlushModal from './components/FlushModal.svelte';
   import ShotView from './components/ShotView.svelte';
   import Screensaver from './components/Screensaver.svelte';
   import ActivityView from './components/ActivityView.svelte';
@@ -27,6 +28,7 @@
 
   let steamOpen = $state(false);
   let hotWaterOpen = $state(false);
+  let flushOpen = $state(false);
   // The shot view takes over while pulling and stays until dismissed,
   // so you can read the finished graph.
   let shotOpen = $state(false);
@@ -149,11 +151,14 @@
     {/if}
   </main>
 
-  <BottomBar onSteam={() => (steamOpen = true)} onHotWater={() => (hotWaterOpen = true)} />
+  <BottomBar onSteam={() => (steamOpen = true)} onHotWater={() => (hotWaterOpen = true)} onFlush={() => (flushOpen = true)} />
 </div>
 
 {#if hotWaterOpen}
   <HotWaterModal onClose={() => (hotWaterOpen = false)} />
+{/if}
+{#if flushOpen}
+  <FlushModal onClose={() => (flushOpen = false)} />
 {/if}
 {#if steamOpen}
   <SteamModal onClose={() => (steamOpen = false)} />

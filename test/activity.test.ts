@@ -8,6 +8,8 @@ describe('activity views', () => {
     expect(activityKind('steam', true, true)).toBeNull();
     expect(activityKind('steam', false, true)).toBe('steam');
     expect(activityKind('flush', false)).toBe('flush');
+    expect(activityKind('hotWater', false)).toBe('hotWater');
+    expect(activityKind('hotWater', true)).toBe('hotWater');
     expect(activityKind('idle', false)).toBeNull();
     expect(activityKind(undefined, false)).toBeNull();
   });
