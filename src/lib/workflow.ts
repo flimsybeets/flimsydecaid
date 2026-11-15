@@ -23,7 +23,13 @@ export interface WorkflowStep {
   items?: string[];
   /** Seconds. Plain steps only: shows a start / countdown button. */
   timer?: number;
+  /** Dose and grind steps only (`showsCoffee`): show the coffee's stored photo beside the picture. */
+  showCoffee?: boolean;
 }
+
+/** Steps that can show the coffee's photo, so whoever follows the guide picks the right bag. */
+export const COFFEE_PHOTO_KEYS: readonly TemplateKey[] = ['weigh', 'grinder', 'grind'];
+export const showsCoffee = (t: TemplateKey) => COFFEE_PHOTO_KEYS.includes(t);
 
 export interface Workflow {
   version: 1;
@@ -165,6 +171,7 @@ export function inspectWorkflow(raw: unknown): Inspection {
       if (items.length) step.items = items;
     }
     if (typeof o.timer === 'number' && Number.isFinite(o.timer) && o.timer >= 1 && !isSmart(template)) step.timer = Math.min(MAX_TIMER, Math.round(o.timer));
+    if (o.showCoffee === true && showsCoffee(template)) step.showCoffee = true;
     ids.add(id);
     seen.add(template);
     steps.push(step);

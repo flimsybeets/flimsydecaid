@@ -7,11 +7,12 @@
   import StepPhotoField from './StepPhotoField.svelte';
   import GuideArt from './GuideArt.svelte';
   import StepIcon from './StepIcon.svelte';
+  import CoffeePic from './CoffeePic.svelte';
   import { cloneWorkflow } from '../../lib/workflowPresets';
   import { pickBag, planBrew } from '../../lib/guide';
   import {
     addableTemplates, addStep, canRemove, isSmart, itemsToLines, linesToItems, fillText, timerText, moveStep, normaliseWorkflow, removeStep,
-    STEP_LIBRARY, updateStep, workflowEquals, MAX_STEPS, type SavedSet, type Workflow,
+    STEP_LIBRARY, updateStep, workflowEquals, MAX_STEPS, showsCoffee, type SavedSet, type Workflow,
   } from '../../lib/workflow';
 
   // Guide me, set up in one full-screen page with two tabs:
@@ -104,6 +105,9 @@
 
   // Sample values for the preview's {tokens}: the chosen coffee and dial-in when known.
   const coffeeName = $derived(app.beans.find((b) => b.id === beanId)?.name ?? 'your coffee');
+  // The coffee's photo, for the dose and grind steps' "Show a picture of the coffee".
+  $effect(() => { if (beanId && sel && showsCoffee(sel.template)) void app.loadBeanPhoto(beanId); });
+
   // Quick inserts for {tokens}: a button per token, showing what it becomes with the current setup.
   const TOKENS = [
     { key: 'dose', label: 'Dose' },
@@ -392,7 +396,7 @@
         {#if sel}
           <p class="kind">Step {selIndex + 1} · {STEP_LIBRARY[sel.template].kind}{isSmart(sel.template) ? ' · follows the scale or machine' : ''}</p>
           <div class="preview glass thick" aria-label="Preview of this step in the guide">
-            <div class="pic">{#key sel.template}<GuideArt sceneKey={sel.template} stepId={sel.id} photoUrl={shownPhoto(sel.id)} weight={18} weighState="ok" grind="14" active />{/key}</div>
+            <div class="pic">{#key sel.template}<GuideArt sceneKey={sel.template} stepId={sel.id} photoUrl={shownPhoto(sel.id)} weight={18} weighState="ok" grind="14" active />{/key}{#if sel.showCoffee && showsCoffee(sel.template)}<CoffeePic beanId={beanId} small />{/if}</div>
             <div class="pcopy">
               <b>{previewTitle}</b>
               {#if previewBody}<p>{previewBody}</p>{/if}
@@ -419,6 +423,14 @@
             <textarea class="well" rows={Math.min(12, Math.max(3, itemsText.split("\n").length + 1))} bind:value={itemsText} oninput={() => patch({ items: linesToItems(itemsText) })}
               onfocus={(e) => openSheet(e, { label: 'List, one line each', hint: 'Each line is one item in the checklist', multiline: true, max: 2000, set: (v) => { itemsText = v; patch({ items: linesToItems(v) }); } })}></textarea>
           </label>
+          {#if showsCoffee(sel.template)}
+            <label class="check" class:on={sel.showCoffee}>
+              <input type="checkbox" checked={!!sel.showCoffee} onchange={(e) => patch({ showCoffee: e.currentTarget.checked || undefined })} />
+              <span class="box" aria-hidden="true">{sel.showCoffee ? '✓' : ''}</span>
+              <span class="ctext"><b>Show a picture of the coffee</b>
+                <small>{!beanId ? 'Pick a coffee on the Profile & coffee tab.' : app.beanPhotos[beanId] === null ? 'This coffee has no photo yet: add one from Beans, Edit.' : 'Its photo from Beans, beside the picture, so they use the right bag.'}</small></span>
+            </label>
+          {/if}
           <div class="extras">
             {#if !isSmart(sel.template)}
               <Stepper compact label="Timer" hint="0 = none" unit=" s" min={0} max={3600} step={5} bind:value={() => sel.timer ?? 0, (v) => patch({ timer: v && v > 0 ? v : undefined })} />
@@ -522,6 +534,15 @@
   .close { width: 42px; height: 42px; flex: none; border-radius: 50%; font-size: var(--t-md); color: var(--paper-dim); }
   h1 { font-size: var(--t-xl); font-weight: 700; letter-spacing: -0.01em; }
   .spacer { flex: 1; }
+  .pic { position: relative; }
+  .check { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 6px 12px; border-radius: 14px; background: rgb(255 255 255 / 0.04); cursor: pointer; }
+  .check input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .check .box { flex: none; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; border: 2px solid rgb(255 255 255 / 0.35); color: var(--cat-ink); font-weight: 800; }
+  .check.on .box { background: var(--go); border-color: var(--go); }
+  .check input:focus-visible + .box { outline: 2px solid var(--go); outline-offset: 2px; }
+  .ctext { display: grid; gap: 2px; }
+  .ctext b { color: var(--paper); font-size: var(--t-sm); }
+  .ctext small { color: var(--paper-faint); font-size: var(--t-xs); }
   .tokens { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: -4px; }
   .tk-lab { color: var(--paper-faint); font-size: var(--t-xs); margin-right: 2px; }
   .tk { min-height: 40px; padding: 0 12px; border-radius: var(--radius-pill); display: inline-flex; align-items: center; gap: 6px; line-height: 1; color: var(--paper); font-size: var(--t-xs); }

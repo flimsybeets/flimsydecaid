@@ -213,3 +213,17 @@ describe('text', () => {
     expect(w.steps[0]!.items).toBeUndefined();
   });
 });
+
+import { inspectWorkflow as inspectForCoffee, showsCoffee } from '../src/lib/workflow';
+
+describe('coffee photo on dose and grind steps', () => {
+  it('keeps showCoffee only where it applies', () => {
+    const w = inspectForCoffee({ name: 'x', steps: [
+      { template: 'weigh', showCoffee: true }, { template: 'grind', showCoffee: true }, { template: 'tamp', showCoffee: true },
+      { template: 'grinder', showCoffee: 'yes' }, { template: 'pull' }, { template: 'done' },
+    ] }).workflow!;
+    expect(w.steps.map((s) => s.showCoffee ?? false)).toEqual([true, true, false, false, false, false]);
+    expect(showsCoffee('grinder')).toBe(true);
+    expect(showsCoffee('custom')).toBe(false);
+  });
+});
