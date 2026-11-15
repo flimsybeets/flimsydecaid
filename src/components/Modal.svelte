@@ -106,6 +106,11 @@
   .actions { display: flex; gap: 9px; justify-content: flex-end; }
   /* Short screens (a tablet with a system bar): a little less air, so dialogs fit without scrolling. */
   @media (max-height: 620px) { .body { gap: 12px; } }
+  /* Shorter still (an 8.7" tablet with Android's bars, ~1005×528): sit closer to the edges, slimmer title. */
+  @media (max-height: 580px) {
+    .dialog { bottom: calc(8px + var(--kb)); max-height: calc(100% - 16px - var(--kb)); padding: 12px 18px 14px; gap: 12px; }
+    .close { width: 42px; height: 42px; }
+  }
 
   /* While typing: use all the room above the keyboard, and keep the title
      and buttons slim so the fields get it. */
