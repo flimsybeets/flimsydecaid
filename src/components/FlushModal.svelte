@@ -10,14 +10,28 @@
   // for the group head's flush button and Guide me's rinse step too.
   let { onClose }: { onClose: () => void } = $props();
 
-  const rinse = app.workflow.rinseData;
-  let temperature = $state<number | undefined>(rinse?.targetTemperature ?? 90);
-  let duration = $state<number | undefined>(rinse?.duration ?? 5);
-  let flow = $state<number | undefined>(rinse?.flow ?? 6);
+  // Filled from Decaid's workflow once it has loaded (right after a reload it may not have),
+  // so Save and Start never write made-up defaults over the real settings.
+  let temperature = $state<number | undefined>();
+  let duration = $state<number | undefined>();
+  let flow = $state<number | undefined>();
+  let filled = false;
+  $effect(() => {
+    if (!app.loaded || filled) return;
+    filled = true;
+    const rinse = app.workflow.rinseData;
+    temperature = rinse?.targetTemperature ?? 90;
+    duration = rinse?.duration ?? 5;
+    flow = rinse?.flow ?? 6;
+  });
+  const complete = $derived(app.loaded && [temperature, duration, flow].every((v) => v !== undefined));
   let saving = $state(false);
   let error = $state<string | null>(null);
 
-  const persist = () => app.saveWaterSettings({ rinseData: { targetTemperature: temperature, duration, flow } });
+  async function persist() {
+    if (!complete) throw new Error('fill in every setting first');
+    await app.saveWaterSettings({ rinseData: { targetTemperature: temperature, duration, flow } });
+  }
   async function save() {
     saving = true;
     error = null;
@@ -40,13 +54,13 @@
     <Stepper label="Flow" bind:value={flow} min={R.rinseFlow.min} max={R.rinseFlow.max} step={R.rinseFlow.step} decimals={1} unit="ml/s" />
   </div>
 
-  <RunControl kind="flush" label="Start flush" detail={duration ? `Runs for ${duration} s at ${temperature}°C.` : null} beforeStart={persist} onStarted={onClose} />
+  <RunControl kind="flush" label="Start flush" blocked={!app.loaded ? 'Waiting for Decaid.' : !complete ? 'Fill in every setting first.' : null} detail={complete ? `Runs for ${duration} s at ${temperature}°C.` : null} beforeStart={persist} onStarted={onClose} />
 
   {#if error}<p class="error" role="alert">{error}</p>{/if}
 
   {#snippet actions()}
     <button class="secondary glass" onclick={onClose}>Cancel</button>
-    <button class="primary glass solid" onclick={save} disabled={saving || (!app.mock && !app.gatewayOnline)}>
+    <button class="primary glass solid" onclick={save} disabled={saving || !complete || (!app.mock && !app.gatewayOnline)}>
       {saving ? 'Saving…' : 'Save flush settings'}
     </button>
   {/snippet}

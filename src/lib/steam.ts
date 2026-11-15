@@ -22,3 +22,21 @@ export function clampSteamTemp(c: number): number {
 export function clampSteamFlow(f: number): number {
   return Math.round(Math.min(STEAM_FLOW_MAX, Math.max(STEAM_FLOW_MIN, f)) * 10) / 10;
 }
+
+/** Within this of the target the boiler counts as hot enough to steam (the bottom bar's "ready"). */
+export const STEAM_READY_MARGIN_C = 5;
+
+export type SteamReadiness = 'off' | 'heating' | 'ready';
+
+/** Whether steam can usefully start now: the heater must be on (as saved) and the boiler near its target. */
+export function steamReadiness(s: SteamSettings | undefined, boilerC: number | undefined): SteamReadiness {
+  if (!heaterOn(s)) return 'off';
+  return boilerC !== undefined && boilerC >= s!.targetTemperature - STEAM_READY_MARGIN_C ? 'ready' : 'heating';
+}
+
+/** Why Start steam isn't offered yet, in plain words, or null when it can start. */
+export function steamBlockedText(r: SteamReadiness, s: SteamSettings | undefined, boilerC: number | undefined): string | null {
+  if (r === 'off') return 'Turn the steam heater on first.';
+  if (r === 'heating') return `The steam heater is warming up${boilerC !== undefined ? `: ${Math.round(boilerC)}° of ${s!.targetTemperature}°` : ''}.`;
+  return null;
+}

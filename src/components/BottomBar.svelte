@@ -1,6 +1,6 @@
 <script lang="ts">
   import { app } from '../state/app.svelte';
-  import { heaterOn } from '../lib/steam';
+  import { heaterOn, steamReadiness } from '../lib/steam';
   import { waterFill } from '../lib/water';
 
   let { onSteam, onHotWater, onFlush }: { onSteam: () => void; onHotWater: () => void; onFlush: () => void } = $props();
@@ -10,7 +10,7 @@
   const scaleName = $derived(app.scaleDevice?.name ?? 'Scale');
   const steamIsOn = $derived(heaterOn(app.steam));
   const steamTemp = $derived(app.machine.steamTemperature);
-  const steamReady = $derived(steamIsOn && steamTemp !== undefined && app.steam && steamTemp >= app.steam.targetTemperature - 5);
+  const steamReady = $derived(steamReadiness(app.steam, steamTemp) === 'ready');
 
   function onScaleTap() {
     if (app.scaleConnected) void app.tare();

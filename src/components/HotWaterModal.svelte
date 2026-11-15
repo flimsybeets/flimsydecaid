@@ -10,11 +10,23 @@
   // (hotWaterData); "stop by the scale" is Decaid's stopHotWaterAtWeight.
   let { onClose }: { onClose: () => void } = $props();
 
-  const hot = app.workflow.hotWaterData;
-  let temperature = $state<number | undefined>(hot?.targetTemperature ?? 80);
-  let volume = $state<number | undefined>(hot?.volume ?? 120);
-  let duration = $state<number | undefined>(hot?.duration ?? 60);
-  let flow = $state<number | undefined>(hot?.flow ?? 6);
+  // Filled from Decaid's workflow once it has loaded (right after a reload it may not have),
+  // so Save and Start never write made-up defaults over the real settings.
+  let temperature = $state<number | undefined>();
+  let volume = $state<number | undefined>();
+  let duration = $state<number | undefined>();
+  let flow = $state<number | undefined>();
+  let filled = false;
+  $effect(() => {
+    if (!app.loaded || filled) return;
+    filled = true;
+    const hot = app.workflow.hotWaterData;
+    temperature = hot?.targetTemperature ?? 80;
+    volume = hot?.volume ?? 120;
+    duration = hot?.duration ?? 60;
+    flow = hot?.flow ?? 6;
+  });
+  const complete = $derived(app.loaded && [temperature, volume, duration, flow].every((v) => v !== undefined));
   let byScale = $state<boolean | null>(null);
   let byScaleWas: boolean | null = null;
   let saving = $state(false);
@@ -27,6 +39,7 @@
   const presets = [70, 80, 93];
 
   async function persist() {
+    if (!complete) throw new Error('fill in every setting first');
     await app.saveWaterSettings({ hotWaterData: { targetTemperature: temperature, volume, duration, flow } });
     if (byScale !== null && byScale !== byScaleWas) { await gateway.saveAppSettings({ stopHotWaterAtWeight: byScale }); byScaleWas = byScale; }
   }
@@ -66,13 +79,13 @@
   </button>
   <p class="note">{byScale ? 'With a scale connected, it tares and stops when the cup holds the amount above. Without one, the machine stops at its own measure.' : 'The machine stops at its own measure of the amount, or at the longest time.'}</p>
 
-  <RunControl kind="hotWater" label="Start hot water" detail={`${volume} ${byScale ? 'g' : 'ml'} at ${temperature}°C${byScale ? ', stopped by the scale' : ''}.`} beforeStart={persist} onStarted={onClose} />
+  <RunControl kind="hotWater" label="Start hot water" blocked={!app.loaded ? 'Waiting for Decaid.' : !complete ? 'Fill in every setting first.' : null} detail={complete ? `${volume} ${byScale ? 'g' : 'ml'} at ${temperature}°C${byScale ? ', stopped by the scale' : ''}.` : null} beforeStart={persist} onStarted={onClose} />
 
   {#if error}<p class="error" role="alert">{error}</p>{/if}
 
   {#snippet actions()}
     <button class="secondary glass" onclick={onClose}>Cancel</button>
-    <button class="primary glass solid" onclick={save} disabled={saving || (!app.mock && !app.gatewayOnline)}>
+    <button class="primary glass solid" onclick={save} disabled={saving || !complete || (!app.mock && !app.gatewayOnline)}>
       {saving ? 'Saving…' : 'Save hot water settings'}
     </button>
   {/snippet}
