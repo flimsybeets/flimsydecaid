@@ -90,8 +90,12 @@ class AppState {
   profileLineages = $derived(latestPerLineage(this.profiles));
   steam = $derived<SteamSettings | undefined>(this.workflow.steamSettings);
   asleep = $derived(this.machine.state?.state === 'sleeping');
-  /** Group Head Controller fitted: start shots at the group head, so the skin hides Start. */
-  ghc = $state(false);
+  /** Group Head Controller fitted, as the machine reports it. */
+  machineGhc = $state(false);
+  /** Settings → Machine: act as if there were no GHC (theme.noGhc). */
+  imitateNoGhc = $state(false);
+  /** Treat the machine as having a GHC: start at the group head, so the skin hides Start. */
+  ghc = $derived(this.machineGhc && !this.imitateNoGhc);
 
   /** Screensaver photo (JPEG data URL), or null when none is chosen. */
   screensaverImage = $state<string | null>(null);
@@ -730,7 +734,7 @@ class AppState {
 
   async loadMachineInfo(): Promise<void> {
     const info = await gateway.getMachineInfo().catch(() => null);
-    if (info) this.ghc = info.GHC === true;
+    if (info) this.machineGhc = info.GHC === true;
   }
 
   async loadScreensaver(): Promise<void> {
@@ -743,6 +747,12 @@ class AppState {
     this.tilePreview = theme.tilePreview;
     this.bgTone = theme.bgTone;
     this.panelTint = theme.panelTint;
+    this.imitateNoGhc = theme.noGhc;
+  }
+
+  async setImitateNoGhc(on: boolean): Promise<void> {
+    this.imitateNoGhc = on;
+    await this.saveTheme();
   }
 
   async setScreensaverArt(on: boolean): Promise<void> {
@@ -794,7 +804,7 @@ class AppState {
   }
 
   private saveTheme(): Promise<void> {
-    return gateway.storeSet(THEME_KEY, { halloween: this.screensaverArt, clock: this.screensaverClock, tilePreview: this.tilePreview, bgTone: this.bgTone, panelTint: this.panelTint }).catch(() => {});
+    return gateway.storeSet(THEME_KEY, { halloween: this.screensaverArt, clock: this.screensaverClock, tilePreview: this.tilePreview, bgTone: this.bgTone, panelTint: this.panelTint, noGhc: this.imitateNoGhc }).catch(() => {});
   }
 
   private dimSaveTimer: ReturnType<typeof setTimeout> | null = null;

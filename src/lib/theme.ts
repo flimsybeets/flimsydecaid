@@ -24,13 +24,15 @@ export interface ThemeOptions {
   bgTone: number;
   /** Sheet colour: neutral dark frosted glass unless a hue is picked. */
   panelTint: PanelTint;
+  /** Act as if the machine had no group head controller: Start buttons on the tablet even on a GHC machine. */
+  noGhc: boolean;
 }
 
-export const DEFAULT_THEME: ThemeOptions = { halloween: false, clock: true, tilePreview: 'shot', bgTone: DEFAULT_TONE, panelTint: 'dark' };
+export const DEFAULT_THEME: ThemeOptions = { halloween: false, clock: true, tilePreview: 'shot', bgTone: DEFAULT_TONE, panelTint: 'dark', noGhc: false };
 
 /** A stored value → options; a missing or odd value means the defaults (edition screensaver art off, clock on). */
 export function parseTheme(raw: unknown): ThemeOptions {
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return { ...DEFAULT_THEME };
-  const r = raw as { halloween?: unknown; clock?: unknown; tilePreview?: unknown; bgTone?: unknown; panelTint?: unknown };
-  return { halloween: r.halloween === true, clock: r.clock !== false, tilePreview: parseTilePreview(r.tilePreview), bgTone: parseTone(r.bgTone), panelTint: parsePanelTint(r.panelTint) };
+  const r = raw as { halloween?: unknown; clock?: unknown; tilePreview?: unknown; bgTone?: unknown; panelTint?: unknown; noGhc?: unknown };
+  return { halloween: r.halloween === true, clock: r.clock !== false, tilePreview: parseTilePreview(r.tilePreview), bgTone: parseTone(r.bgTone), panelTint: parsePanelTint(r.panelTint), noGhc: r.noGhc === true };
 }
