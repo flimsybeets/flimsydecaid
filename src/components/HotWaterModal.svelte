@@ -58,7 +58,8 @@
 </script>
 
 <Modal title="Hot water" {onClose}>
-  <p class="intro">What comes out when you press hot water on the machine.</p>
+  <!-- Only when the group head starts it: otherwise Start below says it all, and the dialog must fit at 960×600. -->
+  {#if app.ghc}<p class="intro">What comes out when you press hot water on the machine.</p>{/if}
   <div class="grid">
     <div class="temp">
       <Stepper label="Temperature" bind:value={temperature} min={R.hotWaterTemp.min} max={R.hotWaterTemp.max} step={R.hotWaterTemp.step} unit="°C" />
@@ -68,16 +69,17 @@
         {/each}
       </div>
     </div>
-    <Stepper label="Amount" bind:value={volume} min={R.hotWaterVolume.min} max={R.hotWaterVolume.max} step={R.hotWaterVolume.step} unit={byScale ? 'g' : 'ml'} />
+    <div class="temp">
+      <Stepper label="Amount" bind:value={volume} min={R.hotWaterVolume.min} max={R.hotWaterVolume.max} step={R.hotWaterVolume.step} unit={byScale ? 'g' : 'ml'} />
+      <button class="byscale glass" class:lit={byScale} class:on={byScale} role="switch" aria-checked={byScale ?? false} disabled={byScale === null} onclick={() => (byScale = !byScale)}>
+        <span>Stop by the scale</span>
+        <span class="state">{byScale ? 'On' : 'Off'}</span>
+      </button>
+    </div>
     <Stepper label="Longest time" bind:value={duration} min={R.hotWaterDuration.min} max={R.hotWaterDuration.max} step={R.hotWaterDuration.step} unit="s" />
     <Stepper label="Flow" bind:value={flow} min={R.hotWaterFlow.min} max={R.hotWaterFlow.max} step={R.hotWaterFlow.step} decimals={1} unit="ml/s" />
   </div>
-
-  <button class="byscale glass" class:lit={byScale} class:on={byScale} role="switch" aria-checked={byScale ?? false} disabled={byScale === null} onclick={() => (byScale = !byScale)}>
-    <span>Stop by the scale</span>
-    <span class="state">{byScale ? 'On' : 'Off'}</span>
-  </button>
-  <p class="note">{byScale ? 'With a scale connected, it tares and stops when the cup holds the amount above. Without one, the machine stops at its own measure.' : 'The machine stops at its own measure of the amount, or at the longest time.'}</p>
+  <p class="note">{byScale ? 'It tares first. Without a scale, the machine measures the amount itself.' : 'The machine measures the amount itself, and stops at the longest time.'}</p>
 
   <RunControl kind="hotWater" label="Start hot water" blocked={!app.loaded ? 'Waiting for Decaid.' : !complete ? 'Fill in every setting first.' : null} detail={complete ? `${volume} ${byScale ? 'g' : 'ml'} at ${temperature}°C${byScale ? ', stopped by the scale' : ''}.` : null} beforeStart={persist} onStarted={onClose} />
 
@@ -93,21 +95,22 @@
 
 <style>
   .intro, .note { color: var(--paper-dim); }
-  .note { font-size: var(--t-xs); margin-top: -8px; padding: 0 4px; }
+  .note { font-size: var(--t-xs); margin-top: -6px; padding: 0 4px; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; align-items: start; }
   .temp { display: grid; gap: 8px; }
   .presets { display: flex; gap: 6px; }
   .presets button { flex: 1; min-height: 40px; border-radius: var(--radius-pill); color: var(--paper-dim); }
   .presets button.active { color: var(--ink); font-weight: 650; }
 
+  /* Under Amount, level with the temperature presets. */
   .byscale {
     display: flex; justify-content: space-between; align-items: center;
-    min-height: 56px; padding: 0 12px 0 18px; border-radius: 18px;
-    font-size: var(--t-md); font-weight: 600; color: var(--paper);
+    min-height: 44px; padding: 0 5px 0 16px; border-radius: var(--radius-pill);
+    font-weight: 600; color: var(--paper);
   }
   .byscale:disabled { opacity: 0.45; }
   .byscale .state {
-    min-width: 72px; padding: 8px 0; text-align: center; border-radius: var(--radius-pill);
+    min-width: 64px; padding: 6px 0; text-align: center; border-radius: var(--radius-pill);
     background: var(--well); box-shadow: var(--well-shadow); color: var(--paper-dim);
     transition: background 180ms ease, color 180ms ease;
   }

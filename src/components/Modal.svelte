@@ -104,6 +104,8 @@
   }
   .body { display: grid; gap: 16px; align-content: start; min-height: 0; overflow-y: auto; margin: 0 -8px; padding: 3px 6px; }
   .actions { display: flex; gap: 9px; justify-content: flex-end; }
+  /* Short screens (a tablet with a system bar): a little less air, so dialogs fit without scrolling. */
+  @media (max-height: 620px) { .body { gap: 12px; } }
 
   /* While typing: use all the room above the keyboard, and keep the title
      and buttons slim so the fields get it. */
