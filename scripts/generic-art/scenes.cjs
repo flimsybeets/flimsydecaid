@@ -189,17 +189,18 @@ scenes.grind = (S) => {
       S.close();
     },
   });
-  // the spout: a dark tube coming down out of nowhere, its mouth over the cup
+  // the spout: a plain straight dark tube coming down out of nowhere, its open end over the cup
   const sTop = 160, sBot = 74;
   const top = cam.P(X, sTop - 12, 0), solid = cam.P(X, sBot + 18, 0);
   const gid = S.uid('sf'), mid = S.uid('sm');
   S.raw(`<linearGradient id="${gid}" gradientUnits="userSpaceOnUse" x1="0" y1="${f(top[1])}" x2="0" y2="${f(solid[1])}"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#fff"/></linearGradient>`);
   S.raw(`<mask id="${mid}" maskUnits="userSpaceOnUse" x="-2000" y="-2000" width="4000" height="4000"><rect x="-2000" y="-2000" width="4000" height="4000" fill="url(#${gid})"/></mask><g mask="url(#${mid})">`);
-  const sp = stackLathe(cam, X, 0, [[sTop, 11], [sBot + 12, 11], [sBot + 9, 14], [sBot + 3, 12.4], [sBot, 10.8]], 4);
+  const SR = 9;
+  const sp = stackLathe(cam, X, 0, [[sTop, SR], [sBot, SR]], 4);
   S.solid(sp.sil, 'dark', { rim: 0.9 });
-  S.hl(lathe(cam, X, 0, [[sTop, 11], [sBot + 12, 11]]).streak(sTop - 4, sBot + 14, 11, 150), 0.45);
+  S.hl(lathe(cam, X, 0, [[sTop, SR], [sBot, SR]]).streak(sTop - 4, sBot + 4, SR, 150), 0.45);
   S.raw('</g>');
-  S.face(sp.ring(sBot, 10.8), 'rgb(0 0 0 / .6)');
+  S.face(sp.ring(sBot, SR - 0.6), 'rgb(0 0 0 / .6)');
   // grounds dropping from the spout into the cup
   const ac = aboveClip(S, cup.inner);
   const fall = (sBot - (pileY + 6)) * cam.s * cam.cp;
@@ -270,14 +271,30 @@ scenes.pull = (S) => {
     },
     pf: () => T.portafilter(S, cam, gx, pf0, gz, { content: 'none', ang: 150, tilt: -2 }),
     water: () => {
-      // streams from the bottomless basket into the cup
-      const top = pf0 - 16, bot = sc.top + 36;
+      // one stream from the bottomless basket: wide where it leaves the basket,
+      // narrowing fast into a thin thread that lands in the middle of the cup;
+      // crema-coloured flecks run down it, a few drops fall beside it
+      const top = pf0 - 15, bot = sc.top + 30, mid = top - (top - bot) * 0.28;
       const ac = aboveClip(S, cup.ell(cup.rimY, cup.rimR));
-      S.raw(`<g clip-path="url(#${ac})">`);
-      let d = '';
-      for (const [dx, dz] of [[-9, -4], [-3, 5], [4, -3], [9, 4], [0, -9], [-6, 8]]) d += `M${pt(cam.P(gx + dx, top, gz + dz))}L${pt(cam.P(gx + dx * 0.25, bot, cz + dz * 0.25))}`;
-      S.raw(`<path class="k-stream fx" d="${d}" fill="none" stroke="url(#${S.id}crema)" stroke-width="2" stroke-linecap="round" stroke-dasharray="9 5"/>`);
-      S.raw('</g>');
+      const tl = cam.P(gx - 10, top, gz), tr = cam.P(gx + 10, top, gz);
+      const ml = cam.P(gx - 2.2, mid, (gz + cz) / 2), mr = cam.P(gx + 2.2, mid, (gz + cz) / 2);
+      const bl = cam.P(gx - 1.4, bot, cz), br = cam.P(gx + 1.4, bot, cz);
+      const q = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+      const d = `M${pt(tl)}C${pt(q(tl, ml, 0.55))} ${pt([ml[0], ml[1] - (ml[1] - tl[1]) * 0.35])} ${pt(ml)}L${pt(bl)}L${pt(br)}L${pt(mr)}C${pt([mr[0], mr[1] - (mr[1] - tr[1]) * 0.35])} ${pt(q(tr, mr, 0.55))} ${pt(tr)}Z`;
+      const gid = S.uid('pour');
+      S.raw(`<linearGradient id="${gid}" gradientUnits="userSpaceOnUse" x1="0" y1="${f(tl[1])}" x2="0" y2="${f(bl[1])}"><stop offset="0" stop-color="#b8763e"/><stop offset=".3" stop-color="#8a4d22"/><stop offset="1" stop-color="#5a2c12"/></linearGradient>`);
+      const c0 = cam.P(gx, top, gz), c1 = cam.P(gx, bot, cz), cm = cam.P(gx, mid, (gz + cz) / 2);
+      S.raw(`<g clip-path="url(#${ac})"><g class="k-stream" style="transform-origin:${f(c0[0])}px ${f(c0[1])}px">`);
+      S.raw(`<path d="${d}" fill="url(#${gid})"/>`);
+      S.raw(`<path class="k-flowline fx" d="M${pt(cam.P(gx - 3, top - 2, gz))}Q${pt(cam.P(gx - 0.8, mid, (gz + cz) / 2))} ${pt(cam.P(gx - 0.3, bot, cz))}" fill="none" stroke="#e7b27a" stroke-width="1.1" stroke-linecap="round" stroke-dasharray="2.5 9" stroke-opacity=".8"/>`);
+      S.raw(`<path class="k-flowline f2 fx" d="M${pt(cam.P(gx + 3.5, top - 2, gz))}Q${pt(cam.P(gx + 0.8, mid, (gz + cz) / 2))} ${pt(cam.P(gx + 0.3, bot, cz))}" fill="none" stroke="#f0c896" stroke-width=".8" stroke-linecap="round" stroke-dasharray="1.8 11" stroke-opacity=".7"/>`);
+      void cm; void c1;
+      for (const [i, dx] of [[0, -6], [1, 5.5]]) {
+        const s0 = cam.P(gx + dx, top - 2, gz);
+        const fall = (top - bot) * 0.55 * cam.s * cam.cp;
+        S.raw(`<g style="--fall:${f(fall)}px"><ellipse class="k-pourdrop d${i} fx" cx="${f(s0[0])}" cy="${f(s0[1])}" rx="1.1" ry="1.6" fill="#7a4019"/></g>`);
+      }
+      S.raw('</g></g>');
     },
   });
   const e = cam.ell(gx, DE.gTop, gz, DE.gR);

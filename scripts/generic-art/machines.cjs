@@ -207,6 +207,10 @@ function roundedOutline(pts, radii, per = 10) {
 // hot water at 12, steam at 3, espresso at 6, flush at 9, stop in the middle.
 function ghc(S, cam, gx, y, gz, R0, lit) {
   const T = cam.top(gx, y, gz);
+  // machines without a group head controller: the top is a plain black disc
+  // (GuideArt adds .no-ghc to the scene, which swaps the two)
+  S.raw(`<g class="k-noghc" transform="${T}"><circle r="${R0 - 1}" fill="#0c1012"/><circle r="${R0 - 7}" fill="none" stroke="rgb(255 255 255 / .07)" stroke-width="1.2" vector-effect="non-scaling-stroke"/><ellipse cx="${f(-R0 * 0.22)}" cy="${f(-R0 * 0.3)}" rx="${f(R0 * 0.42)}" ry="${f(R0 * 0.18)}" fill="rgb(255 255 255 / .05)" transform="rotate(-24)"/></g>`);
+  S.raw('<g class="k-ghc">');
   S.raw(`<g transform="${T}">`);
   S.raw(`<circle r="${R0 - 1}" fill="rgb(255 255 255 / .06)"/><circle r="${R0 - 7}" fill="rgb(2 7 9 / .78)"/>`);
   S.raw(`<circle r="${R0 - 7}" fill="none" stroke="rgb(${PAPER} / .18)" stroke-width="5" vector-effect="non-scaling-stroke"/><circle r="${R0 - 7}" fill="none" stroke="rgb(${PAPER} / .85)" stroke-width="1.3" vector-effect="non-scaling-stroke"/>`);
@@ -238,6 +242,7 @@ function ghc(S, cam, gx, y, gz, R0, lit) {
     S.raw(`<circle class="k-ring fx" style="transform-origin:${f(lx)}px ${f(ly)}px" cx="${f(lx)}" cy="${f(ly)}" r="12" fill="none" stroke="var(--acc)" stroke-width="1.4" vector-effect="non-scaling-stroke"/>`);
     S.raw(`<g transform="translate(${f(lx)} ${f(ly)}) scale(1.45)"><path d="${ICON[litKey]}" fill="none" stroke="#fff" stroke-width="1.5" vector-effect="non-scaling-stroke"/></g></g>`);
   }
+  S.raw('</g>');
 }
 // the steam wand: arm out of the front, knuckle, wand and tip. clipLower: id of
 // a clipPath the part below `yClip` is drawn through (to dip it into a jug).
