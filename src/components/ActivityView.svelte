@@ -22,6 +22,15 @@
   const hot = $derived(app.workflow.hotWaterData);
   // Planned run time: the rinse time, hot water's longest time, or steam's maximum run time.
   const planned = $derived(kind === 'flush' ? rinse?.duration : kind === 'hotWater' ? hot?.duration : steam?.duration);
+  // Hot water: what's gone into the cup since the view opened, so a cup already on an
+  // untared scale doesn't count (with Stop by the scale on, Decaid tares first anyway).
+  let baseline: number | null = null;
+  const inCup = $derived.by(() => {
+    const w = app.scaleConnected ? app.weight : null;
+    if (w === null) return null;
+    if (baseline === null || w < baseline) baseline = w;
+    return Math.max(0, w - baseline);
+  });
   const title = $derived(kind === 'flush' ? 'Flushing' : kind === 'hotWater' ? 'Hot water' : 'Steaming');
   const used = $derived(progress(elapsed, planned));
 
@@ -53,7 +62,7 @@
     {:else if kind === 'hotWater'}
       <div class="reads">
         <div class="r"><span class="lab">Flow</span><b>{m.flow?.toFixed(1) ?? '–'}<small>ml/s</small></b></div>
-        <div class="r"><span class="lab">In the cup</span><b>{app.scaleConnected && app.weight !== null ? app.weight.toFixed(0) : '–'}<small>g</small></b>
+        <div class="r"><span class="lab">In the cup</span><b>{inCup !== null ? inCup.toFixed(0) : '–'}<small>g</small></b>
           <span class="target">{hot?.volume ? `of ${hot.volume}` : ''}</span></div>
         <div class="r"><span class="lab">Set to</span><b>{hot?.targetTemperature ?? '–'}<small>°C</small></b></div>
       </div>

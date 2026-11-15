@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick, untrack } from 'svelte';
+  import { flushSync, tick, untrack } from 'svelte';
   import { app } from '../../state/app.svelte';
   import { EDITION } from '../../edition';
   import ConfirmDialog from '../../components/ConfirmDialog.svelte';
@@ -153,8 +153,36 @@
   }
   // Escape: only when nothing sits on top (a confirm dialog handles its own).
   let root = $state<HTMLElement>();
+  // ---- Typing sheet (touch screens) ----------------------------------------------
+  // The tablet's keyboard covers most of the page and leaves only a strip, so on a
+  // touch screen a text field opens this sheet in the room above the keyboard
+  // (`--kb`): its name, any hint and a big box showing what's typed, with Done.
+  // Every keystroke goes straight into the draft, as typing in place would.
+  interface Sheet { label: string; hint?: string; multiline: boolean; max: number; value: string; set: (v: string) => void; enter?: () => void }
+  const touch = typeof window !== 'undefined' && (navigator.maxTouchPoints > 0 || matchMedia('(pointer: coarse)').matches);
+  let sheet = $state<Sheet | null>(null);
+  let sheetEl = $state<HTMLInputElement | HTMLTextAreaElement>();
+  function openSheet(e: FocusEvent, s: Omit<Sheet, 'value'>) {
+    if (!touch || sheet) return;
+    const field = e.currentTarget as HTMLInputElement | HTMLTextAreaElement;
+    // Mount the sheet and move focus to it inside the same tap, so the keyboard stays up.
+    flushSync(() => { sheet = { ...s, value: field.value }; });
+    const el = sheetEl;
+    if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+  }
+  function sheetInput(v: string) {
+    if (!sheet) return;
+    sheet.value = v;
+    sheet.set(v);
+  }
+  function closeSheet() {
+    sheetEl?.blur();
+    sheet = null;
+  }
+
   function onEscape(e: KeyboardEvent) {
     if (e.key !== 'Escape' || e.defaultPrevented) return;
+    if (sheet) { e.preventDefault(); closeSheet(); return; }
     const open = document.querySelectorAll('[role="dialog"][aria-modal="true"]');
     if (open[open.length - 1] !== root) return;
     e.preventDefault();
@@ -248,7 +276,8 @@
     </div>
   {:else}
     <div class="tools" role="group" aria-label="Tools">
-      <label class="setname"><span class="sr-only">Name of these steps</span><input class="well" bind:value={draft.name} maxlength="60" placeholder="Name" /></label>
+      <label class="setname"><span class="sr-only">Name of these steps</span><input class="well" bind:value={draft.name} maxlength="60" placeholder="Name"
+        onfocus={(e) => openSheet(e, { label: 'Name of these steps', multiline: false, max: 60, set: (v) => (draft.name = v) })} /></label>
       <button class="chip glass" aria-pressed={panel === 'add'} disabled={draft.steps.length >= MAX_STEPS} onclick={() => (panel = panel === 'add' ? null : 'add')}>＋ Add a step</button>
       <button class="chip glass" aria-pressed={panel === 'load'} onclick={() => (panel = panel === 'load' ? null : 'load')}>Load…</button>
       <button class="chip glass" aria-pressed={panel === 'save'} onclick={() => { saveName = draft.name; savedNote = null; panel = panel === 'save' ? null : 'save'; }}>Save as…</button>
@@ -295,7 +324,8 @@
       <div class="panel glass thick">
         <p class="hint">Keep a copy of these steps to load later, say one for weekdays and one for guests. Words, lists and timers are kept; photos stay with the steps in use.</p>
         <div class="row">
-          <input class="well saveas" bind:value={saveName} maxlength="60" placeholder="Name" aria-label="Save as" onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void saveAs(); } }} />
+          <input class="well saveas" bind:value={saveName} maxlength="60" placeholder="Name" aria-label="Save as" onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void saveAs(); } }}
+            onfocus={(e) => openSheet(e, { label: 'Save as', multiline: false, max: 60, set: (v) => (saveName = v), enter: () => void saveAs() })} />
           <button class="chip glass solid" disabled={!saveName.trim()} onclick={saveAs}>{nameTaken ? 'Replace' : 'Save'}</button>
         </div>
         {#if savedNote}<p class="ok">{savedNote}</p>{:else if nameTaken}<p class="hint">A saved set has this name; saving replaces it.</p>{/if}
@@ -337,14 +367,18 @@
             </div>
           </div>
           <div class="two">
-            <label><span>Title</span><input class="well" value={sel.title} maxlength="80" oninput={(e) => patch({ title: e.currentTarget.value })} /></label>
-            <label><span>Progress bar name</span><input class="well" value={sel.label} maxlength="16" oninput={(e) => patch({ label: e.currentTarget.value })} /></label>
+            <label><span>Title</span><input class="well" value={sel.title} maxlength="80" oninput={(e) => patch({ title: e.currentTarget.value })}
+              onfocus={(e) => openSheet(e, { label: 'Title', hint: 'Can use {dose} {beans} {coffee} {grind} {start}', multiline: false, max: 80, set: (v) => patch({ title: v }) })} /></label>
+            <label><span>Progress bar name</span><input class="well" value={sel.label} maxlength="16" oninput={(e) => patch({ label: e.currentTarget.value })}
+              onfocus={(e) => openSheet(e, { label: 'Progress bar name', hint: 'A word or two, under the progress bar', multiline: false, max: 16, set: (v) => patch({ label: v }) })} /></label>
           </div>
           <label><span>Words <small class="hint">can use {'{dose}'} {'{beans}'} {'{coffee}'} {'{grind}'} {'{start}'}</small></span>
-            <textarea class="well" rows="3" maxlength="400" value={sel.body} oninput={(e) => patch({ body: e.currentTarget.value })}></textarea>
+            <textarea class="well" rows="3" maxlength="400" value={sel.body} oninput={(e) => patch({ body: e.currentTarget.value })}
+              onfocus={(e) => openSheet(e, { label: 'Words', hint: 'Can use {dose} {beans} {coffee} {grind} {start}', multiline: true, max: 400, set: (v) => patch({ body: v }) })}></textarea>
           </label>
           <label><span>List, one line each</span>
-            <textarea class="well" rows={Math.min(12, Math.max(3, itemsText.split("\n").length + 1))} bind:value={itemsText} oninput={() => patch({ items: linesToItems(itemsText) })}></textarea>
+            <textarea class="well" rows={Math.min(12, Math.max(3, itemsText.split("\n").length + 1))} bind:value={itemsText} oninput={() => patch({ items: linesToItems(itemsText) })}
+              onfocus={(e) => openSheet(e, { label: 'List, one line each', hint: 'Each line is one item in the checklist', multiline: true, max: 2000, set: (v) => { itemsText = v; patch({ items: linesToItems(v) }); } })}></textarea>
           </label>
           <div class="extras">
             {#if !isSmart(sel.template)}
@@ -364,6 +398,22 @@
       </div>
     </div>
   {/if}
+  {/if}
+
+  {#if sheet}
+    <div class="type-sheet" role="dialog" aria-modal="true" aria-label={sheet.label}>
+      <div class="ts-head">
+        <div class="ts-title"><b>{sheet.label}</b>{#if sheet.hint}<small>{sheet.hint}</small>{/if}</div>
+        <button class="ts-done glass solid" onmousedown={(e) => e.preventDefault()} onclick={() => { const go = sheet?.enter; closeSheet(); go?.(); }}>Done</button>
+      </div>
+      {#if sheet.multiline}
+        <textarea class="ts-field well" bind:this={sheetEl} value={sheet.value} maxlength={sheet.max} oninput={(e) => sheetInput(e.currentTarget.value)}></textarea>
+      {:else}
+        <input class="ts-field well" bind:this={sheetEl} value={sheet.value} maxlength={sheet.max} enterkeyhint="done"
+          oninput={(e) => sheetInput(e.currentTarget.value)}
+          onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const go = sheet?.enter; closeSheet(); go?.(); } }} />
+      {/if}
+    </div>
   {/if}
 </div>
 
@@ -432,6 +482,19 @@
   .close { width: 42px; height: 42px; flex: none; border-radius: 50%; font-size: var(--t-md); color: var(--paper-dim); }
   h1 { font-size: var(--t-xl); font-weight: 700; letter-spacing: -0.01em; }
   .spacer { flex: 1; }
+  /* Typing sheet: fills the room above the on-screen keyboard (--kb is 0 when the page shrinks instead). */
+  .type-sheet {
+    position: fixed; left: 0; right: 0; top: 0; bottom: var(--kb, 0px); z-index: 5;
+    display: flex; flex-direction: column; gap: 10px; padding: 12px var(--gutter);
+    background: linear-gradient(165deg, #12313a, #0a181c 80%);
+  }
+  .ts-head { flex: none; display: flex; align-items: center; gap: 12px; }
+  .ts-title { flex: 1; min-width: 0; display: grid; }
+  .ts-title b { font-size: var(--t-lg); }
+  .ts-title small { color: var(--paper-faint); font-size: var(--t-xs); }
+  .ts-done { min-height: 48px; padding: 0 26px; border-radius: 14px; font-weight: 700; color: var(--ink); }
+  .ts-field { flex: 1; min-height: 56px; font-size: var(--t-lg); line-height: 1.35; padding: 10px 14px; }
+  input.ts-field { flex: none; }
   /* Real tabs: plain labels on a shared rule, the chosen one underlined and joined to the page. */
   .tabs { flex: none; display: flex; gap: 4px; border-bottom: 1px solid rgb(255 255 255 / 0.14); margin-top: -2px; }
   .tab-btn {

@@ -5,7 +5,8 @@
   import { ratioText, shotStats } from '../../lib/history';
   import { followProgress, pickBag, planBrew, weighState } from '../../lib/guide';
   import { afterPull, canGoBack, fillText, timerText } from '../../lib/workflow';
-  import { heaterOn } from '../../lib/steam';
+  import { steamBlockedText, steamReadiness } from '../../lib/steam';
+  import RunControl from '../../components/RunControl.svelte';
 
   // "Guide me": the whole routine for one profile + coffee, one step at a
   // time, from weighing beans to rinsing the group. The steps are data (the
@@ -39,11 +40,15 @@
   const steady = () => { const now = performance.now(); if (now - lastNav < 300) return false; lastNav = now; return true; };
   const next = () => { if (steady()) go(index + 1); };
   const back = () => { if (steady() && canGoBack(app.guideWorkflow, index)) go(index - 1); };
-  // Flush and steam from the guide on machines without a group head controller.
-  let runError = $state<string | null>(null);
-  async function run(kind: 'flush' | 'steam') {
-    runError = 'busy';
-    try { await app.startActivity(kind); runError = null; } catch (e) { runError = `Couldn't start: ${(e as Error).message}`; }
+  // Steam on machines without a GHC: the bottom bar is covered, so the step can switch the heater on itself.
+  const steamReady = $derived(steamReadiness(app.steam, app.machine.steamTemperature));
+  let heaterBusy = $state(false);
+  let heaterError = $state<string | null>(null);
+  async function heaterOnNow() {
+    if (heaterBusy) return;
+    heaterBusy = true;
+    heaterError = null;
+    try { await app.setSteam({ on: true }); } catch (e) { heaterError = `Couldn't turn it on: ${(e as Error).message}`; } finally { heaterBusy = false; }
   }
 
   // The app needs to know the current kind of step: on a steam step the guide shows the steam itself.
@@ -233,30 +238,23 @@
                 <p class="waiting"><span class="dot"></span>Rinsing…</p>
               {:else if rinse === 'finished'}
                 <p class="waiting ok">Clean</p>
-              {:else}
-                {#if app.ghc}
-                  <p class="waiting"><span class="dot"></span>Press the flush button on the group head</p>
-                {:else}
-                  <button class="go-btn start" disabled={runError === 'busy'} onclick={() => run('flush')}>Start flush</button>
-                {/if}
+              {:else if app.ghc}
+                <p class="waiting"><span class="dot"></span>Press the flush button on the group head</p>
               {/if}
-              {#if runError && runError !== 'busy'}<p class="error">{runError}</p>{/if}
+              <!-- Start without a GHC, Stop while it runs (the guide covers the flush view). -->
+              {#if rinse !== 'finished'}<div class="run-wrap"><RunControl kind="flush" label="Start flush" /></div>{/if}
             {:else if kind === 'steam'}
               {#if machineState === 'steam'}
                 <p class="waiting"><span class="dot"></span>Steaming…</p>
               {:else if steam === 'finished'}
                 <p class="waiting ok">Steamed</p>
-              {:else}
-                {#if app.ghc}
-                  <p class="waiting"><span class="dot"></span>Press the steam button on the group head</p>
-                {:else if !heaterOn(app.steam)}
-                  <p class="waiting">The steam heater is off.</p>
-                  <button class="tare glass" onclick={() => void app.setSteam({ on: true })}>Turn the steam heater on</button>
-                {:else}
-                  <button class="go-btn start" disabled={runError === 'busy'} onclick={() => run('steam')}>Start steam</button>
-                {/if}
+              {:else if app.ghc}
+                <p class="waiting"><span class="dot"></span>Press the steam button on the group head</p>
+              {:else if steamReady === 'off'}
+                <button class="tare glass" disabled={heaterBusy} onclick={heaterOnNow}>{heaterBusy ? 'Turning it on…' : 'Turn the steam heater on'}</button>
+                {#if heaterError}<p class="error">{heaterError}</p>{/if}
               {/if}
-              {#if runError && runError !== 'busy'}<p class="error">{runError}</p>{/if}
+              {#if steam !== 'finished'}<div class="run-wrap"><RunControl kind="steam" label="Start steam" blocked={steamBlockedText(steamReady, app.steam, app.machine.steamTemperature)} /></div>{/if}
             {:else if kind === 'done'}
               <dl class="summary">
                 <div><dt>In</dt><dd>{plan.dose.toFixed(1)}<small>g</small></dd></div>
@@ -407,6 +405,7 @@
     box-shadow: 0 14px 30px -12px rgb(143 211 192 / 0.8), inset 0 1px 0 rgb(255 255 255 / 0.8);
     animation: breathe 2.2s ease-in-out infinite;
   }
+  .run-wrap { max-width: 420px; }
   .go-btn:disabled { opacity: 0.55; animation: none; }
   @keyframes breathe { 50% { transform: scale(1.03); } }
   .waiting { display: flex; align-items: center; gap: 9px; font-size: var(--t-md); font-weight: 700; color: rgb(var(--accent)); }

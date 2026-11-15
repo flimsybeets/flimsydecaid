@@ -165,7 +165,7 @@
 {/if}
 
 {#if app.guiding && app.guide}
-  <Guide covered={shotOpen} onclose={() => (app.guiding = false)} />
+  <Guide covered={shotOpen || activity !== null} onclose={() => (app.guiding = false)} />
 {/if}
 
 {#if app.guideEditor}

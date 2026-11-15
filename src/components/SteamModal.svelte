@@ -3,7 +3,7 @@
   import Modal from './Modal.svelte';
   import Stepper from './Stepper.svelte';
   import RunControl from './RunControl.svelte';
-  import { heaterOn, STEAM_DEFAULT_C, STEAM_FLOW_MAX, STEAM_FLOW_MIN, STEAM_MAX_C, STEAM_MIN_C } from '../lib/steam';
+  import { heaterOn, steamBlockedText, steamReadiness, STEAM_DEFAULT_C, STEAM_FLOW_MAX, STEAM_FLOW_MIN, STEAM_MAX_C, STEAM_MIN_C } from '../lib/steam';
 
   let { onClose }: { onClose: () => void } = $props();
 
@@ -17,6 +17,13 @@
 
   const presets = [140, 150, 158];
 
+  // Steam only once the heater is on (as saved, not just switched on here) and the boiler is near its target.
+  const startBlocked = $derived(
+    temperature === undefined || flow === undefined ? 'Fill in every setting first.'
+    : !on ? 'Turn the steam heater on first.'
+    : !heaterOn(app.steam) ? 'Save to turn the heater on. Start is ready once it’s hot.'
+    : steamBlockedText(steamReadiness(app.steam, app.machine.steamTemperature), app.steam, app.machine.steamTemperature),
+  );
   const persist = () => app.setSteam({ on, temperature: on ? temperature : undefined, flow });
   async function save() {
     saving = true;
@@ -53,13 +60,13 @@
     <Stepper label="Flow" bind:value={flow} min={STEAM_FLOW_MIN} max={STEAM_FLOW_MAX} step={0.1} decimals={1} unit="ml/s" />
   </div>
 
-  <RunControl kind="steam" label="Start steam" blocked={on ? null : 'Turn the steam heater on first.'} detail={on ? `At ${temperature}°C, ${flow} ml/s. Stops by itself after ${app.workflow.steamSettings?.duration ?? 60} s, or press Stop.` : null} beforeStart={persist} onStarted={onClose} />
+  <RunControl kind="steam" label="Start steam" blocked={startBlocked} detail={on && temperature !== undefined && flow !== undefined ? `At ${temperature}°C, ${flow} ml/s. Stops by itself after ${app.workflow.steamSettings?.duration ?? 60} s, or press Stop.` : null} beforeStart={persist} onStarted={onClose} />
 
   {#if error}<p class="error" role="alert">{error}</p>{/if}
 
   {#snippet actions()}
     <button class="secondary glass" onclick={onClose}>Cancel</button>
-    <button class="primary glass solid" onclick={save} disabled={saving || (!app.mock && !app.gatewayOnline)}>
+    <button class="primary glass solid" onclick={save} disabled={saving || flow === undefined || (on && temperature === undefined) || (!app.mock && !app.gatewayOnline)}>
       {saving ? 'Saving…' : 'Save steam settings'}
     </button>
   {/snippet}
