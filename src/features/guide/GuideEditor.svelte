@@ -7,32 +7,70 @@
   import StepPhotoField from './StepPhotoField.svelte';
   import GuideArt from './GuideArt.svelte';
   import StepIcon from './StepIcon.svelte';
-  import { cloneWorkflow, type WorkflowPreset } from '../../lib/workflowPresets';
+  import { cloneWorkflow } from '../../lib/workflowPresets';
+  import { pickBag, planBrew } from '../../lib/guide';
   import {
-    addableTemplates, addStep, canRemove, inspectWorkflow, isSmart, itemsToLines, linesToItems, fillText, timerText, moveStep, normaliseWorkflow, removeStep,
-    STEP_LIBRARY, updateStep, workflowEquals, MAX_STEPS, type Workflow,
+    addableTemplates, addStep, canRemove, isSmart, itemsToLines, linesToItems, fillText, timerText, moveStep, normaliseWorkflow, removeStep,
+    STEP_LIBRARY, updateStep, workflowEquals, MAX_STEPS, type SavedSet, type Workflow,
   } from '../../lib/workflow';
 
-  // Full screen (like the profile editor): edit the steps Guide me walks through: start from a preset, reorder,
-  // remove, change the words, list and timer, give a step its own photo, add
-  // steps from the library, and export or import the whole thing as JSON.
-  // Everything is a draft until Save; photos are not part of an export.
+  // Guide me, set up in one full-screen page with two tabs:
+  //  - Profile & coffee: what the guide brews (one profile, one coffee; the
+  //    coffee's newest open bag and its dial-in are used each time).
+  //  - Steps: what the person following it is walked through. Reorder, reword,
+  //    add from the library, timers and photos, Save as… / Load named sets.
+  // Everything is a draft until Save. Guide me is for the rest of the household,
+  // so the copy here talks about "them".
 
-  let { onClose }: { onClose: () => void } = $props();
+  let { tab: startTab = 'setup', onClose }: { tab?: 'setup' | 'steps'; onClose: () => void } = $props();
 
+  // svelte-ignore state_referenced_locally
+  let tab = $state<'setup' | 'steps'>(startTab);
+  const wasReady = app.guide !== null;
+
+  // ---- Profile & coffee ---------------------------------------------------------
+  let profileRoot = $state<string | null>(app.guide?.profileRoot ?? null);
+  let beanId = $state<string | null>(app.guide?.beanId ?? null);
+  let query = $state('');
+  const profiles = $derived(
+    [...app.profileLineages.entries()]
+      .map(([root, record]) => ({ root, record }))
+      .filter(({ record }) => !query.trim() || record.profile.title.toLowerCase().includes(query.trim().toLowerCase()))
+      .sort((a, b) => a.record.profile.title.localeCompare(b.record.profile.title)),
+  );
+  const coffees = $derived(app.beans.filter((b) => !b.archived && pickBag(b.id, app.batches)));
+  const brew = $derived.by(() => {
+    if (!profileRoot || !beanId) return null;
+    const record = app.profileLineages.get(profileRoot);
+    if (!record) return null;
+    return planBrew(record, profileRoot, pickBag(beanId, app.batches), app.batches, app.workflow.context?.targetDoseWeight ?? 18);
+  });
+  const setupReady = $derived(!!profileRoot && !!beanId);
+  const setupDirty = $derived(setupReady && (profileRoot !== app.guide?.profileRoot || beanId !== app.guide?.beanId));
+  let confirmRemoveSetup = $state(false);
+  async function removeSetup() {
+    await app.removeGuide();
+    profileRoot = null;
+    beanId = null;
+  }
+
+  // ---- Steps --------------------------------------------------------------------
   const presets = EDITION.guide.presets;
   const fallback = cloneWorkflow(presets[0]!.workflow);
   let draft = $state<Workflow>(cloneWorkflow(app.guideWorkflow));
   let selectedId = $state<string | null>(null);
-  let panel = $state<null | 'presets' | 'add' | 'export' | 'import'>(null);
-  let confirmPreset = $state<WorkflowPreset | null>(null);
+  let panel = $state<null | 'add' | 'load' | 'save'>(null);
+  let confirmLoad = $state<{ name: string; workflow: Workflow } | null>(null);
+  let confirmDelete = $state<SavedSet | null>(null);
   let confirmDiscard = $state(false);
   let saving = $state(false);
   let error = $state<string | null>(null);
+  void app.loadSavedSets().catch(() => {});
 
   // Photo changes wait for Save: undefined = unchanged, null = remove, string = new.
   let photos = $state<Record<string, string | null | undefined>>({});
-  const dirty = $derived(!workflowEquals(draft, app.guideWorkflow) || Object.values(photos).some((p) => p !== undefined));
+  const stepsDirty = $derived(!workflowEquals(draft, app.guideWorkflow) || Object.values(photos).some((p) => p !== undefined));
+  const dirty = $derived(stepsDirty || setupDirty);
 
   const sel = $derived(draft.steps.find((s) => s.id === selectedId) ?? null);
   const selIndex = $derived(sel ? draft.steps.indexOf(sel) : -1);
@@ -64,8 +102,12 @@
     }
   });
 
-  // Sample values for the preview's {tokens}.
-  const sample = { dose: '18.0', beans: 'beans of your coffee', coffee: 'Your coffee', grind: '14', source: 'From your last shot with this bag', start: 'start' };
+  // Sample values for the preview's {tokens}: the chosen coffee and dial-in when known.
+  const coffeeName = $derived(app.beans.find((b) => b.id === beanId)?.name ?? 'your coffee');
+  const sample = $derived({
+    dose: (brew?.dose ?? 18).toFixed(1), beans: `beans of ${coffeeName}`, coffee: coffeeName, grind: brew?.grind ?? '14',
+    source: 'From your last shot with this bag', start: 'start',
+  });
   const previewTitle = $derived(sel ? fillText(sel.title, sample) : '');
   const previewBody = $derived(sel ? fillText(sel.body, sample) : '');
 
@@ -79,41 +121,32 @@
     const r = addStep(draft, t);
     if (r.id) { draft = r.workflow; selectedId = r.id; panel = null; }
   }
-  function usePreset(p: WorkflowPreset) {
-    draft = cloneWorkflow(p.workflow);
-    selectedId = null;
-    panel = null;
-  }
 
-  // Sharing: JSON in and out.
-  const json = $derived(JSON.stringify(draft, null, 2));
-  let copied = $state<'yes' | 'manual' | null>(null);
-  let exportBox = $state<HTMLTextAreaElement>();
-  async function copy() {
+  // ---- Save as… / Load ---------------------------------------------------------
+  // svelte-ignore state_referenced_locally
+  let saveName = $state(draft.name);
+  let savedNote = $state<string | null>(null);
+  const nameTaken = $derived(app.savedSets.some((s) => s.name.trim().toLowerCase() === saveName.trim().toLowerCase()));
+  async function saveAs() {
+    const name = saveName.trim();
+    if (!name) return;
     try {
-      await navigator.clipboard.writeText(json);
-      copied = 'yes';
-    } catch {
-      exportBox?.focus();
-      exportBox?.select();
-      let ok = false;
-      try { ok = document.execCommand('copy'); } catch { /* manual */ }
-      copied = ok ? 'yes' : 'manual';
+      await app.saveSet(normaliseWorkflow(draft, fallback), name);
+      draft = { ...draft, name };
+      savedNote = `Saved as “${name}”.`;
+    } catch (e) {
+      savedNote = `Couldn't save: ${(e as Error).message}`;
     }
   }
-  let pasted = $state('');
-  const inspected = $derived.by(() => {
-    if (!pasted.trim()) return null;
-    try { return inspectWorkflow(JSON.parse(pasted)); } catch (e) { return { workflow: null, notes: [`That is not valid JSON (${(e as Error).message}).`] }; }
-  });
-  function importIt() {
-    if (!inspected?.workflow) return;
-    draft = inspected.workflow;
+  function load(w: Workflow) {
+    draft = cloneWorkflow(w);
+    saveName = draft.name;
     selectedId = null;
-    pasted = '';
     panel = null;
   }
+  const when = (iso: string) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }); };
 
+  // ---- Close / save ---------------------------------------------------------------
   function close() {
     if (dirty) confirmDiscard = true;
     else onClose();
@@ -133,15 +166,20 @@
     saving = true;
     error = null;
     try {
-      const clean = normaliseWorkflow(draft, fallback);
-      await app.saveGuideWorkflow(clean);
-      const ids = new Set(clean.steps.map((s) => s.id));
-      for (const [id, p] of Object.entries(photos)) {
-        if (p === undefined || !ids.has(id)) continue;
-        if (p) await app.saveStepPhoto(id, p);
-        else await app.removeStepPhoto(id);
+      if (setupDirty && profileRoot && beanId) await app.saveGuide({ profileRoot, beanId });
+      if (stepsDirty) {
+        const clean = normaliseWorkflow(draft, fallback);
+        await app.saveGuideWorkflow(clean);
+        const ids = new Set(clean.steps.map((s) => s.id));
+        for (const [id, p] of Object.entries(photos)) {
+          if (p === undefined || !ids.has(id)) continue;
+          if (p) await app.saveStepPhoto(id, p);
+          else await app.removeStepPhoto(id);
+        }
       }
       onClose();
+      // First time set up from the tile: go straight into the guide.
+      if (!wasReady && app.guide) app.guiding = true;
     } catch (e) {
       error = `Couldn't save: ${(e as Error).message}`;
     } finally {
@@ -152,24 +190,68 @@
 
 <svelte:window onkeydown={onEscape} />
 
-<div class="editor" role="dialog" aria-modal="true" aria-label="Guide me steps" tabindex="-1" bind:this={root}>
+<div class="editor" role="dialog" aria-modal="true" aria-label="Guide me" tabindex="-1" bind:this={root}>
   <header class="top">
-    <button class="close glass" aria-label="Close the steps editor" onclick={close}>✕</button>
-    <label class="name"><span class="sr-only">Name of this set of steps</span><input class="title" bind:value={draft.name} maxlength="60" placeholder="Name" /></label>
-    <span class="meta">{draft.steps.length} steps{dirty ? ' · edited' : ''}</span>
+    <button class="close glass" aria-label="Close" onclick={close}>✕</button>
+    <h1>Guide me</h1>
+    <div class="tabs" role="tablist" aria-label="Guide me">
+      <button class="tab-btn glass" role="tab" aria-selected={tab === 'setup'} class:lit={tab === 'setup'} onclick={() => (tab = 'setup')}>Profile & coffee</button>
+      <button class="tab-btn glass" role="tab" aria-selected={tab === 'steps'} class:lit={tab === 'steps'} onclick={() => (tab = 'steps')}>Steps <small>{draft.steps.length}</small></button>
+    </div>
+    <span class="meta">{dirty ? 'Edited' : ''}</span>
     <div class="actions">
       <button class="glass" onclick={close}>Cancel</button>
       <button class="glass solid save" disabled={saving || !dirty} onclick={save}>{saving ? 'Saving…' : 'Save'}</button>
     </div>
   </header>
+  {#if error}<p class="error" role="alert">{error}</p>{/if}
 
-  <div class="tools" role="group" aria-label="Tools">
-    <button class="chip glass" aria-pressed={panel === 'add'} disabled={draft.steps.length >= MAX_STEPS} onclick={() => (panel = panel === 'add' ? null : 'add')}>＋ Add a step</button>
-    <button class="chip glass" aria-pressed={panel === 'presets'} onclick={() => (panel = panel === 'presets' ? null : 'presets')}>Start from a preset…</button>
-    <button class="chip glass" aria-pressed={panel === 'export'} onclick={() => { copied = null; panel = panel === 'export' ? null : 'export'; }}>Export</button>
-    <button class="chip glass" aria-pressed={panel === 'import'} onclick={() => (panel = panel === 'import' ? null : 'import')}>Import</button>
-    {#if error}<p class="error" role="alert">{error}</p>{/if}
-  </div>
+  {#if tab === 'setup'}
+    <p class="intro">Set it up once, so anyone at home can make your coffee the way you do. The guide puts this profile and coffee on the machine, with your dial-in, and walks them through the steps.</p>
+    <div class="setup">
+      <section class="pane glass thick">
+        <h3>Profile</h3>
+        <input class="search well" type="search" placeholder="Search {app.profileLineages.size} profiles" bind:value={query} aria-label="Search profiles" />
+        <ul class="opts-list" role="radiogroup" aria-label="Profile">
+          {#each profiles as { root, record } (root)}
+            <li><button class="opt glass" class:lit={root === profileRoot} role="radio" aria-checked={root === profileRoot} onclick={() => (profileRoot = root)}>{record.profile.title}</button></li>
+          {:else}
+            <li class="none">No profiles match</li>
+          {/each}
+        </ul>
+      </section>
+      <section class="pane glass thick">
+        <h3>Coffee</h3>
+        <ul class="opts-list" role="radiogroup" aria-label="Coffee">
+          {#each coffees as b (b.id)}
+            <li><button class="opt glass" class:lit={b.id === beanId} role="radio" aria-checked={b.id === beanId} onclick={() => (beanId = b.id)}>
+              <span>{b.name}</span><small>{b.roaster}</small>
+            </button></li>
+          {:else}
+            <li class="none">No coffee with an open bag. Add a bag in Beans.</li>
+          {/each}
+        </ul>
+        <div class="brew">
+          {#if brew}
+            <b>{brew.dose.toFixed(1)} g in{brew.yield ? ` · ${brew.yield} g out` : ''} · {brew.grind ? `grind ${brew.grind}` : 'no grind saved yet'}</b>
+            <span>{brew.source === 'this-bag' ? 'From this bag' : brew.source === 'previous-bag' ? 'From your last bag of this coffee' : 'The profile’s own settings'}. The guide uses whatever the bag remembers at the time.</span>
+          {:else}
+            <span>Pick a profile and a coffee.</span>
+          {/if}
+        </div>
+        <div class="setup-foot">
+          <button class="chip glass" onclick={() => (tab = 'steps')}>Next: the steps ›</button>
+          {#if app.guide}<button class="chip glass danger" onclick={() => (confirmRemoveSetup = true)}>Remove Guide me</button>{/if}
+        </div>
+      </section>
+    </div>
+  {:else}
+    <div class="tools" role="group" aria-label="Tools">
+      <label class="setname"><span class="sr-only">Name of these steps</span><input class="well" bind:value={draft.name} maxlength="60" placeholder="Name" /></label>
+      <button class="chip glass" aria-pressed={panel === 'add'} disabled={draft.steps.length >= MAX_STEPS} onclick={() => (panel = panel === 'add' ? null : 'add')}>＋ Add a step</button>
+      <button class="chip glass" aria-pressed={panel === 'load'} onclick={() => (panel = panel === 'load' ? null : 'load')}>Load…</button>
+      <button class="chip glass" aria-pressed={panel === 'save'} onclick={() => { saveName = draft.name; savedNote = null; panel = panel === 'save' ? null : 'save'; }}>Save as…</button>
+    </div>
 
   {#if panel === 'add'}
     <div class="sheet glass thick">
@@ -183,38 +265,39 @@
         {/each}
       </div>
     </div>
-  {:else}
-    {#if panel === 'presets'}
-      <div class="panel glass thick">
-        <p class="hint">Replaces the steps below (nothing is saved until you press Save).</p>
+  {:else if panel === 'load'}
+    <div class="sheet glass thick">
+      <div class="sheet-head"><b>Load steps</b><button class="chip glass" onclick={() => (panel = null)}>Done</button></div>
+      <div class="sheet-body">
+        <p class="hint">Loading replaces the steps in the list. Nothing changes for the guide until you press Save.</p>
+        {#if app.savedSets.length}
+          <h3>Saved</h3>
+          <ul class="opts">
+            {#each app.savedSets as s (s.id)}
+              <li class="saved">
+                <button class="opt glass" onclick={() => (confirmLoad = { name: s.name, workflow: s.workflow })}><b>{s.name}</b><small>{s.workflow.steps.length} steps{when(s.savedAt) ? ` · ${when(s.savedAt)}` : ''}</small></button>
+                <button class="mini glass danger" aria-label="Delete {s.name}" onclick={() => (confirmDelete = s)}>✕</button>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+        <h3>Presets</h3>
         <ul class="opts">
           {#each presets as p (p.id)}
-            <li><button class="opt glass" onclick={() => (confirmPreset = p)}><b>{p.name}</b><small>{p.description}</small></button></li>
+            <li><button class="opt glass" onclick={() => (confirmLoad = { name: p.name, workflow: p.workflow })}><b>{p.name}</b><small>{p.description}</small></button></li>
           {/each}
         </ul>
       </div>
-    {:else if panel === 'export'}
+    </div>
+  {:else}
+    {#if panel === 'save'}
       <div class="panel glass thick">
-        <p class="hint">Your steps as text, to keep or send. Photos are not included.</p>
-        <textarea class="well code" readonly rows="5" bind:this={exportBox} value={json} onfocus={(e) => e.currentTarget.select()}></textarea>
+        <p class="hint">Keep a copy of these steps to load later, say one for weekdays and one for guests. Words, lists and timers are kept; photos stay with the steps in use.</p>
         <div class="row">
-          <button class="chip glass solid" onclick={copy}>Copy</button>
-          {#if copied === 'yes'}<span class="ok">Copied</span>{:else if copied === 'manual'}<span class="hint">Select the text above and copy it.</span>{/if}
+          <input class="well saveas" bind:value={saveName} maxlength="60" placeholder="Name" aria-label="Save as" onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void saveAs(); } }} />
+          <button class="chip glass solid" disabled={!saveName.trim()} onclick={saveAs}>{nameTaken ? 'Replace' : 'Save'}</button>
         </div>
-      </div>
-    {:else if panel === 'import'}
-      <div class="panel glass thick">
-        <p class="hint">Paste steps exported from here. They replace the steps below.</p>
-        <textarea class="well code" rows="4" placeholder={'{ "version": 1, "name": "…", "steps": [ … ] }'} bind:value={pasted}></textarea>
-        {#if inspected}
-          {#if !inspected.workflow}
-            <p class="error">{inspected.notes[0]}</p>
-          {:else}
-            <p class="ok">{inspected.workflow.steps.length} steps · {inspected.workflow.name}</p>
-            {#each inspected.notes as n (n)}<p class="hint">{n}</p>{/each}
-          {/if}
-        {/if}
-        <div class="row"><button class="chip glass solid" disabled={!inspected?.workflow} onclick={importIt}>Use these steps</button></div>
+        {#if savedNote}<p class="ok">{savedNote}</p>{:else if nameTaken}<p class="hint">A saved set has this name; saving replaces it.</p>{/if}
       </div>
     {/if}
 
@@ -241,7 +324,7 @@
         {#if sel}
           <p class="kind">Step {selIndex + 1} · {STEP_LIBRARY[sel.template].kind}{isSmart(sel.template) ? ' · follows the scale or machine' : ''}</p>
           <div class="preview glass thick" aria-label="Preview of this step in the guide">
-            <div class="pic">{#key sel.template}<GuideArt sceneKey={sel.template} stepId={sel.id} photoUrl={shownPhoto(sel.id)} still />{/key}</div>
+            <div class="pic">{#key sel.template}<GuideArt sceneKey={sel.template} stepId={sel.id} photoUrl={shownPhoto(sel.id)} weight={18} weighState="ok" grind="14" active />{/key}</div>
             <div class="pcopy">
               <b>{previewTitle}</b>
               {#if previewBody}<p>{previewBody}</p>{/if}
@@ -280,23 +363,45 @@
       </div>
     </div>
   {/if}
+  {/if}
 </div>
 
-{#if confirmPreset}
-  {@const p = confirmPreset}
+{#if confirmLoad}
+  {@const c = confirmLoad}
   <ConfirmDialog
-    title="Start from {p.name}?"
+    title="Load {c.name}?"
     message="This replaces the steps in the list. Nothing is saved until you press Save, and Cancel keeps what you had."
-    action="Use {p.name}"
-    onConfirm={() => usePreset(p)}
-    onClose={() => (confirmPreset = null)}
+    action="Load {c.name}"
+    onConfirm={() => load(c.workflow)}
+    onClose={() => (confirmLoad = null)}
+  />
+{/if}
+
+{#if confirmDelete}
+  {@const d = confirmDelete}
+  <ConfirmDialog
+    title="Delete {d.name}?"
+    message="The saved copy is deleted. The steps the guide uses now are not changed."
+    action="Delete"
+    onConfirm={() => void app.deleteSet(d.id)}
+    onClose={() => (confirmDelete = null)}
+  />
+{/if}
+
+{#if confirmRemoveSetup}
+  <ConfirmDialog
+    title="Remove Guide me?"
+    message="The tile on Home goes back to asking for a profile and coffee. The steps are kept."
+    action="Remove"
+    onConfirm={() => void removeSetup()}
+    onClose={() => (confirmRemoveSetup = false)}
   />
 {/if}
 
 {#if confirmDiscard}
   <ConfirmDialog
     title="Discard your changes?"
-    message="The steps and pictures you changed here haven't been saved."
+    message="What you changed here hasn't been saved."
     action="Discard changes"
     onConfirm={onClose}
     onClose={() => (confirmDiscard = false)}
@@ -324,12 +429,30 @@
 
   .top { flex: none; display: flex; align-items: center; gap: 10px; }
   .close { width: 42px; height: 42px; flex: none; border-radius: 50%; font-size: var(--t-md); color: var(--paper-dim); }
-  .name { flex: 1; min-width: 0; display: block; }
-  .title {
-    width: 100%; min-width: 0; background: none; border: 0; border-bottom: 2px solid transparent;
-    font-size: var(--t-xl); font-weight: 700; letter-spacing: -0.01em; padding: 3px 2px; color: var(--paper); user-select: text; font-family: inherit;
-  }
-  .title:focus { outline: none; border-bottom-color: rgb(255 255 255 / 0.35); }
+  h1 { font-size: var(--t-xl); font-weight: 700; letter-spacing: -0.01em; }
+  .tabs { flex: 1; display: flex; gap: 6px; justify-content: center; min-width: 0; }
+  .tab-btn { min-height: 44px; padding: 0 18px; border-radius: var(--radius-pill); color: var(--paper-dim); font-weight: 650; font-size: var(--t-sm); white-space: nowrap; }
+  .tab-btn.lit { color: var(--paper); box-shadow: inset 0 0 0 2px var(--go); }
+  .tab-btn small { color: var(--paper-faint); font-weight: 600; margin-left: 4px; }
+  .intro { flex: none; color: var(--paper-dim); font-size: var(--t-sm); max-width: 80ch; }
+  .setup { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+  .pane { min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 18px; }
+  .pane h3, .sheet h3 { flex: none; font-size: var(--t-xs); font-weight: 650; text-transform: uppercase; letter-spacing: 0.06em; color: var(--paper-faint); }
+  .search { flex: none; min-height: 44px; }
+  .opts-list { flex: 1; min-height: 0; overflow-y: auto; list-style: none; margin: 0; padding: 3px; display: grid; gap: 5px; align-content: start; }
+  .opts-list .opt { min-height: 48px; font-weight: 600; align-content: center; }
+  .opts-list .opt.lit { box-shadow: 0 0 0 3px var(--go), var(--glass-sheen); }
+  .none { color: var(--paper-faint); padding: 6px 3px; }
+  .brew { flex: none; display: grid; gap: 3px; padding: 10px 4px 0; border-top: 1px solid rgb(255 255 255 / 0.08); }
+  .brew b { font-size: var(--t-md); }
+  .brew span { color: var(--paper-faint); font-size: var(--t-xs); }
+  .setup-foot { flex: none; display: flex; gap: 8px; justify-content: space-between; flex-wrap: wrap; }
+  .chip.danger { color: #ffb3ab; }
+  .setname { flex: 0 1 260px; min-width: 140px; }
+  .setname input { min-height: 40px; font-size: var(--t-sm); }
+  .saved { display: flex; gap: 6px; align-items: center; }
+  .saved .opt { flex: 1; }
+  .saveas { flex: 1; min-height: 44px; }
   .meta { flex: none; color: var(--paper-faint); font-size: var(--t-sm); white-space: nowrap; }
   .actions { flex: none; display: flex; gap: 6px; }
   .actions button { min-height: 44px; padding: 0 18px; border-radius: 12px; font-weight: 650; color: var(--paper); }
@@ -339,6 +462,8 @@
   .tools { flex: none; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   .chip { min-height: 40px; padding: 0 14px; border-radius: var(--radius-pill); color: var(--paper); font-size: var(--t-xs); font-weight: 650; }
   .chip:disabled { opacity: 0.4; }
+  .chip.solid { color: var(--ink); }
+  .sheet-body { flex: 1; min-height: 0; overflow-y: auto; display: grid; gap: 10px; align-content: start; padding: 2px; }
 
   .panel { flex: none; display: grid; gap: 8px; padding: 12px; border-radius: 16px; }
   .sheet { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 18px; }
@@ -379,7 +504,6 @@
   label, .field { display: grid; gap: 4px; color: var(--paper-dim); font-size: var(--t-sm); min-width: 0; }
   input, textarea { min-width: 0; width: 100%; box-sizing: border-box; min-height: var(--touch); padding: 0 12px; border-radius: var(--radius-control); border: 1px solid rgb(255 255 255 / 0.08); color: var(--paper); font-size: var(--t-md); user-select: text; font-family: inherit; }
   textarea { padding: 8px 12px; resize: none; line-height: 1.3; min-height: 0; }
-  textarea.code { font-family: ui-monospace, monospace; font-size: var(--t-xs); }
   input:focus, textarea:focus { outline: none; border-color: rgb(255 255 255 / 0.45); }
   .hint { color: var(--paper-faint); font-size: var(--t-xs); }
   .ok { color: var(--go); font-weight: 650; font-size: var(--t-sm); }
@@ -393,7 +517,9 @@
 
   /* Narrow: one column that scrolls as a whole; the fields follow the list. */
   @media (max-width: 700px) {
-    .meta { display: none; }
+    .meta, h1 { display: none; }
+    .setup { grid-template-columns: 1fr; overflow-y: auto; }
+    .pane { min-height: 320px; }
     .cols { display: block; overflow-y: auto; }
     .list-wrap { margin-bottom: 14px; }
     .list { overflow: visible; }
@@ -402,6 +528,6 @@
     .pic { aspect-ratio: auto; height: 200px; }
   }
   /* While typing, the keyboard takes the room: no preview, a short list, the form gets the rest. */
-  :global(html.kb-open) .preview, :global(html.kb-open) .tools, :global(html.kb-open) .meta { display: none; }
+  :global(html.kb-open) .preview, :global(html.kb-open) .meta, :global(html.kb-open) .intro { display: none; }
   :global(html.kb-open) .cols { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); }
 </style>

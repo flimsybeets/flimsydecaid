@@ -9,7 +9,7 @@
   import ActivityView from './components/ActivityView.svelte';
   import { activityKind } from './lib/activity';
   import ProfileEditor from './features/profiles/ProfileEditor.svelte';
-  import StepsEditor from './features/guide/StepsEditor.svelte';
+  import GuideEditor from './features/guide/GuideEditor.svelte';
   import Guide from './features/guide/Guide.svelte';
   import Home from './features/home/Home.svelte';
   import Profiles from './features/profiles/Profiles.svelte';
@@ -38,7 +38,7 @@
   const activity = $derived(activityKind(app.machine.state?.state, app.guiding && app.guide !== null, app.guideTemplate === 'steam'));
   // Full-screen views are opaque, so what sits under them is hidden: no
   // painting, no animating, no touches, until they close.
-  const covered = $derived((app.guiding && app.guide !== null) || shotOpen || app.editing !== undefined || app.editingSteps || activity !== null);
+  const covered = $derived((app.guiding && app.guide !== null) || shotOpen || app.editing !== undefined || app.guideEditor !== null || activity !== null);
 
   // Sheet colour (Settings → Look): read by the tokens in styles.css.
   $effect(() => { document.documentElement.dataset.tint = app.panelTint; });
@@ -163,8 +163,8 @@
   <Guide covered={shotOpen} onclose={() => (app.guiding = false)} />
 {/if}
 
-{#if app.editingSteps}
-  <StepsEditor onClose={() => (app.editingSteps = false)} />
+{#if app.guideEditor}
+  <GuideEditor tab={app.guideEditor} onClose={() => (app.guideEditor = null)} />
 {/if}
 
 {#if app.editing !== undefined}

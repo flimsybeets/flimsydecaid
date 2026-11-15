@@ -8,14 +8,12 @@
   import { planLines, shotLines, type MiniLines, type TilePreview } from '../../lib/miniGraph';
   import BrewPanel from './BrewPanel.svelte';
   import CategoryDialog from './CategoryDialog.svelte';
-  import GuideSetup from '../guide/GuideSetup.svelte';
 
   // Wizard: category → profile → brew panel.
   let categoryId = $state<string | null>(null);
   let profileRoot = $state<string | null>(null);
   /** Category dialog: 'new', the category being edited, or closed. */
   let editingCategory = $state<Category | 'new' | null>(null);
-  let settingUpGuide = $state(false);
 
   // "Guide me" tile: what it's set to, and whether that still exists.
   const guideProfile = $derived(app.guide ? app.profileLineages.get(app.guide.profileRoot) : undefined);
@@ -23,7 +21,7 @@
   const guideReady = $derived(!!guideProfile && !!guideBean);
   function openGuide() {
     if (guideReady) app.guiding = true;
-    else settingUpGuide = true;
+    else app.guideEditor = 'setup';
   }
 
   const category = $derived(app.categories.categories.find((c) => c.id === categoryId) ?? null);
@@ -94,7 +92,7 @@
           <span class="name">Guide me</span>
           <span class="count">{guideReady ? `${guideProfile!.profile.title} · ${guideBean!.name}` : 'Your routine, so anyone at home can make it'}</span>
         </button>
-        {#if guideReady}<button class="change" onclick={() => (settingUpGuide = true)}>Change</button>{/if}
+        {#if guideReady}<button class="change" onclick={() => (app.guideEditor = 'setup')}>Change</button>{/if}
       </div>
       <button class="tile add glass" onclick={() => (editingCategory = 'new')}>
         <svg class="plus" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16" /></svg>
@@ -148,9 +146,6 @@
   </div>
 {/if}
 
-{#if settingUpGuide}
-  <GuideSetup onClose={() => (settingUpGuide = false)} onSaved={() => (app.guiding = true)} />
-{/if}
 
 {#if editingCategory}
   <CategoryDialog category={editingCategory === 'new' ? null : editingCategory} onClose={() => (editingCategory = null)} onDeleted={back} />

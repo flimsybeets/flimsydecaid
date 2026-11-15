@@ -168,9 +168,10 @@ async function shots(browser, pics) {
   // guide steps editor
   await home(p);
   await p.getByRole('button', { name: 'Change' }).click(); await wait(p, 900);
-  await p.getByRole('button', { name: 'Edit steps' }).click(); await wait(p, 1200);
+  await shot('08a-guide-setup', { pause: 800 });
+  await p.getByRole('tab', { name: /Steps/ }).click(); await wait(p, 1200);
   await p.locator('.list .pick').nth(3).click(); await wait(p, 600);
-  await shot('08-steps-editor', { pause: 800 });
+  await shot('08-steps-editor', { pause: 1600 });
   await p.getByRole('button', { name: 'Add a step' }).click(); await wait(p, 1500);
   await shot('08b-add-step', { pause: 1000 });
 
@@ -187,7 +188,7 @@ async function shots(browser, pics) {
   const names = {
     '01-home': 'home', '02-profiles': 'category-profiles', '03-brew': 'brew-panel', '04-shot': 'shot-view',
     '05-history': 'history', '06-beans': 'beans', '07-guide-0': 'guide-weigh', '07-guide-2': 'guide-grind',
-    '08-steps-editor': 'guide-steps-editor', '08b-add-step': 'guide-add-step', '09-profile-editor': 'profile-editor', '10-settings': 'settings',
+    '08a-guide-setup': 'guide-setup', '08-steps-editor': 'guide-steps-editor', '08b-add-step': 'guide-add-step', '09-profile-editor': 'profile-editor', '10-settings': 'settings',
   };
   for (const [from, to] of Object.entries(names)) {
     execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-i', path.join(TMP, `${from}.png`), '-c:v', 'libwebp', '-quality', '92', path.join(DOCS, `${to}.webp`)]);
@@ -267,7 +268,7 @@ async function video(browser, pics) {
   await tap(p.getByRole('button', { name: 'Close the guide' }), 1000);
   at('editor');
   await tap(p.getByRole('button', { name: 'Change' }), 1500);
-  await tap(p.getByRole('button', { name: 'Edit steps' }), 1800);
+  await tap(p.getByRole('tab', { name: /Steps/ }), 1800);
   await tap(p.locator('.list .pick').nth(3), 1800);
   await tap(p.getByRole('button', { name: 'Add a step' }), 3000);
   at('end');
