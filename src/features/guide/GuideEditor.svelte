@@ -39,6 +39,8 @@
       .filter(({ record }) => !query.trim() || record.profile.title.toLowerCase().includes(query.trim().toLowerCase()))
       .sort((a, b) => a.record.profile.title.localeCompare(b.record.profile.title)),
   );
+  // The chosen profile, pinned above the list (it also stays in its place below).
+  const chosenProfile = $derived(profileRoot ? app.profileLineages.get(profileRoot) ?? null : null);
   const coffees = $derived(app.beans.filter((b) => !b.archived && pickBag(b.id, app.batches)));
   const brew = $derived.by(() => {
     if (!profileRoot || !beanId) return null;
@@ -282,6 +284,12 @@
       <section class="pane glass thick">
         <h3>Profile</h3>
         <input class="search well" type="search" placeholder="Search {app.profileLineages.size} profiles" bind:value={query} aria-label="Search profiles" />
+        {#if chosenProfile}
+          <div class="pinned" aria-label="Chosen profile">
+            <span class="pin-label">Chosen</span>
+            <div class="opt glass lit">{chosenProfile.profile.title}</div>
+          </div>
+        {/if}
         <ul class="opts-list" role="radiogroup" aria-label="Profile">
           {#each profiles as { root, record } (root)}
             <li><button class="opt glass" class:lit={root === profileRoot} role="radio" aria-checked={root === profileRoot} onclick={() => (profileRoot = root)}>{record.profile.title}</button></li>
@@ -583,6 +591,10 @@
   .opts-list .opt { min-height: 48px; font-weight: 600; align-content: center; }
   .opts-list .opt.lit { box-shadow: 0 0 0 3px var(--go), var(--glass-sheen); }
   .none { color: var(--paper-faint); padding: 6px 3px; }
+  /* The chosen profile again, above the list, with a thin rule under it. */
+  .pinned { flex: none; display: grid; gap: 4px; padding: 3px 3px 10px; border-bottom: 1px solid rgb(255 255 255 / 0.14); }
+  .pin-label { font-size: var(--t-xs); font-weight: 700; color: var(--paper-faint); text-transform: uppercase; letter-spacing: 0.06em; }
+  .pinned .opt { min-height: 48px; font-weight: 600; align-content: center; box-shadow: 0 0 0 3px var(--go), var(--glass-sheen); }
   .brew { flex: none; display: grid; gap: 3px; padding: 10px 4px 0; border-top: 1px solid rgb(255 255 255 / 0.08); }
   .brew b { font-size: var(--t-md); }
   .brew span { color: var(--paper-faint); font-size: var(--t-xs); }
