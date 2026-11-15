@@ -17,7 +17,7 @@ A [Decaid](https://github.com/decentespresso/decaid) skin for the Decent DE1, fo
 - **History.** Touch the graph to read every value, rate and note shots, see your last shot with this profile and bag, brew one again with the same settings, upload to Visualizer.
 - **Beans.** Coffees with photos (the card takes its colour from the photo) and bags that count down as you brew.
 - **Profiles.** A full editor with a planned-shape chart, undo and redo. Start new ones from scratch, a Visualizer share code or a .json file, or duplicate one.
-- **Bottom bar.** Scale (tap to tare or reconnect), water and puck temperatures, the water tank, and steam and hot water buttons for temperature, amount and flow.
+- **Bottom bar.** Scale (tap to tare or reconnect), water and puck temperatures, the water tank, and Flush, Hot water and Steam buttons with their settings and Start / Stop (from the group head on a GHC machine).
 - **Looks.** Frosted glass over your own background photo, a photo screensaver with a clock (or Halloween ghosts), and a panel colour to taste.
 - **Every setting in one place.** Machine, shots and scale, sleep and wake times, tablet charging, Visualizer and Decaid itself, with tabs down the side.
 - **Updates itself.** Each time the machine wakes it checks for a newer version and shows a glowing Update button when one is ready.

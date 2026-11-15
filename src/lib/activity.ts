@@ -1,12 +1,12 @@
 // Full-screen views for what the machine is doing besides pouring a shot:
 // getting ready for one (the group-head brew button was pressed, the shot is
-// not pouring yet), flushing, and steaming. They follow the machine's own
+// not pouring yet), flushing, steaming and hot water. They follow the machine's own
 // state, so they appear when the group head or machine buttons are used and
 // close by themselves when the machine leaves the state.
 
 import type { MachineState } from '../api/types';
 
-export type ActivityKind = 'flush' | 'steam';
+export type ActivityKind = 'flush' | 'steam' | 'hotWater';
 
 /**
  * Which flush / steam view to show. While Guide me is open its rinse step
@@ -16,6 +16,7 @@ export type ActivityKind = 'flush' | 'steam';
 export function activityKind(state: MachineState | undefined, guiding: boolean, onSteamStep = false): ActivityKind | null {
   if (state === 'steam') return guiding && onSteamStep ? null : 'steam';
   if (state === 'flush' && !guiding) return 'flush';
+  if (state === 'hotWater') return 'hotWater';
   return null;
 }
 

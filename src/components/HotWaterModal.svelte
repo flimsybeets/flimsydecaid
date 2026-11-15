@@ -2,6 +2,7 @@
   import { app, gateway } from '../state/app.svelte';
   import Modal from './Modal.svelte';
   import Stepper from './Stepper.svelte';
+  import RunControl from './RunControl.svelte';
   import { parseAppSettings, RANGES as R } from '../lib/decaidSettings';
 
   // Hot water, from the bottom bar: a draft until Save, like Steam. Amount,
@@ -25,12 +26,15 @@
 
   const presets = [70, 80, 93];
 
+  async function persist() {
+    await app.saveWaterSettings({ hotWaterData: { targetTemperature: temperature, volume, duration, flow } });
+    if (byScale !== null && byScale !== byScaleWas) { await gateway.saveAppSettings({ stopHotWaterAtWeight: byScale }); byScaleWas = byScale; }
+  }
   async function save() {
     saving = true;
     error = null;
     try {
-      await app.saveWaterSettings({ hotWaterData: { targetTemperature: temperature, volume, duration, flow } });
-      if (byScale !== null && byScale !== byScaleWas) await gateway.saveAppSettings({ stopHotWaterAtWeight: byScale });
+      await persist();
       onClose();
     } catch (e) {
       error = `Hot water settings weren't saved: ${(e as Error).message}`;
@@ -61,6 +65,8 @@
     <span class="state">{byScale ? 'On' : 'Off'}</span>
   </button>
   <p class="note">{byScale ? 'With a scale connected, it tares and stops when the cup holds the amount above. Without one, the machine stops at its own measure.' : 'The machine stops at its own measure of the amount, or at the longest time.'}</p>
+
+  <RunControl kind="hotWater" label="Start hot water" detail={`${volume} ${byScale ? 'g' : 'ml'} at ${temperature}°C${byScale ? ', stopped by the scale' : ''}.`} beforeStart={persist} onStarted={onClose} />
 
   {#if error}<p class="error" role="alert">{error}</p>{/if}
 

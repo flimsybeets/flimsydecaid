@@ -294,7 +294,9 @@ export function createMockGateway(): Gateway {
       }
     } else {
       pressure *= 0.7;
-      flow = state === 'flush' ? flow + (6 - flow) * 0.2 : flow * 0.7;
+      const pumping = state === 'flush' ? 6 : state === 'hotWater' ? (workflow.hotWaterData?.flow ?? 6) : 0;
+      flow = pumping ? flow + (pumping - flow) * 0.2 : flow * 0.7;
+      if (state === 'hotWater') weight += flow * 0.1;
       mix += (targetTemp - 1.5 - mix) * 0.01;
       group += (targetTemp - group) * 0.01;
     }
@@ -381,6 +383,11 @@ export function createMockGateway(): Gateway {
       if (next === 'flush') {
         const secs = Math.min(8, workflow.rinseData?.duration ?? 5);
         setTimeout(() => { if (state === 'flush') state = 'idle'; }, secs * 1000);
+      }
+      // Hot water pours for its time (at most 10 s here).
+      if (next === 'hotWater') {
+        const secs = Math.min(10, workflow.hotWaterData?.duration ?? 10);
+        setTimeout(() => { if (state === 'hotWater') state = 'idle'; }, secs * 1000);
       }
       // Steam runs for its max run time, then stops (Stop ends it sooner).
       if (next === 'steam') {

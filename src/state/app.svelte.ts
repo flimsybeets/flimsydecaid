@@ -936,6 +936,8 @@ class AppState {
 
   async startEspresso(): Promise<void> { await gateway.requestState('espresso'); }
   async stop(): Promise<void> { await gateway.requestState('idle'); }
+  /** Flush, steam or hot water from the skin. A GHC machine only starts these from the group head (its firmware ignores the request), so the UI offers them only without one. */
+  async startActivity(kind: 'flush' | 'steam' | 'hotWater'): Promise<void> { await gateway.requestState(kind); }
   async tare(): Promise<void> { await gateway.tareScale(); }
   /** Set (or with null, clear) the bag a profile's brew panel starts on. */
   async setDefaultBag(profileRoot: string, batchId: string | null): Promise<void> {

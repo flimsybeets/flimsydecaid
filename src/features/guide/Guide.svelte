@@ -5,6 +5,7 @@
   import { ratioText, shotStats } from '../../lib/history';
   import { followProgress, pickBag, planBrew, weighState } from '../../lib/guide';
   import { afterPull, canGoBack, fillText, timerText } from '../../lib/workflow';
+  import { heaterOn } from '../../lib/steam';
 
   // "Guide me": the whole routine for one profile + coffee, one step at a
   // time, from weighing beans to rinsing the group. The steps are data (the
@@ -38,6 +39,12 @@
   const steady = () => { const now = performance.now(); if (now - lastNav < 300) return false; lastNav = now; return true; };
   const next = () => { if (steady()) go(index + 1); };
   const back = () => { if (steady() && canGoBack(app.guideWorkflow, index)) go(index - 1); };
+  // Flush and steam from the guide on machines without a group head controller.
+  let runError = $state<string | null>(null);
+  async function run(kind: 'flush' | 'steam') {
+    runError = 'busy';
+    try { await app.startActivity(kind); runError = null; } catch (e) { runError = `Couldn't start: ${(e as Error).message}`; }
+  }
 
   // The app needs to know the current kind of step: on a steam step the guide shows the steam itself.
   $effect(() => { app.guideTemplate = kind; });
@@ -227,16 +234,29 @@
               {:else if rinse === 'finished'}
                 <p class="waiting ok">Clean</p>
               {:else}
-                <p class="waiting"><span class="dot"></span>Press the flush button on the machine</p>
+                {#if app.ghc}
+                  <p class="waiting"><span class="dot"></span>Press the flush button on the group head</p>
+                {:else}
+                  <button class="go-btn start" disabled={runError === 'busy'} onclick={() => run('flush')}>Start flush</button>
+                {/if}
               {/if}
+              {#if runError && runError !== 'busy'}<p class="error">{runError}</p>{/if}
             {:else if kind === 'steam'}
               {#if machineState === 'steam'}
                 <p class="waiting"><span class="dot"></span>Steaming…</p>
               {:else if steam === 'finished'}
                 <p class="waiting ok">Steamed</p>
               {:else}
-                <p class="waiting"><span class="dot"></span>Press the steam button on the machine</p>
+                {#if app.ghc}
+                  <p class="waiting"><span class="dot"></span>Press the steam button on the group head</p>
+                {:else if !heaterOn(app.steam)}
+                  <p class="waiting">The steam heater is off.</p>
+                  <button class="tare glass" onclick={() => void app.setSteam({ on: true })}>Turn the steam heater on</button>
+                {:else}
+                  <button class="go-btn start" disabled={runError === 'busy'} onclick={() => run('steam')}>Start steam</button>
+                {/if}
               {/if}
+              {#if runError && runError !== 'busy'}<p class="error">{runError}</p>{/if}
             {:else if kind === 'done'}
               <dl class="summary">
                 <div><dt>In</dt><dd>{plan.dose.toFixed(1)}<small>g</small></dd></div>

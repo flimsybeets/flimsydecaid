@@ -3,8 +3,9 @@
   import { heaterOn } from '../lib/steam';
   import { waterFill } from '../lib/water';
 
-  let { onSteam, onHotWater }: { onSteam: () => void; onHotWater: () => void } = $props();
+  let { onSteam, onHotWater, onFlush }: { onSteam: () => void; onHotWater: () => void; onFlush: () => void } = $props();
   const hot = $derived(app.workflow.hotWaterData);
+  const rinse = $derived(app.workflow.rinseData);
 
   const scaleName = $derived(app.scaleDevice?.name ?? 'Scale');
   const steamIsOn = $derived(heaterOn(app.steam));
@@ -49,6 +50,11 @@
       </span>
     </div>
 
+  <button class="hotwater flush glass" onclick={onFlush} aria-haspopup="dialog">
+    <span class="label">Flush</span>
+    <span class="value">{rinse ? `${rinse.duration}` : '–'}<small>{rinse ? 's' : ''}</small></span>
+  </button>
+
   <button class="hotwater glass" onclick={onHotWater} aria-haspopup="dialog">
     <span class="label">Hot water</span>
     <span class="value">{hot ? `${hot.targetTemperature}°` : '–'}<small>{hot ? `${hot.volume} ml` : ''}</small></span>
@@ -74,7 +80,7 @@
 
   footer {
     display: grid;
-    grid-template-columns: minmax(190px, 1fr) auto auto auto minmax(165px, auto);
+    grid-template-columns: minmax(170px, 1fr) auto auto auto auto minmax(150px, auto);
     align-items: stretch;
     gap: 9px;
     margin: 8px var(--gutter) 10px;
@@ -156,7 +162,7 @@
   .steam.on .value { color: var(--ink); }
 
   @media (max-width: 900px) {
-    footer { grid-template-columns: 1fr auto auto auto; }
+    footer { grid-template-columns: 1fr auto auto auto auto; }
     .temps { display: none; }
   }
 </style>

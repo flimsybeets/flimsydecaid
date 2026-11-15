@@ -13,7 +13,7 @@ A [Decaid](https://github.com/decentespresso/decaid) skin for the Decent DE1, fo
 - **Lands on your target weight.** Coffee keeps dripping after the pump stops, so the skin learns from your shots how much still drips in (part fixed, part following the flow) and gives every profile its own stop-early setting, put on the machine with the profile. Leave it to tune itself after every shot, or pick values yourself.
 - **History.** Touch the graph to read every value, rate and note shots, brew one again with the same settings, upload to Visualizer.
 - **Beans.** Coffees with photos (the card takes its colour from the photo), bags that count down as you brew.
-- **Steam and hot water at hand.** The bottom bar shows the scale, temperatures and water tank, with steam and hot water buttons to change temperature, amount and flow, or stop hot water by the scale.
+- **Flush, hot water and steam at hand.** The bottom bar shows the scale, temperatures and water tank, with Flush, Hot water and Steam buttons: change their settings and start or stop them right there. Machines with a group head controller start them from the group head as usual; the skin knows which you have.
 - **Looks.** Frosted glass over your own background photo, a photo screensaver with a clock, and a panel colour to taste.
 - **Every setting in one place.** The machine, scale, sleep and wake times, tablet charging and Decaid itself, in plain words, with tabs down the side.
 - **New profiles from anywhere.** Start from scratch, a Visualizer share code or a .json file.
