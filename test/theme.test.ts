@@ -3,13 +3,13 @@ import { parseTheme } from '../src/lib/theme';
 
 describe('parseTheme', () => {
   it('treats a missing key as off', () => {
-    expect(parseTheme(null)).toEqual({ halloween: false, clock: true, tilePreview: 'shot', bgTone: -45, panelTint: 'dark' });
-    expect(parseTheme(undefined)).toEqual({ halloween: false, clock: true, tilePreview: 'shot', bgTone: -45, panelTint: 'dark' });
+    expect(parseTheme(null)).toEqual({ halloween: false, clock: true, tilePreview: 'shot', bgTone: -45, panelTint: 'dark', noGhc: false });
+    expect(parseTheme(undefined)).toEqual({ halloween: false, clock: true, tilePreview: 'shot', bgTone: -45, panelTint: 'dark', noGhc: false });
   });
   it('reads halloween only when exactly true', () => {
-    expect(parseTheme({ halloween: true })).toEqual({ halloween: true, clock: true, tilePreview: 'shot', bgTone: -45, panelTint: 'dark' });
-    expect(parseTheme({ halloween: 'yes' })).toEqual({ halloween: false, clock: true, tilePreview: 'shot', bgTone: -45, panelTint: 'dark' });
-    expect(parseTheme({})).toEqual({ halloween: false, clock: true, tilePreview: 'shot', bgTone: -45, panelTint: 'dark' });
+    expect(parseTheme({ halloween: true })).toEqual({ halloween: true, clock: true, tilePreview: 'shot', bgTone: -45, panelTint: 'dark', noGhc: false });
+    expect(parseTheme({ halloween: 'yes' })).toEqual({ halloween: false, clock: true, tilePreview: 'shot', bgTone: -45, panelTint: 'dark', noGhc: false });
+    expect(parseTheme({})).toEqual({ halloween: false, clock: true, tilePreview: 'shot', bgTone: -45, panelTint: 'dark', noGhc: false });
   });
   it('keeps the clock on unless it was turned off', () => {
     expect(parseTheme({ clock: false }).clock).toBe(false);
@@ -17,10 +17,12 @@ describe('parseTheme', () => {
   });
   it('reads the panel tint, defaulting to dark', () => {
     expect(parseTheme({ panelTint: 'plum' }).panelTint).toBe('plum');
+    expect(parseTheme({ noGhc: true }).noGhc).toBe(true);
+    expect(parseTheme({ noGhc: 'yes' }).noGhc).toBe(false);
     expect(parseTheme({ panelTint: 'pink' }).panelTint).toBe('dark');
   });
   it('ignores non-objects', () => {
-    expect(parseTheme(true)).toEqual({ halloween: false, clock: true, tilePreview: 'shot', bgTone: -45, panelTint: 'dark' });
-    expect(parseTheme([true])).toEqual({ halloween: false, clock: true, tilePreview: 'shot', bgTone: -45, panelTint: 'dark' });
+    expect(parseTheme(true)).toEqual({ halloween: false, clock: true, tilePreview: 'shot', bgTone: -45, panelTint: 'dark', noGhc: false });
+    expect(parseTheme([true])).toEqual({ halloween: false, clock: true, tilePreview: 'shot', bgTone: -45, panelTint: 'dark', noGhc: false });
   });
 });

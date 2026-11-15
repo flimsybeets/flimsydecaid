@@ -2,6 +2,7 @@
   import { app, gateway } from '../../state/app.svelte';
   import Stepper from '../../components/Stepper.svelte';
   import Choice from './Choice.svelte';
+  import Switch from './Switch.svelte';
   import SaveStatus from './SaveStatus.svelte';
   import { Saver } from './saving.svelte';
   import { REFILL_MAX_MM, REFILL_MIN_MM } from '../../lib/water';
@@ -54,3 +55,14 @@
       bind:value={() => m?.fan, (v) => { if (v !== undefined) setM('fan', v); }} disabled={!m} />
   </div>
 </section>
+
+<section class="card glass frost">
+  <h2>Group head controller</h2>
+  <Switch label="Act as if there's no group head controller" on={app.imitateNoGhc} onchange={(v) => app.setImitateNoGhc(v)}
+    note={app.imitateNoGhc
+      ? 'The skin shows Start shot, and Start on flush, hot water and steam, as on a machine without one. If your machine ignores a start from the tablet, use the group head as usual.'
+      : app.machineGhc
+        ? 'This machine has a group head controller, so the skin leaves starting to the group head. Turn this on to get the Start buttons on the tablet too.'
+        : 'This machine has no group head controller, so the Start buttons already show.'} />
+</section>
+
