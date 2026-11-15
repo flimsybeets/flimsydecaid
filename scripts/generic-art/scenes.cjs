@@ -269,14 +269,16 @@ scenes.pull = (S) => {
         },
       });
     },
-    pf: () => T.portafilter(S, cam, gx, pf0, gz, { content: 'none', ang: 150, tilt: -2 }),
-    water: () => {
+    // the stream is drawn first, so the portafilter covers its top and it comes out from under the basket
+    pf: () => { pour(); T.portafilter(S, cam, gx, pf0, gz, { content: 'none', ang: 150, tilt: -2 }); },
+  });
+  function pour() {
       // one stream from the bottomless basket: wide where it leaves the basket,
       // narrowing fast into a thin thread that lands in the middle of the cup;
       // crema-coloured flecks run down it, a few drops fall beside it
-      const top = pf0 - 15, bot = sc.top + 30, mid = top - (top - bot) * 0.28;
+      const top = pf0 - 8, bot = sc.top + 30, mid = top - (top - bot) * 0.42;
       const ac = aboveClip(S, cup.ell(cup.rimY, cup.rimR));
-      const tl = cam.P(gx - 10, top, gz), tr = cam.P(gx + 10, top, gz);
+      const tl = cam.P(gx - 13, top, gz), tr = cam.P(gx + 13, top, gz);
       const ml = cam.P(gx - 2.2, mid, (gz + cz) / 2), mr = cam.P(gx + 2.2, mid, (gz + cz) / 2);
       const bl = cam.P(gx - 1.4, bot, cz), br = cam.P(gx + 1.4, bot, cz);
       const q = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
@@ -295,8 +297,7 @@ scenes.pull = (S) => {
         S.raw(`<g style="--fall:${f(fall)}px"><ellipse class="k-pourdrop d${i} fx" cx="${f(s0[0])}" cy="${f(s0[1])}" rx="1.1" ry="1.6" fill="#7a4019"/></g>`);
       }
       S.raw('</g></g>');
-    },
-  });
+  }
   const e = cam.ell(gx, DE.gTop, gz, DE.gR);
   return { vb: frameAround([[e.cx - e.rx - 56, e.cy - e.ry - 6], [e.cx + e.rx + 56, e.cy - e.ry - 6], cam.P(gx - 60, ty - 4, gz + 90), cam.P(gx + 70, ty - 4, gz + 80), cam.P(-66, pf0 - 8, 168)], 0.03) };
 };
