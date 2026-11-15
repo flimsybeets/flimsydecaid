@@ -4,7 +4,8 @@
   import GuideArt from './GuideArt.svelte';
   import { ratioText, shotStats } from '../../lib/history';
   import { followProgress, pickBag, planBrew, weighState } from '../../lib/guide';
-  import { afterPull, canGoBack, fillText, timerText } from '../../lib/workflow';
+  import { afterPull, canGoBack, fillText, showsCoffee, timerText } from '../../lib/workflow';
+  import CoffeePic from './CoffeePic.svelte';
   import { steamBlockedText, steamReadiness } from '../../lib/steam';
   import RunControl from '../../components/RunControl.svelte';
 
@@ -188,6 +189,7 @@
             <div class="art-in" class:tappable={kind === 'weigh' && !app.scaleConnected && !app.scanning} onclick={() => { if (kind === 'weigh' && !app.scaleConnected && !app.scanning) app.scanForScale(); }}>
               <GuideArt sceneKey={kind} stepId={cur.id} weight={kind === 'weigh' && app.scaleConnected ? app.weight : null} weighState={kind === 'weigh' ? weigh.state : 'empty'} grind={plan.grind} active={follow === 'rinsing'} />
             </div>
+            {#if cur.showCoffee && showsCoffee(cur.template)}<CoffeePic beanId={setup.beanId} />{/if}
           {/key}
         {/if}
       </div>
@@ -352,7 +354,7 @@
   .rail li.now .lbl { color: var(--paper); font-weight: 700; }
 
   .stage { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 18px; }
-  .art { border-radius: 27px; padding: 16px; display: grid; min-height: 0; overflow: hidden; }
+  .art { position: relative; border-radius: 27px; padding: 16px; display: grid; min-height: 0; overflow: hidden; }
   .art-in { min-height: 0; animation: art-in 420ms cubic-bezier(.2, .8, .2, 1); }
   @keyframes art-in { from { opacity: 0; transform: translateX(30px) scale(0.96); } }
   .copy { min-height: 0; display: flex; align-items: center; }
